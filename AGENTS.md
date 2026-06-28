@@ -113,6 +113,7 @@ The addon has 5 main tabs: **Todo**, **Notes**, **Loot**, **Price**, **Settings*
 - Each row shows: enemy name (red, 4-char class abbrev, activity)
 - Left-click row = targets the enemy via SecureActionButtonTemplate macro
 - Right-click row = dismisses enemy from the list (session-only)
+- Eye icon toggle (center-right of monitor) synced bidirectionally with Settings > Enemy > Enable checkbox
 - Enemies fade after 120s of inactivity
 - Max 10 enemies shown
 - **Aggressive flash**: fullscreen pulsing (pulsating 0.18–1.0 alpha over 2.6s)

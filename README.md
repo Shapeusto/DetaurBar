@@ -52,6 +52,7 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
 ### Enemy Detection
 - Detects hostile players via combat events, mouseover, and target scanning
 - **Draggable monitor window** with ornate WoW dialog frame (toggle via right-click minimap icon)
+- Eye icon toggle on monitor (center-right) — synced with Settings > Enemy > Enable checkbox
 - Resizable width (200–500px) with bottom-right grip
 - Each row shows: enemy name (red), level + 4-char class abbrev, current activity
 - **Left-click** row → targets the enemy
