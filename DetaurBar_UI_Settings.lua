@@ -627,7 +627,11 @@ local enemyEnableCheckbox, enemyEnableLabel = CreateSettingsCheck(sc, "Enable En
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.enemyEnabled = self:GetChecked() and true or false
     DetaurBar.Enemy.UpdateZoneType()
+    if DetaurBar.Enemy.UpdateToggleIcon then
+        DetaurBar.Enemy.UpdateToggleIcon()
+    end
 end)
+DetaurBar.UI.enemyEnableCheckbox = enemyEnableCheckbox
 DetaurBar.UI.SetSimpleTooltip(enemyEnableCheckbox, "Enable Enemy Detection", "Detect nearby hostile players via combat events.")
 
 local enemySectionLabel = CreateSettingsLabel(sc, "Alert on Detection", 8, -40)
@@ -748,6 +752,7 @@ function DetaurBar.UI.UpdateSettingsPanel()
     end
 
     enemyEnableCheckbox:SetChecked(settings.enemyEnabled and 1 or nil)
+    if DetaurBar.Enemy.UpdateToggleIcon then DetaurBar.Enemy.UpdateToggleIcon() end
     enemyFlashCheckbox:SetChecked(settings.enemyFlashEnabled and 1 or nil)
     SetButtonGroupValue(settingsEnemyColorButtons, settings.enemyFlashColor or "YELLOW")
     SetButtonGroupValue(settingsEnemyStyleButtons, settings.enemyFlashStyle or "AGGRESSIVE")
@@ -841,6 +846,7 @@ function DetaurBar.UI.SaveSettings()
     end
 
     settings.enemyEnabled = enemyEnableCheckbox:GetChecked() and true or false
+    if DetaurBar.Enemy.UpdateToggleIcon then DetaurBar.Enemy.UpdateToggleIcon() end
     settings.enemyFlashEnabled = enemyFlashCheckbox:GetChecked() and true or false
     settings.enemyPlaySound = enemySoundCheckbox:GetChecked() and true or false
     for key, btn in pairs(settingsEnemyColorButtons) do

@@ -266,12 +266,13 @@ end
 local monitorFrame
 local monitorRows = {}
 local monitorEmptyText
+local monitorToggleBtn
 
 local function CreateMonitor()
     if monitorFrame then return end
 
     monitorFrame = CreateFrame("Frame", "DetaurBarEnemyMonitor", UIParent)
-    monitorFrame:SetSize(260, 60)
+    monitorFrame:SetSize(300, 60)
     monitorFrame:SetPoint("CENTER", UIParent, "CENTER", 300, -100)
     monitorFrame:SetMovable(true)
     monitorFrame:SetResizable(true)
@@ -308,6 +309,35 @@ local function CreateMonitor()
         monitorFrame:StopMovingOrSizing()
     end)
 
+    -- Enable/disable toggle button (aligned with first row)
+    monitorToggleBtn = CreateFrame("Button", nil, monitorFrame)
+    monitorToggleBtn:SetSize(20, 20)
+    monitorToggleBtn:SetPoint("RIGHT", monitorFrame, "RIGHT", -18, 0)
+    monitorToggleBtn:SetFrameLevel(monitorFrame:GetFrameLevel() + 50)
+    monitorToggleBtn:SetNormalTexture("Interface\\Icons\\INV_Misc_Eye_01")
+    monitorToggleBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+    local toggleIcon = monitorToggleBtn:GetNormalTexture()
+    monitorToggleBtn:SetScript("OnClick", function()
+        local settings = GetSettings()
+        settings.enemyEnabled = not settings.enemyEnabled
+        DetaurBar.Enemy.UpdateZoneType()
+        if settings.enemyEnabled then
+            toggleIcon:SetDesaturated(false)
+        else
+            toggleIcon:SetDesaturated(true)
+        end
+        if DetaurBar.UI and DetaurBar.UI.enemyEnableCheckbox then
+            DetaurBar.UI.enemyEnableCheckbox:SetChecked(settings.enemyEnabled and 1 or nil)
+        end
+    end)
+    -- Update toggle icon state when monitor is shown
+    DetaurBar.Enemy.UpdateToggleIcon = function()
+        local settings = GetSettings()
+        local enabled = settings.enemyEnabled
+        toggleIcon:SetDesaturated(not enabled)
+    end
+    DetaurBar.Enemy.UpdateToggleIcon()
+
     monitorFrame:SetScript("OnSizeChanged", function()
         DetaurBar.Enemy.UpdateMonitor()
     end)
@@ -334,8 +364,8 @@ local function CreateMonitor()
         row.infoText:SetPoint("LEFT", row.nameText, "RIGHT", 2, 0)
         row.infoText:SetWidth(60)
         row.activityText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        row.activityText:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-        row.activityText:SetWidth(70)
+        row.activityText:SetPoint("RIGHT", row, "RIGHT", -36, 0)
+        row.activityText:SetWidth(90)
         -- PreClick runs in secure context before the secure action; safe for SetAttribute
         row:SetScript("PreClick", function(self)
             self:SetAttribute("type1", "macro")
@@ -386,6 +416,8 @@ function DetaurBar.Enemy.UpdateMonitor()
         if i == 1 then
             row:SetPoint("TOPLEFT", monitorFrame, "TOPLEFT", 14, -innerTop)
             row:SetPoint("TOPRIGHT", monitorFrame, "TOPRIGHT", -16, -innerTop)
+            -- Align toggle button with first row
+            monitorToggleBtn:SetPoint("TOP", monitorRows[1], "TOP", 0, (rowHeight - 20) / 2)
         else
             row:SetPoint("TOPLEFT", monitorRows[i-1], "BOTTOMLEFT", 0, -spacing)
             row:SetPoint("TOPRIGHT", monitorRows[i-1], "BOTTOMRIGHT", 0, -spacing)
@@ -437,6 +469,9 @@ end
 function DetaurBar.Enemy.ShowMonitor()
     if not monitorFrame then CreateMonitor() end
     monitorFrame:Show()
+    if DetaurBar.Enemy.UpdateToggleIcon then
+        DetaurBar.Enemy.UpdateToggleIcon()
+    end
     DetaurBar.Enemy.UpdateMonitor()
 end
 
