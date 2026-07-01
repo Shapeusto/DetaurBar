@@ -638,11 +638,11 @@ local function CreateRowFrame(index)
             if row.itemCategory and row.itemCategory:find("notes_") then
                 local note = DetaurBar.Data.GetItemById(row.itemCategory, self.itemId)
                 if note and note.title then
-                    local editBox = ChatEdit_ChooseBoxForSend()
-                    if editBox and editBox:IsShown() then
-                        editBox:Insert(note.title)
-                    else
-                        ChatFrame_OpenChat(note.title)
+                    local eb = ChatEdit_GetActiveWindow() or ChatFrame1.editBox
+                    if eb then
+                        eb:SetText(note.title)
+                        eb:HighlightText(0, string.len(note.title) or 0)
+                        eb:SetFocus()
                     end
                 end
             end
@@ -782,11 +782,11 @@ local function CreateRowFrame(index)
         if row.itemId and row.itemCategory and row.itemCategory:find("notes_") then
             local note = DetaurBar.Data.GetItemById(row.itemCategory, row.itemId)
             if note and note.title then
-                local editBox = ChatEdit_ChooseBoxForSend()
-                if editBox and editBox:IsShown() then
-                    editBox:Insert(note.title)
-                else
-                    ChatFrame_OpenChat(note.title)
+                local eb = ChatEdit_GetActiveWindow() or ChatFrame1.editBox
+                if eb then
+                    eb:SetText(note.title)
+                    eb:HighlightText(0, string.len(note.title) or 0)
+                    eb:SetFocus()
                 end
             end
         end
@@ -795,8 +795,8 @@ local function CreateRowFrame(index)
     copyBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:ClearLines()
-        GameTooltip:AddLine("Copy Note to Chat", 1.0, 1.0, 1.0)
-        GameTooltip:AddLine("Click to copy this note's text into the chat window.", 0.5, 0.5, 0.5)
+        GameTooltip:AddLine("Copy Note Text", 1.0, 1.0, 1.0)
+        GameTooltip:AddLine("Click to copy note text to chat edit box (Ctrl+C to clipboard).", 0.5, 0.5, 0.5)
         GameTooltip:Show()
     end)
     
@@ -927,6 +927,7 @@ function DetaurBar.UI.RefreshTasks()
             row.itemIcon:Hide()
             row.swapBtn:Hide()
             row.copyBtn:Show()
+            row.deleteBtn:Show()
             
             textWidth = width - 60
             row.titleText:SetPoint("LEFT", row, "LEFT", 8, 0)
