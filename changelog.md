@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-02 — Notes clipboard + delete button fix
+
+### Pridané: Delete button na Notes riadkoch
+- Notes riadky teraz zobrazujú delete (X) tlačidlo — `row.deleteBtn:Show()`
+- Predtým bolo tlačidlo skryté pre všetky notes kategórie
+
+### Zmenené: Klik na note kopíruje text do clipboardu
+- Namiesto `ChatFrame_OpenChat()` (otváralo chat) používa skrytý `EditBox`
+  s `InputBoxTemplate`, umiestnený off-screen
+- Po kliknutí: text sa nastaví, vyberie (highlight) a editačný box dostane focus
+- Hráč stlačí Ctrl+C a môže vložiť kamkoľvek
+- Rovnaké správanie pre klik na riadok aj na copy (📋) tlačidlo
+
 ## 2026-07-01 — Icon cache, gem icon fixes, AH pagination
 
 ### Opravené: Chýbajúce/nesprávne ikony gemov
