@@ -616,13 +616,32 @@ local function CreateRowFrame(index)
                         end
                     end
                 end
-            elseif row.itemCategory and row.itemCategory:find("notes_") then
+            else
+                if row.itemCategory == "price" then
+                    if DetaurBar.UI.expandedPriceItemId == self.itemId then
+                        DetaurBar.UI.expandedPriceItemId = nil
+                    else
+                        DetaurBar.UI.expandedPriceItemId = self.itemId
+                    end
+                    -- Also select for threshold row in "Chart" subtab
+        if DetaurBar.UI.activePriceItemSubTab == "Chart" then
+                        DetaurBar.UI.SetSelectedPriceItem(self.itemId)
+                    end
+                    DetaurBar.UI.RefreshTasks()
+                end
+            end
+        end
+    end)
+
+    row:SetScript("OnMouseUp", function(self, button)
+        if button == "LeftButton" and not draggedNote then
+            if row.itemCategory and row.itemCategory:find("notes_") then
                 local note = DetaurBar.Data.GetItemById(row.itemCategory, self.itemId)
                 if note and note.title then
                     if not DetaurBar.ClipboardEditBox then
-                        DetaurBar.ClipboardEditBox = CreateFrame("EditBox", nil, UIParent, "InputBoxTemplate")
+                        DetaurBar.ClipboardEditBox = CreateFrame("EditBox", nil, UIParent)
                         DetaurBar.ClipboardEditBox:SetSize(1, 1)
-                        DetaurBar.ClipboardEditBox:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -100, -100)
+                        DetaurBar.ClipboardEditBox:Hide()
                         DetaurBar.ClipboardEditBox:SetScript("OnEditFocusLost", function(self) self:Hide() end)
                     end
                     local eb = DetaurBar.ClipboardEditBox
@@ -631,17 +650,6 @@ local function CreateRowFrame(index)
                     eb:Show()
                     eb:SetFocus()
                 end
-            elseif row.itemCategory == "price" then
-                if DetaurBar.UI.expandedPriceItemId == self.itemId then
-                    DetaurBar.UI.expandedPriceItemId = nil
-                else
-                    DetaurBar.UI.expandedPriceItemId = self.itemId
-                end
-                -- Also select for threshold row in "Chart" subtab
-                if DetaurBar.UI.activePriceItemSubTab == "Chart" then
-                    DetaurBar.UI.SetSelectedPriceItem(self.itemId)
-                end
-                DetaurBar.UI.RefreshTasks()
             end
         end
     end)
@@ -780,9 +788,9 @@ local function CreateRowFrame(index)
             local note = DetaurBar.Data.GetItemById(row.itemCategory, row.itemId)
             if note and note.title then
                 if not DetaurBar.ClipboardEditBox then
-                    DetaurBar.ClipboardEditBox = CreateFrame("EditBox", nil, UIParent, "InputBoxTemplate")
+                    DetaurBar.ClipboardEditBox = CreateFrame("EditBox", nil, UIParent)
                     DetaurBar.ClipboardEditBox:SetSize(1, 1)
-                    DetaurBar.ClipboardEditBox:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -100, -100)
+                    DetaurBar.ClipboardEditBox:Hide()
                     DetaurBar.ClipboardEditBox:SetScript("OnEditFocusLost", function(self) self:Hide() end)
                 end
                 local eb = DetaurBar.ClipboardEditBox
