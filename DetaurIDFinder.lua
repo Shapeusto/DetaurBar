@@ -247,9 +247,29 @@ SlashCmdList["DETAURID"] = function(msg)
         DoScan()
     elseif msg == "save" then
         SaveScanResults()
+    elseif msg:match("^icon") then
+        local _, _, rest = msg:find("^icon%s+(.*)$")
+        if rest then
+            for id in rest:gmatch("%d+") do
+                id = tonumber(id)
+                local name = GetItemInfo(id)
+                if name then
+                    local icon = select(10, GetItemInfo(id))
+                    DEFAULT_CHAT_FRAME:AddMessage(
+                        "[" .. id .. "] " .. name .. " -> " .. (icon or "(nil)")
+                    )
+                else
+                    DEFAULT_CHAT_FRAME:AddMessage(
+                        "[" .. id .. "] Neni v cache, skus neskor"
+                    )
+                end
+            end
+        else
+            DEFAULT_CHAT_FRAME:AddMessage("|cffFFD700Pouzitie:|r /detaurid icon <id1> <id2> ...")
+        end
     else
         DEFAULT_CHAT_FRAME:AddMessage(
-            "|cffFFD700DetaurIDFinder:|r  /detaurid scan  |  /detaurid save"
+            "|cffFFD700DetaurIDFinder:|r  /detaurid scan  |  /detaurid save  |  /detaurid icon"
         )
     end
 end

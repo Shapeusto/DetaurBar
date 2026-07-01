@@ -26,24 +26,30 @@ function DetaurBar.Data.InitializeDB()
     if not DetaurBarDB.todo.day then DetaurBarDB.todo.day = {} end
     if not DetaurBarDB.todo.week then DetaurBarDB.todo.week = {} end
     if not DetaurBarDB.todo.month then DetaurBarDB.todo.month = {} end
-    if DetaurBarDB.notes and not DetaurBarDB.notes.war then
-        local oldNotes = DetaurBarDB.notes
-        DetaurBarDB.notes = {}
-        DetaurBarDB.notes.war = {}
-        DetaurBarDB.notes.guild = {}
-        DetaurBarDB.notes.general = oldNotes or {}
-    end
     if not DetaurBarDB.notes then
-        DetaurBarDB.notes = {}
-    end
-    if not DetaurBarDB.notes.war then
-        DetaurBarDB.notes.war = {}
-    end
-    if not DetaurBarDB.notes.guild then
-        DetaurBarDB.notes.guild = {}
-    end
-    if not DetaurBarDB.notes.general then
-        DetaurBarDB.notes.general = {}
+        DetaurBarDB.notes = {
+            categories = { "General", "War", "Guild" },
+            data = {
+                ["General"] = {},
+                ["War"] = {},
+                ["Guild"] = {},
+            }
+        }
+    elseif DetaurBarDB.notes.war or DetaurBarDB.notes.general or DetaurBarDB.notes.guild then
+        local oldData = {}
+        if DetaurBarDB.notes.general then oldData["General"] = DetaurBarDB.notes.general end
+        if DetaurBarDB.notes.war then oldData["War"] = DetaurBarDB.notes.war end
+        if DetaurBarDB.notes.guild then oldData["Guild"] = DetaurBarDB.notes.guild end
+        DetaurBarDB.notes = {
+            categories = { "General", "War", "Guild" },
+            data = oldData,
+        }
+    elseif not DetaurBarDB.notes.categories then
+        DetaurBarDB.notes.categories = { "General", "War", "Guild" }
+        DetaurBarDB.notes.data = DetaurBarDB.notes.data or {}
+        for _, name in ipairs(DetaurBarDB.notes.categories) do
+            if not DetaurBarDB.notes.data[name] then DetaurBarDB.notes.data[name] = {} end
+        end
     end
     if DetaurBarDB.buy and not DetaurBarDB.loot then
         DetaurBarDB.loot = DetaurBarDB.buy
@@ -159,6 +165,10 @@ function DetaurBar.Data.InitializeDB()
     end
 
     local currentDay = GetLogicalDay(time())
+    if not DetaurBarDB.iconCache then
+        DetaurBarDB.iconCache = {}
+    end
+
     if not DetaurBarDB.lastResetDay then
         DetaurBarDB.lastResetDay = currentDay
     elseif DetaurBarDB.lastResetDay ~= currentDay then
@@ -177,12 +187,14 @@ function DetaurBar.Data.GetItems(category)
         return DetaurBarDB.todo.week
     elseif category == "todo_month" then
         return DetaurBarDB.todo.month
-    elseif category == "notes_war" then
-        return DetaurBarDB.notes.war
-    elseif category == "notes_guild" then
-        return DetaurBarDB.notes.guild
-    elseif category == "notes_general" then
-        return DetaurBarDB.notes.general
+    elseif category:find("^notes_") then
+        local catName = category:sub(7)
+        for _, catDisplayName in ipairs(DetaurBarDB.notes.categories) do
+            if catDisplayName:lower() == catName then
+                return DetaurBarDB.notes.data[catDisplayName] or {}
+            end
+        end
+        return {}
     elseif category == "loot_add" then
         return DetaurBarDB.loot.add
     elseif category == "loot_delete" then
@@ -298,6 +310,25 @@ function DetaurBar.Data.GetItemName(itemId)
     return (GetItemInfo(itemId))
 end
 
+-- Icon caching: tries static ItemIcons -> DetaurBarDB.iconCache -> GetItemInfo
+-- If GetItemInfo succeeds, stores result in DB for next reload.
+function DetaurBar.Data.GetItemTexture(itemId)
+    if not itemId then return nil end
+    if DetaurBar.Data.ItemIcons and DetaurBar.Data.ItemIcons[itemId] then
+        return DetaurBar.Data.ItemIcons[itemId]
+    end
+    DetaurBar.Data.InitializeDB()
+    if DetaurBarDB.iconCache and DetaurBarDB.iconCache[itemId] then
+        return DetaurBarDB.iconCache[itemId]
+    end
+    local texture = select(10, GetItemInfo(itemId))
+    if texture then
+        if not DetaurBarDB.iconCache then DetaurBarDB.iconCache = {} end
+        DetaurBarDB.iconCache[itemId] = texture
+    end
+    return texture
+end
+
 function DetaurBar.Data.GetRandomAlerts()
     DetaurBar.Data.InitializeDB()
     return DetaurBarDB.settings.randomAlerts or {}
@@ -346,4 +377,43 @@ end
 function DetaurBar.Data.SetRandomActiveAlert(id)
     DetaurBar.Data.InitializeDB()
     DetaurBarDB.settings.randomActiveAlertId = id
+end
+
+function DetaurBar.Data.GetNoteCategories()
+    DetaurBar.Data.InitializeDB()
+    return DetaurBarDB.notes.categories
+end
+
+function DetaurBar.Data.NoteCategoryExists(name)
+    DetaurBar.Data.InitializeDB()
+    if not name then return false end
+    for _, cat in ipairs(DetaurBarDB.notes.categories) do
+        if cat == name then return true end
+    end
+    return false
+end
+
+function DetaurBar.Data.AddNoteCategory(name)
+    DetaurBar.Data.InitializeDB()
+    name = name:gsub("^%s*(.-)%s*$", "%1")
+    if name == "" then return nil end
+    for _, cat in ipairs(DetaurBarDB.notes.categories) do
+        if cat:lower() == name:lower() then return nil end
+    end
+    table.insert(DetaurBarDB.notes.categories, name)
+    DetaurBarDB.notes.data[name] = {}
+    return name
+end
+
+function DetaurBar.Data.DeleteNoteCategory(name)
+    DetaurBar.Data.InitializeDB()
+    if #DetaurBarDB.notes.categories <= 1 then return false end
+    for i, cat in ipairs(DetaurBarDB.notes.categories) do
+        if cat == name then
+            table.remove(DetaurBarDB.notes.categories, i)
+            DetaurBarDB.notes.data[name] = nil
+            return true
+        end
+    end
+    return false
 end

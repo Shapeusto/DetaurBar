@@ -289,15 +289,7 @@ function DetaurBar.UI.UpdateTabAnchors()
             subTab:SetPoint("LEFT", DetaurBar.UI.todoSubTabs[i-1], "RIGHT", subTabGap, 0)
         end
     end
-    for i, subTab in ipairs(DetaurBar.UI.notesSubTabs) do
-        subTab:SetWidth(subTabWidth)
-        subTab:ClearAllPoints()
-        if i == 1 then
-            subTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
-        else
-            subTab:SetPoint("LEFT", DetaurBar.UI.notesSubTabs[i-1], "RIGHT", subTabGap, 0)
-        end
-    end
+    DetaurBar.UI.LayoutNotesSubTabs()
     local lootSubTabWidth = (totalWidth - subTabGap) / 2
     for i, subTab in ipairs(DetaurBar.UI.lootSubTabs) do
         subTab:SetWidth(lootSubTabWidth)
@@ -364,7 +356,9 @@ function DetaurBar.UI.UpdateContentAnchors()
     end
 
     scrollFrame:ClearAllPoints()
-    if activeTab == "Notes" or activeTab == "Todo" or activeTab == "Price" then
+    if activeTab == "Notes" then
+        scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -88)
+    elseif activeTab == "Todo" or activeTab == "Price" then
         scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -88)
     elseif activeTab == "Loot" and DetaurBar.UI.activeLootSubTab == "Delete" then
         scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -114)
@@ -388,6 +382,12 @@ function DetaurBar.UI.UpdateContentAnchors()
             if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
             if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Show() end
         end
+    elseif activeTab == "Notes" then
+        scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 84)
+        if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
+        if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
+        if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
+        if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
     else
         scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 50)
         if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
@@ -708,7 +708,7 @@ local function CreateRowFrame(index)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:ClearLines()
             GameTooltip:AddLine("Move Note", 1.0, 1.0, 1.0)
-            GameTooltip:AddLine("Drop this note on General, War, or Guild.", 0.5, 0.5, 0.5)
+            GameTooltip:AddLine("Drop this note on a category tab above.", 0.5, 0.5, 0.5)
             GameTooltip:Show()
         end
     end)
@@ -951,9 +951,7 @@ function DetaurBar.UI.RefreshTasks()
                         itemName, _, itemRarity, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
                     else
                         itemRarity = 1
-                        if DetaurBar.Data.ItemIcons and DetaurBar.Data.ItemIcons[itemId] then
-                            itemTexture = DetaurBar.Data.ItemIcons[itemId]
-                        end
+                        itemTexture = DetaurBar.Data.GetItemTexture(itemId)
                         if not itemTexture then
                             local _, _, sr, _, _, _, _, _, _, st = GetItemInfo(itemId)
                             itemTexture = st
@@ -1033,9 +1031,7 @@ function DetaurBar.UI.RefreshTasks()
                         itemName, _, itemRarity, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
                     else
                         itemRarity = 1
-                        if DetaurBar.Data.ItemIcons and DetaurBar.Data.ItemIcons[itemId] then
-                            itemTexture = DetaurBar.Data.ItemIcons[itemId]
-                        end
+                        itemTexture = DetaurBar.Data.GetItemTexture(itemId)
                         if not itemTexture then
                             local _, _, sr, _, _, _, _, _, _, st = GetItemInfo(itemId)
                             itemTexture = st
@@ -1043,7 +1039,7 @@ function DetaurBar.UI.RefreshTasks()
                         end
                     end
                 end
-
+                
                 local rightAnchor = row.deleteBtn
                 local rightOffset = -8
 
@@ -1123,10 +1119,7 @@ function DetaurBar.UI.RefreshTasks()
                     end
                 else
                     itemRarity = itemRarity or 1
-                    if DetaurBar.Data.ItemIcons and DetaurBar.Data.ItemIcons[itemId] then
-                        itemTexture = DetaurBar.Data.ItemIcons[itemId]
-                    end
-                    -- Ak offline ikona chyba, skus server
+                    itemTexture = DetaurBar.Data.GetItemTexture(itemId)
                     if not itemTexture then
                         local _, _, serverRarity, _, _, _, _, _, _, serverTexture = GetItemInfo(itemId)
                         itemTexture = serverTexture
@@ -1337,9 +1330,12 @@ function DetaurBar.UI.SelectTab(tabName)
 
     if tabName == "Settings" then
         for _, subTab in ipairs(DetaurBar.UI.todoSubTabs) do subTab:Hide() end
-        for _, subTab in ipairs(DetaurBar.UI.notesSubTabs) do subTab:Hide() end
         for _, subTab in ipairs(DetaurBar.UI.lootSubTabs) do subTab:Hide() end
         for _, subTab in ipairs(DetaurBar.UI.priceItemSubTabs) do subTab:Hide() end
+        if DetaurBar.UI.notesTabContainer then DetaurBar.UI.notesTabContainer:Hide() end
+        if DetaurBar.UI.notesCatControls then DetaurBar.UI.notesCatControls:Hide() end
+        if DetaurBar.UI.notesTabLeftArrow then DetaurBar.UI.notesTabLeftArrow:Hide() end
+        if DetaurBar.UI.notesTabRightArrow then DetaurBar.UI.notesTabRightArrow:Hide() end
         for _, subTab in ipairs(DetaurBar.UI.settingsSubTabs) do subTab:Show() end
         if DetaurBar.UI.deleteAllGraysCheckbox then DetaurBar.UI.deleteAllGraysCheckbox:Hide() end
         if scrollFrame then scrollFrame:Hide() end
@@ -1382,19 +1378,17 @@ function DetaurBar.UI.SelectTab(tabName)
         for _, subTab in ipairs(DetaurBar.UI.todoSubTabs) do subTab:Hide() end
     end
 
-    -- Show/hide notes sub-tabs based on active tab
+    -- Show/hide notes sub-tabs, category controls, and rebuild sub-tab buttons from DB
     if tabName == "Notes" then
-        for _, subTab in ipairs(DetaurBar.UI.notesSubTabs) do
-            subTab:Show()
-        end
-        if not DetaurBar.UI.activeNotesSubTab then
-            DetaurBar.UI.activeNotesSubTab = "General"
-        end
+        DetaurBar.UI.RebuildNotesSubTabs()
+        if DetaurBar.UI.notesTabContainer then DetaurBar.UI.notesTabContainer:Show() end
+        if DetaurBar.UI.notesCatControls then DetaurBar.UI.notesCatControls:Show() end
         DetaurBar.UI.SelectNotesSubTab(DetaurBar.UI.activeNotesSubTab)
     else
-        for _, subTab in ipairs(DetaurBar.UI.notesSubTabs) do
-            subTab:Hide()
-        end
+        if DetaurBar.UI.notesTabContainer then DetaurBar.UI.notesTabContainer:Hide() end
+        if DetaurBar.UI.notesCatControls then DetaurBar.UI.notesCatControls:Hide() end
+        if DetaurBar.UI.notesTabLeftArrow then DetaurBar.UI.notesTabLeftArrow:Hide() end
+        if DetaurBar.UI.notesTabRightArrow then DetaurBar.UI.notesTabRightArrow:Hide() end
     end
 
     -- Show/hide loot sub-tabs
