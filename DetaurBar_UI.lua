@@ -638,12 +638,17 @@ local function CreateRowFrame(index)
             if row.itemCategory and row.itemCategory:find("notes_") then
                 local note = DetaurBar.Data.GetItemById(row.itemCategory, self.itemId)
                 if note and note.title then
-                    local eb = ChatEdit_GetActiveWindow() or ChatFrame1.editBox
-                    if eb then
-                        eb:SetText(note.title)
-                        eb:HighlightText(0, string.len(note.title) or 0)
-                        eb:SetFocus()
+                    if not DetaurBar.ClipboardEditBox then
+                        DetaurBar.ClipboardEditBox = CreateFrame("EditBox", nil, UIParent)
+                        DetaurBar.ClipboardEditBox:SetSize(1, 1)
+                        DetaurBar.ClipboardEditBox:Hide()
+                        DetaurBar.ClipboardEditBox:SetScript("OnEditFocusLost", function(self) self:Hide() end)
                     end
+                    local eb = DetaurBar.ClipboardEditBox
+                    eb:SetText(note.title)
+                    eb:HighlightText(0, note.title:len())
+                    eb:Show()
+                    eb:SetFocus()
                 end
             end
         end
@@ -782,12 +787,17 @@ local function CreateRowFrame(index)
         if row.itemId and row.itemCategory and row.itemCategory:find("notes_") then
             local note = DetaurBar.Data.GetItemById(row.itemCategory, row.itemId)
             if note and note.title then
-                local eb = ChatEdit_GetActiveWindow() or ChatFrame1.editBox
-                if eb then
-                    eb:SetText(note.title)
-                    eb:HighlightText(0, string.len(note.title) or 0)
-                    eb:SetFocus()
+                if not DetaurBar.ClipboardEditBox then
+                    DetaurBar.ClipboardEditBox = CreateFrame("EditBox", nil, UIParent)
+                    DetaurBar.ClipboardEditBox:SetSize(1, 1)
+                    DetaurBar.ClipboardEditBox:Hide()
+                    DetaurBar.ClipboardEditBox:SetScript("OnEditFocusLost", function(self) self:Hide() end)
                 end
+                local eb = DetaurBar.ClipboardEditBox
+                eb:SetText(note.title)
+                eb:HighlightText(0, note.title:len())
+                eb:Show()
+                eb:SetFocus()
             end
         end
     end)
@@ -796,7 +806,7 @@ local function CreateRowFrame(index)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:ClearLines()
         GameTooltip:AddLine("Copy Note Text", 1.0, 1.0, 1.0)
-        GameTooltip:AddLine("Click to copy note text to chat edit box (Ctrl+C to clipboard).", 0.5, 0.5, 0.5)
+        GameTooltip:AddLine("Click to copy note text (then Ctrl+C to clipboard).", 0.5, 0.5, 0.5)
         GameTooltip:Show()
     end)
     
