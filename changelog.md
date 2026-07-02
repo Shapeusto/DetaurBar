@@ -12,6 +12,8 @@
 - Po kliknutí: text sa nastaví, vyberie (highlight) a editačný box dostane focus
 - Hráč stlačí Ctrl+C a môže vložiť kamkoľvek
 - Rovnaké správanie pre klik na riadok aj na copy (📋) tlačidlo
+- Focus sa automaticky zruší po 1 sekunde, na Escape, alebo kliknutím inam
+- OnKeyDown handler na Escape: `ClearFocus()`; OnUpdate timeout 1s
 
 ## 2026-07-01 — Icon cache, gem icon fixes, AH pagination
 
