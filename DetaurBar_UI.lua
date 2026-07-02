@@ -633,20 +633,41 @@ local function CreateRowFrame(index)
         end
     end)
 
+    local function SetupClipboardEditBox()
+        if not DetaurBar.ClipboardEditBox then
+            DetaurBar.ClipboardEditBox = CreateFrame("EditBox", nil, UIParent)
+            DetaurBar.ClipboardEditBox:SetSize(1, 1)
+            DetaurBar.ClipboardEditBox:Hide()
+            DetaurBar.ClipboardEditBox:SetScript("OnEditFocusLost", function(self)
+                self:SetScript("OnUpdate", nil)
+                self:Hide()
+            end)
+            DetaurBar.ClipboardEditBox:SetScript("OnKeyDown", function(self, key)
+                if key == "ESCAPE" then
+                    self:ClearFocus()
+                end
+            end)
+        end
+    end
+
     row:SetScript("OnMouseUp", function(self, button)
         if button == "LeftButton" and not draggedNote then
             if row.itemCategory and row.itemCategory:find("notes_") then
                 local note = DetaurBar.Data.GetItemById(row.itemCategory, self.itemId)
                 if note and note.title then
-                    if not DetaurBar.ClipboardEditBox then
-                        DetaurBar.ClipboardEditBox = CreateFrame("EditBox", nil, UIParent)
-                        DetaurBar.ClipboardEditBox:SetSize(1, 1)
-                        DetaurBar.ClipboardEditBox:Hide()
-                        DetaurBar.ClipboardEditBox:SetScript("OnEditFocusLost", function(self) self:Hide() end)
-                    end
+                    SetupClipboardEditBox()
                     local eb = DetaurBar.ClipboardEditBox
                     eb:SetText(note.title)
                     eb:HighlightText(0, note.title:len())
+                    eb:SetScript("OnUpdate", function(self, elaps)
+                        self.timer = (self.timer or 0) + elaps
+                        if self.timer > 8 then
+                            self:ClearFocus()
+                            self:SetScript("OnUpdate", nil)
+                            self.timer = nil
+                        end
+                    end)
+                    eb.timer = 0
                     eb:Show()
                     eb:SetFocus()
                 end
@@ -787,15 +808,19 @@ local function CreateRowFrame(index)
         if row.itemId and row.itemCategory and row.itemCategory:find("notes_") then
             local note = DetaurBar.Data.GetItemById(row.itemCategory, row.itemId)
             if note and note.title then
-                if not DetaurBar.ClipboardEditBox then
-                    DetaurBar.ClipboardEditBox = CreateFrame("EditBox", nil, UIParent)
-                    DetaurBar.ClipboardEditBox:SetSize(1, 1)
-                    DetaurBar.ClipboardEditBox:Hide()
-                    DetaurBar.ClipboardEditBox:SetScript("OnEditFocusLost", function(self) self:Hide() end)
-                end
+                SetupClipboardEditBox()
                 local eb = DetaurBar.ClipboardEditBox
                 eb:SetText(note.title)
                 eb:HighlightText(0, note.title:len())
+                eb:SetScript("OnUpdate", function(self, elaps)
+                    self.timer = (self.timer or 0) + elaps
+                    if self.timer > 8 then
+                        self:ClearFocus()
+                        self:SetScript("OnUpdate", nil)
+                        self.timer = nil
+                    end
+                end)
+                eb.timer = 0
                 eb:Show()
                 eb:SetFocus()
             end
