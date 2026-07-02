@@ -1211,7 +1211,7 @@ function DetaurBar.UI.RefreshTasks()
                         row.titleText:SetText(offlineLink)
                         row.titleText:SetTextColor(1.0, 1.0, 1.0, 1.0)
                     else
-                        row.titleText:SetText(item.title)
+                        row.titleText:SetText(item.title:gsub("^item:", ""))
                         row.titleText:SetTextColor(0.6, 0.6, 0.6, 1.0) -- Grey until cached
                     end
                 else
