@@ -1,6 +1,13 @@
 # Changelog
 
-## 2026-07-02 — Notes clipboard + delete button fix
+## 2026-07-02 — Notes clipboard, delete button, loot fallback fix
+
+### Opravené: Loot itemy bez názvu ukazovali "Loading Item [ID: ...]"
+- Keď item nebol v offline DB a GetItemInfo vrátil nil, zobrazilo sa
+  "Loading Item [ID: 9276]..." namiesto uloženého textu
+- Oprava: zobrazí sa `item.title` (napr. "9276" alebo "item:9276")
+- GetItemInfo sa stále volá pre server request; po doručení dát
+  (GET_ITEM_INFO_RECEIVED) sa RefreshTasks zavolá a ukáže meno itemu
 
 ### Pridané: Delete button na Notes riadkoch
 - Notes riadky teraz zobrazujú delete (X) tlačidlo — `row.deleteBtn:Show()`
