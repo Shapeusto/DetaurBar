@@ -661,7 +661,7 @@ local function CreateRowFrame(index)
                     eb:HighlightText(0, note.title:len())
                     eb:SetScript("OnUpdate", function(self, elaps)
                         self.timer = (self.timer or 0) + elaps
-                        if self.timer > 2 then
+                        if self.timer > 1 then
                             self:ClearFocus()
                             self:SetScript("OnUpdate", nil)
                             self.timer = nil
