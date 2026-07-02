@@ -1211,8 +1211,8 @@ function DetaurBar.UI.RefreshTasks()
                         row.titleText:SetText(offlineLink)
                         row.titleText:SetTextColor(1.0, 1.0, 1.0, 1.0)
                     else
-                        row.titleText:SetText("Loading Item [ID: " .. itemId .. "]...")
-                        row.titleText:SetTextColor(0.6, 0.6, 0.6, 1.0) -- Muted grey for loading state
+                        row.titleText:SetText(item.title)
+                        row.titleText:SetTextColor(0.6, 0.6, 0.6, 1.0) -- Grey until cached
                     end
                 else
                     row.titleText:SetText(item.title)
