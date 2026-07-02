@@ -21795,10 +21795,10 @@ DetaurBar.Data.ItemIcons = {
     
     -- Consumables
     [33448] = "Interface\\Icons\\INV_Potion_51",
-    [46376] = "Interface\\Icons\\INV_Flask_4",
-    [46377] = "Interface\\Icons\\INV_Flask_3",
-    [46378] = "Interface\\Icons\\INV_Flask_2",
-    [46379] = "Interface\\Icons\\INV_Flask_1",
+    [46376] = "Interface\\Icons\\inv_alchemy_endlessflask_04",
+    [46377] = "Interface\\Icons\\inv_alchemy_endlessflask_06",
+    [46378] = "Interface\\Icons\\inv_alchemy_endlessflask_03",
+    [46379] = "Interface\\Icons\\inv_alchemy_endlessflask_05",
     
     -- Fishing
     [41808] = "Interface\\Icons\\INV_Misc_Fish_01",
