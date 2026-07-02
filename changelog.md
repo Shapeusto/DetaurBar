@@ -1,6 +1,12 @@
 # Changelog
 
-## 2026-07-02 — Notes clipboard, delete button, loot fallback fix
+## 2026-07-02 — Notes clipboard, delete button, loot fallback, flask icons fix
+
+### Opravené: Ikonky flaskov v Price > Chart
+- Flask of Endless Rage (46377), Pure Mojo (46378), Stoneblood (46379),
+  Frost Wyrm (46376) mali nesprávne icon pathe `INV_Flask_1`–`INV_Flask_4`,
+  ktoré v 3.3.5a neexistujú
+- Opravené na `inv_alchemy_endlessflask_03`–`06` (overené z WotLK database)
 
 ### Opravené: Loot itemy bez názvu ukazovali "Loading Item [ID: ...]"
 - Keď item nebol v offline DB a GetItemInfo vrátil nil, zobrazilo sa
