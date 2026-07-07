@@ -211,35 +211,30 @@ function DetaurBar.Core.TryDismount()
     Dismount()
 end
 
-local function GetActionSlot(button)
-    local name = button:GetName()
-    if not name then return end
-    local num = name:match("^ActionButton(%d+)$")
-    if num then return tonumber(num) end
-    num = name:match("^MultiBarBottomLeftButton(%d+)$")
-    if num then return 12 + tonumber(num) end
-    num = name:match("^MultiBarBottomRightButton(%d+)$")
-    if num then return 24 + tonumber(num) end
-    num = name:match("^MultiBarRightButton(%d+)$")
-    if num then return 36 + tonumber(num) end
-    num = name:match("^MultiBarLeftButton(%d+)$")
-    if num then return 48 + tonumber(num) end
-end
-
-local function IsEquippableAction(slot)
-    if not slot then return false end
-    local actionType, id = GetActionInfo(slot)
-    if actionType ~= "item" or not id then return false end
-    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(id)
-    return equipLoc and equipLoc ~= ""
+local function IsEquippableId(itemId)
+    if not itemId then return false end
+    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(itemId)
+    if not equipLoc then
+        -- Item not cached; default to equippable (safer)
+        return true
+    end
+    return equipLoc ~= ""
 end
 
 local function HookActionButton(button)
     if button and not button.DetaurBarHooked then
-        local slot = GetActionSlot(button)
-        button:HookScript("PreClick", function()
-            if IsEquippableAction(slot) then
-                return
+        button:HookScript("PreClick", function(self)
+            local t = self:GetAttribute("type1") or self:GetAttribute("type")
+            if t == "item" then
+                local id = tonumber(self:GetAttribute("item1") or self:GetAttribute("item"))
+                if IsEquippableId(id) then
+                    return
+                end
+            elseif t == "macro" then
+                local text = self:GetAttribute("macrotext1") or self:GetAttribute("macrotext") or ""
+                if text:match("/equipset") then
+                    return
+                end
             end
             DetaurBar.Core.TryDismount()
         end)
