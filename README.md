@@ -1,6 +1,6 @@
 # DetaurBar
 
-![Showcase](https://i.imgur.com/YgGRBRm.gif)
+![Showcase](preview.gif)
 
 In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3.3.5a)** — designed for Warmane (Icecrown).
 
