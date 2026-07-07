@@ -211,9 +211,36 @@ function DetaurBar.Core.TryDismount()
     Dismount()
 end
 
+local function GetActionSlot(button)
+    local name = button:GetName()
+    if not name then return end
+    local num = name:match("^ActionButton(%d+)$")
+    if num then return tonumber(num) end
+    num = name:match("^MultiBarBottomLeftButton(%d+)$")
+    if num then return 12 + tonumber(num) end
+    num = name:match("^MultiBarBottomRightButton(%d+)$")
+    if num then return 24 + tonumber(num) end
+    num = name:match("^MultiBarRightButton(%d+)$")
+    if num then return 36 + tonumber(num) end
+    num = name:match("^MultiBarLeftButton(%d+)$")
+    if num then return 48 + tonumber(num) end
+end
+
+local function IsEquippableAction(slot)
+    if not slot then return false end
+    local actionType, id = GetActionInfo(slot)
+    if actionType ~= "item" or not id then return false end
+    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(id)
+    return equipLoc and equipLoc ~= ""
+end
+
 local function HookActionButton(button)
     if button and not button.DetaurBarHooked then
+        local slot = GetActionSlot(button)
         button:HookScript("PreClick", function()
+            if IsEquippableAction(slot) then
+                return
+            end
             DetaurBar.Core.TryDismount()
         end)
         button.DetaurBarHooked = true
