@@ -58,27 +58,256 @@ titleText:SetPoint("TOP", header, "TOP", 0, -14)
 titleText:SetText("DetaurBar") -- Updated Header Text
 titleText:SetTextColor(1.0, 0.82, 0.0, 1.0) -- Classic WoW Gold
 
--- [HEADER] Close button (standard UIPanelCloseButton)
+-- [HEADER] Close button — o niečo väčšia skutočná Blizzard "X" ikona
 local closeBtn = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-closeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
+closeBtn:SetSize(30, 30)
+closeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -9, -4)
+
+-- [HEADER] Settings quick-button — hneď vedľa X
+local settingsBtn = CreateFrame("Button", nil, frame)
+settingsBtn:SetSize(22, 22)
+settingsBtn:SetPoint("RIGHT", closeBtn, "LEFT", 5, 0)
+
+local settingsIcon = settingsBtn:CreateTexture(nil, "ARTWORK")
+settingsIcon:SetAllPoints(settingsBtn)
+settingsIcon:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
+settingsBtn.icon = settingsIcon
+
+local settingsHighlight = settingsBtn:CreateTexture(nil, "HIGHLIGHT")
+settingsHighlight:SetAllPoints(settingsBtn)
+settingsHighlight:SetTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+settingsHighlight:SetBlendMode("ADD")
+
+DetaurBar.UI.settingsBtn = settingsBtn
+
 closeBtn:SetScript("OnClick", function()
+    if DetaurBar.UI.settingsMenuPanel then DetaurBar.UI.settingsMenuPanel:Hide() end
     frame:Hide()
 end)
 
+settingsBtn:SetScript("OnClick", function()
+    DetaurBar.UI.ToggleSettingsMenu()
+end)
+
+settingsBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:ClearLines()
+    GameTooltip:AddLine("Settings", 1.0, 1.0, 1.0)
+    GameTooltip:Show()
+end)
+settingsBtn:SetScript("OnLeave", function(self)
+    GameTooltip:Hide()
+end)
+
+-- [SETTINGS MENU] Panel inside main frame for managing visible sub-tabs
+DetaurBar.UI.settingsMenuPanel = nil
+DetaurBar.UI.settingsMenuPanelVisible = false
+DetaurBar.UI.settingsMenuActiveSubTab = "Loot"
+local smSettingsSubTabNames = { "Loot", "Alert", "Various" }
+
+local function RebuildSettingsMenuCheckboxes()
+    local panel = DetaurBar.UI.settingsMenuPanel
+    if not panel then return end
+
+    -- Style sub-tabs
+    for _, st in ipairs(panel.subTabButtons) do
+        if st.tabName == DetaurBar.UI.settingsMenuActiveSubTab then
+            st:SetBackdropColor(0.18, 0.12, 0.02, 0.95)
+            st:SetBackdropBorderColor(1.0, 0.82, 0.0, 1.0)
+            st.label:SetTextColor(1.0, 0.82, 0.0, 1.0)
+        else
+            st:SetBackdropColor(0, 0, 0, 0.55)
+            st:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.9)
+            st.label:SetTextColor(1.0, 1.0, 1.0, 1.0)
+        end
+    end
+
+    -- Clear old checkboxes
+    for _, child in ipairs({panel.content:GetChildren()}) do
+        child:Hide()
+        child:SetParent(nil)
+    end
+
+    local settings = DetaurBar.UI.GetSettingsDB()
+    local active = DetaurBar.UI.settingsMenuActiveSubTab
+
+    local function OnCheckChanged(tabType, key, self)
+        DetaurBar.Data.InitializeDB()
+        if tabType == "loot" then
+            DetaurBarDB.settings.lootSubTabsVisible[key] = self:GetChecked() and true or false
+        else
+            DetaurBarDB.settings.alertSubTabsVisible[key] = self:GetChecked() and true or false
+        end
+    end
+
+    if active == "Loot" then
+        local lootKeys = { "Add", "Delete" }
+        for idx, key in ipairs(lootKeys) do
+            local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
+            cb:SetSize(20, 20)
+            cb:SetPoint("TOPLEFT", panel.content, "TOPLEFT", 8, -8 - (idx - 1) * 30)
+            cb:SetChecked(settings.lootSubTabsVisible and settings.lootSubTabsVisible[key] ~= false)
+            local keyCopy = key
+            cb:SetScript("OnClick", function(self)
+                OnCheckChanged("loot", keyCopy, self)
+            end)
+            local lab = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            lab:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+            lab:SetText(key)
+            lab:SetTextColor(1, 0.82, 0, 1)
+        end
+    elseif active == "Alert" then
+        local alertKeys = { "Dung", "Raid", "WG", "Random", "Enemy", "Buffs" }
+        for idx, key in ipairs(alertKeys) do
+            local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
+            cb:SetSize(20, 20)
+            cb:SetPoint("TOPLEFT", panel.content, "TOPLEFT", 8, -8 - (idx - 1) * 30)
+            cb:SetChecked(settings.alertSubTabsVisible and settings.alertSubTabsVisible[key] ~= false)
+            local keyCopy = key
+            cb:SetScript("OnClick", function(self)
+                OnCheckChanged("alert", keyCopy, self)
+            end)
+            local lab = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            lab:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+            lab:SetText(key)
+            lab:SetTextColor(1, 0.82, 0, 1)
+        end
+    elseif active == "Various" then
+        local variousKeys = {
+            { key = "autoSellRepairEnabled", label = "Autosell junk and autorepair" },
+            { key = "dismountOnActionEnabled", label = "Dismount on action" },
+        }
+        for idx, entry in ipairs(variousKeys) do
+            local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
+            cb:SetSize(20, 20)
+            cb:SetPoint("TOPLEFT", panel.content, "TOPLEFT", 8, -8 - (idx - 1) * 30)
+            cb:SetChecked(settings[entry.key] and true or false)
+            cb:SetScript("OnClick", function(self)
+                DetaurBar.Data.InitializeDB()
+                settings[entry.key] = self:GetChecked() and true or false
+            end)
+            local lab = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            lab:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+            lab:SetText(entry.label)
+            lab:SetTextColor(1, 0.82, 0, 1)
+        end
+    end
+end
+
+local function CreateSettingsMenuPanel()
+    if DetaurBar.UI.settingsMenuPanel then return end
+
+    -- Panel je len NEVIDITEĽNÝ kontajner (žiadny vlastný vizuálny box)
+    local panel = CreateFrame("Frame", nil, frame)
+    panel:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
+    panel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -14, 36)
+    panel:SetFrameLevel(frame:GetFrameLevel() + 10)
+    panel:EnableMouse(true)
+    panel:Hide()
+
+    -- Sub-tab bar hore, bez pozadia
+    local subTabBar = CreateFrame("Frame", nil, panel)
+    subTabBar:SetHeight(24)
+    subTabBar:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, 0)
+    subTabBar:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 0, 0)
+
+    local subTabButtons = {}
+    local totalSubW = frame:GetWidth() - 28
+    local gap = 1
+    local numTabs = #smSettingsSubTabNames
+    local subW = (totalSubW - (numTabs - 1) * gap) / numTabs
+
+    for i, name in ipairs(smSettingsSubTabNames) do
+        local st = CreateFrame("Button", nil, panel)
+        st:SetSize(subW, 24)
+        st:SetPoint("TOPLEFT", subTabBar, "TOPLEFT", (i - 1) * (subW + gap), 0)
+        st.tabName = name
+        st:SetBackdrop({
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 12, edgeSize = 12,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 }
+        })
+        local lab = st:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        lab:SetPoint("CENTER")
+        lab:SetText(name)
+        st.label = lab
+        local hl = st:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints(st)
+        hl:SetTexture(1.0, 0.82, 0.0, 0.12)
+        st:SetScript("OnClick", function()
+            DetaurBar.UI.settingsMenuActiveSubTab = name
+            RebuildSettingsMenuCheckboxes()
+        end)
+        subTabButtons[i] = st
+    end
+    panel.subTabButtons = subTabButtons
+
+    -- NOVÝ samostatný dark box pre obsah — s poriadnou medzerou od tabov (28px, ako pri Loot)
+    local listBg = CreateFrame("Frame", nil, panel)
+    listBg:SetPoint("TOPLEFT", subTabBar, "BOTTOMLEFT", -1, -2)
+    listBg:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
+    listBg:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 12, edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    listBg:SetBackdropColor(0, 0, 0, 0.4)
+    listBg:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.5)
+
+    -- content je dieťa listBg, nie priamo panelu
+    local content = CreateFrame("Frame", nil, listBg)
+    content:SetPoint("TOPLEFT", listBg, "TOPLEFT", 4, -4)
+    content:SetPoint("BOTTOMRIGHT", listBg, "BOTTOMRIGHT", -4, 4)
+    panel.content = content
+
+    DetaurBar.UI.settingsMenuPanel = panel
+end
+
 -- [STATE] Tab names, active tab
 local tabs = {}
-local tabNames = { "Todo", "Notes", "Loot", "Price", "Settings" }
-local activeTab = "Todo"
+local tabNames = { "Notes", "Loot", "Price", "Settings" }
+local activeTab = "Notes"
+
+local function SetTabButtonsActive(active)
+    for _, tab in ipairs(tabs) do
+        if active and tab.tabName == active then
+            tab:Disable()
+        else
+            tab:Enable()
+        end
+    end
+end
+
+function DetaurBar.UI.ToggleSettingsMenu()
+    if not DetaurBar.UI.settingsMenuPanel then
+        CreateSettingsMenuPanel()
+    end
+    local panel = DetaurBar.UI.settingsMenuPanel
+    if panel:IsShown() then
+        panel:Hide()
+        DetaurBar.UI.settingsMenuPanelVisible = false
+        DetaurBar.UI.SelectTab("Notes")
+        return
+    end
+    DetaurBar.UI.settingsMenuPanelVisible = true
+    SetTabButtonsActive(nil)
+    DetaurBar.UI.UpdateContentAnchors()
+    DetaurBar.UI.settingsMenuActiveSubTab = "Loot"
+    RebuildSettingsMenuCheckboxes()
+    panel:Show()
+end
 
 -- [STATE] Settings sub-tabs: Dungeon / Wintergrasp / Random / Enemy
-DetaurBar.UI.settingsSubTabs = {}
-DetaurBar.UI.settingsSubTabNames = { "Dungeon", "Wintergrasp", "Random", "Enemy" }
-DetaurBar.UI.activeSettingsSubTab = "Dungeon"
+DetaurBar.UI.alertSubTabs = {}
+DetaurBar.UI.alertSubTabNames = { "Dung", "Wintergrasp", "Random", "Enemy", "Buffs" }
+DetaurBar.UI.activeAlertSubTab = "Dung"
 
 -- [STATE] Settings panel/bar references
-DetaurBar.UI.settingsPanel = nil
-DetaurBar.UI.settingsSubTabBar = nil
-DetaurBar.UI.settingsListBackground = nil
+DetaurBar.UI.alertPanel = nil
+DetaurBar.UI.alertSubTabBar = nil
+DetaurBar.UI.alertListBackground = nil
 
 -- [STATE] Sub-tab tables (initialized empty; populated by tab files loaded after this)
 DetaurBar.UI.todoSubTabs = {}
@@ -86,13 +315,9 @@ DetaurBar.UI.notesSubTabs = {}
 DetaurBar.UI.lootSubTabs = {}
 DetaurBar.UI.priceItemSubTabs = {}
 
--- [HELPERS] Category string builders (todo_day, notes_war, etc.)
-local function GetTodoCategory(subTabName)
-    return "todo_" .. subTabName:lower()
-end
-
+-- [HELPERS] Category string builder
 function DetaurBar.UI.GetNotesCategory(subTabName)
-    return "notes_" .. subTabName:lower()
+    return "tasks_" .. subTabName:lower()
 end
 
 -- [HELPERS] GetSettingsDB — returns DetaurBarDB.settings with InitializeDB()
@@ -247,12 +472,13 @@ end
 frame:SetScript("OnReceiveDrag", OnReceiveDragHandler)
 
 
--- [TABS] Create 5 main tab buttons (Todo, Notes, Loot, Price, Settings)
+-- [TABS] Create main tab buttons (Notes, Loot, Price, Settings)
 for i, name in ipairs(tabNames) do
     local tab = CreateFrame("Button", "DetaurBarTab_" .. name, frame, "UIPanelButtonTemplate")
     tab:SetHeight(22)
     tab.tabName = name
-    tab:SetText(name)
+    local displayName = ({ Notes = "Note", Loot = "Loot", Price = "Price", Settings = "Alert" })[name] or name
+    tab:SetText(displayName)
     
     tab:SetScript("OnClick", function()
         DetaurBar.UI.SelectTab(name)
@@ -261,7 +487,7 @@ for i, name in ipairs(tabNames) do
     tabs[i] = tab
 end
 
--- Sub-tab creation moved to DetaurBar_UI_Todo.lua, DetaurBar_UI_Notes.lua, DetaurBar_UI_Loot.lua, DetaurBar_UI_Price.lua
+-- Sub-tab creation moved to DetaurBar_UI_Notes.lua, DetaurBar_UI_Loot.lua, DetaurBar_UI_Price.lua
 
 -- [LAYOUT] UpdateTabAnchors — positions main tabs, all sub-tabs to fit frame width
 function DetaurBar.UI.UpdateTabAnchors()
@@ -277,27 +503,25 @@ function DetaurBar.UI.UpdateTabAnchors()
         end
     end
     
-    -- Layout Todo and Notes sub-tabs on the inner panel edge.
-    local subTabGap = 4
-    local subTabWidth = (totalWidth - (subTabGap * 2)) / 3
-    for i, subTab in ipairs(DetaurBar.UI.todoSubTabs) do
-        subTab:SetWidth(subTabWidth)
-        subTab:ClearAllPoints()
-        if i == 1 then
-            subTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
-        else
-            subTab:SetPoint("LEFT", DetaurBar.UI.todoSubTabs[i-1], "RIGHT", subTabGap, 0)
+    DetaurBar.UI.LayoutNotesSubTabs()
+    local subTabGap = 1
+    local visibleLoot = {}
+    for _, subTab in ipairs(DetaurBar.UI.lootSubTabs) do
+        local settings = DetaurBar.UI.GetSettingsDB()
+        if settings.lootSubTabsVisible and settings.lootSubTabsVisible[subTab.tabName] ~= false then
+            table.insert(visibleLoot, subTab)
         end
     end
-    DetaurBar.UI.LayoutNotesSubTabs()
-    local lootSubTabWidth = (totalWidth - subTabGap) / 2
-    for i, subTab in ipairs(DetaurBar.UI.lootSubTabs) do
-        subTab:SetWidth(lootSubTabWidth)
-        subTab:ClearAllPoints()
-        if i == 1 then
-            subTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
-        else
-            subTab:SetPoint("LEFT", DetaurBar.UI.lootSubTabs[i-1], "RIGHT", subTabGap, 0)
+    if #visibleLoot > 0 then
+        local lootSubTabWidth = (totalWidth - subTabGap * (#visibleLoot - 1)) / #visibleLoot
+        for i, subTab in ipairs(visibleLoot) do
+            subTab:SetWidth(lootSubTabWidth)
+            subTab:ClearAllPoints()
+            if i == 1 then
+                subTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
+            else
+                subTab:SetPoint("LEFT", visibleLoot[i-1], "RIGHT", subTabGap, 0)
+            end
         end
     end
 
@@ -312,53 +536,77 @@ function DetaurBar.UI.UpdateTabAnchors()
         end
     end
 
-    if DetaurBar.UI.settingsSubTabBar then
-        DetaurBar.UI.settingsSubTabBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
-        DetaurBar.UI.settingsSubTabBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -60)
-        DetaurBar.UI.UpdateSettingsSubTabBar()
+    if DetaurBar.UI.alertSubTabBar then
+        DetaurBar.UI.alertSubTabBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
+        DetaurBar.UI.alertSubTabBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -60)
+        DetaurBar.UI.UpdateAlertSubTabBar()
     end
 end
 
 -- [STATE] Scroll/graph bar/price graph/price sub-tab/settings scroll declarations
 local scrollFrame
 DetaurBar.UI.priceGraphHolder = { graphTextures = {}, graphLabels = {}, graphFrames = {} }
-DetaurBar.UI.settingsScrollFrame = nil
-DetaurBar.UI.settingsScrollChild = nil
-DetaurBar.UI.settingsSaveButton = nil
+DetaurBar.UI.alertScrollFrame = nil
+DetaurBar.UI.alertScrollChild = nil
+DetaurBar.UI.alertSaveButton = nil
 
 -- [LAYOUT] UpdateContentAnchors — hides settings UI or main scroll/graph based on activeTab
 function DetaurBar.UI.UpdateContentAnchors()
-    if activeTab == "Settings" then
+    if DetaurBar.UI.settingsMenuPanel and DetaurBar.UI.settingsMenuPanelVisible then
+        DetaurBar.UI.settingsMenuPanel:Show()
+        if DetaurBar.UI.alertPanel then DetaurBar.UI.alertPanel:Hide() end
+        if DetaurBar.UI.alertSubTabBar then DetaurBar.UI.alertSubTabBar:Hide() end
+        if DetaurBar.UI.alertListBackground then DetaurBar.UI.alertListBackground:Hide() end
+        if DetaurBar.UI.alertScrollFrame then DetaurBar.UI.alertScrollFrame:Hide() end
+        if DetaurBar.UI.alertScrollChild then DetaurBar.UI.alertScrollChild:Hide() end
         if scrollFrame then scrollFrame:Hide() end
+        if DetaurBar.UI.listBackground then DetaurBar.UI.listBackground:Hide() end
+        if DetaurBar.UI.notesTabContainer then DetaurBar.UI.notesTabContainer:Hide() end
+        if DetaurBar.UI.notesCatControls then DetaurBar.UI.notesCatControls:Hide() end
+        if DetaurBar.UI.notesTabLeftArrow then DetaurBar.UI.notesTabLeftArrow:Hide() end
+        if DetaurBar.UI.notesTabRightArrow then DetaurBar.UI.notesTabRightArrow:Hide() end
+        for _, subTab in ipairs(DetaurBar.UI.lootSubTabs) do subTab:Hide() end
+        for _, subTab in ipairs(DetaurBar.UI.priceItemSubTabs) do subTab:Hide() end
         if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
         if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
         if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
         if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
-        if DetaurBar.UI.settingsSubTabBar then DetaurBar.UI.settingsSubTabBar:Show() end
-        if DetaurBar.UI.settingsListBackground then DetaurBar.UI.settingsListBackground:Show() end
-        if DetaurBar.UI.settingsScrollFrame then DetaurBar.UI.settingsScrollFrame:Show() end
-        if DetaurBar.UI.settingsPanel then DetaurBar.UI.settingsPanel:Show() end
-        if DetaurBar.UI.settingsScrollChild then DetaurBar.UI.settingsScrollChild:Show() end
+        if DetaurBar.UI.deleteAllGraysCheckbox then DetaurBar.UI.deleteAllGraysCheckbox:Hide() end
+        if DetaurBar.UI.editBox then DetaurBar.UI.editBox:Hide() end
+        if DetaurBar.UI.addButton then DetaurBar.UI.addButton:Hide() end
+        return
+    end
+    if DetaurBar.UI.settingsMenuPanel then DetaurBar.UI.settingsMenuPanel:Hide() end
+    if activeTab == "Settings" then
+        if scrollFrame then scrollFrame:Hide() end
+        if DetaurBar.UI.listBackground then DetaurBar.UI.listBackground:Hide() end
+        if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
+        if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
+        if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
+        if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
+        if DetaurBar.UI.alertSubTabBar then DetaurBar.UI.alertSubTabBar:Show() end
+        if DetaurBar.UI.alertListBackground then DetaurBar.UI.alertListBackground:Show() end
+        if DetaurBar.UI.alertScrollFrame then DetaurBar.UI.alertScrollFrame:Show() end
+        if DetaurBar.UI.alertPanel then DetaurBar.UI.alertPanel:Show() end
+        if DetaurBar.UI.alertScrollChild then DetaurBar.UI.alertScrollChild:Show() end
         return
     end
 
-    if DetaurBar.UI.settingsPanel then
-        DetaurBar.UI.settingsPanel:Hide()
+    if DetaurBar.UI.alertPanel then
+        DetaurBar.UI.alertPanel:Hide()
     end
-    if DetaurBar.UI.settingsSubTabBar then
-        DetaurBar.UI.settingsSubTabBar:Hide()
+    if DetaurBar.UI.alertSubTabBar then
+        DetaurBar.UI.alertSubTabBar:Hide()
     end
-    if DetaurBar.UI.settingsListBackground then
-        DetaurBar.UI.settingsListBackground:Hide()
+    if DetaurBar.UI.alertListBackground then
+        DetaurBar.UI.alertListBackground:Hide()
     end
-    if DetaurBar.UI.settingsScrollFrame then
-        DetaurBar.UI.settingsScrollFrame:Hide()
+    if DetaurBar.UI.alertScrollFrame then
+        DetaurBar.UI.alertScrollFrame:Hide()
     end
 
     scrollFrame:ClearAllPoints()
-    if activeTab == "Notes" then
-        scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -88)
-    elseif activeTab == "Todo" or activeTab == "Price" then
+    if activeTab == "Notes" or activeTab == "Price" then
         scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -88)
     elseif activeTab == "Loot" and DetaurBar.UI.activeLootSubTab == "Delete" then
         scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -114)
@@ -404,7 +652,13 @@ function DetaurBar.UI.SetSimpleTooltip(frame, title, text)
         GameTooltip:ClearLines()
         GameTooltip:AddLine(title, 1.0, 1.0, 1.0)
         if text then
-            GameTooltip:AddLine(text, 0.5, 0.5, 0.5)
+            if type(text) == "table" then
+                for _, line in ipairs(text) do
+                    GameTooltip:AddLine(line, 0.5, 0.5, 0.5)
+                end
+            else
+                GameTooltip:AddLine(text, 0.5, 0.5, 0.5)
+            end
         end
         GameTooltip:Show()
     end)
@@ -466,7 +720,7 @@ scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 50)
 DetaurBar.UI.scrollFrame = scrollFrame
 
 -- [MAIN SCROLL] listBackground — dark panel frame behind scrollable items, receives drag-drop
-local listBackground = CreateFrame("Frame", nil, frame)
+local listBackground = CreateFrame("Frame", "DetaurBarListBackground_DEBUG", frame)
 DetaurBar.UI.listBackground = listBackground
 listBackground:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", -4, 4)
 listBackground:SetPoint("BOTTOMRIGHT", scrollFrame, "BOTTOMRIGHT", 20, -4)
@@ -507,13 +761,15 @@ end)
 scrollFrame:EnableMouseWheel(true)
 scrollFrame:SetScript("OnMouseWheel", function(self, delta)
     local current = scrollBar:GetValue()
-    scrollBar:SetValue(current - delta * 20)
+    local step = (activeTab == "Price" and 150 or 20)
+    scrollBar:SetValue(current - delta * step)
 end)
 
 listBackground:EnableMouseWheel(true)
 listBackground:SetScript("OnMouseWheel", function(self, delta)
     local current = scrollBar:GetValue()
-    scrollBar:SetValue(current - delta * 20)
+    local step = (activeTab == "Price" and 150 or 20)
+    scrollBar:SetValue(current - delta * step)
 end)
 
 -- Price graph panel, sub-tab bar, threshold row, price sub-tabs moved to DetaurBar_UI_Price.lua
@@ -652,7 +908,7 @@ local function CreateRowFrame(index)
 
     row:SetScript("OnMouseUp", function(self, button)
         if button == "LeftButton" and not draggedNote then
-            if row.itemCategory and row.itemCategory:find("notes_") then
+            if row.itemCategory and row.itemCategory:find("^tasks_") then
                 local note = DetaurBar.Data.GetItemById(row.itemCategory, self.itemId)
                 if note and note.title then
                     SetupClipboardEditBox()
@@ -710,13 +966,14 @@ local function CreateRowFrame(index)
                     GameTooltip:Show()
                 end
             end
-        elseif row.itemCategory and row.itemCategory:find("notes_") then
+        elseif row.itemCategory and row.itemCategory:find("^tasks_") then
             local note = DetaurBar.Data.GetItemById(row.itemCategory, self.itemId)
             if note and note.title then
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 GameTooltip:ClearLines()
                 GameTooltip:AddLine("Copy Note to Chat", 1.0, 1.0, 1.0)
-                GameTooltip:AddLine("Click anywhere on this note to copy its text to the chat window.", 0.5, 0.5, 0.5)
+                GameTooltip:AddLine("Click anywhere on this task.", 0.5, 0.5, 0.5)
+                GameTooltip:AddLine("You have 1 second to press Ctrl+C.", 0.5, 0.5, 0.5)
                 GameTooltip:Show()
             end
         end
@@ -728,13 +985,13 @@ local function CreateRowFrame(index)
     end)
 
     row:SetScript("OnDragStart", function(self)
-        if self.itemId and self.itemCategory and self.itemCategory:find("notes_") then
+        if self.itemId and self.itemCategory and self.itemCategory:find("^tasks_") then
             DetaurBar.UI.StartDraggedNote(self.itemCategory, self.itemId)
             self.bg:SetTexture(1.0, 0.82, 0.0, 0.18)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:ClearLines()
-            GameTooltip:AddLine("Move Note", 1.0, 1.0, 1.0)
-            GameTooltip:AddLine("Drop this note on a category tab above.", 0.5, 0.5, 0.5)
+            GameTooltip:AddLine("Move Task", 1.0, 1.0, 1.0)
+            GameTooltip:AddLine("Drop this task on a category tab above.", 0.5, 0.5, 0.5)
             GameTooltip:Show()
         end
     end)
@@ -851,10 +1108,8 @@ function DetaurBar.UI.RefreshTasks()
     end
 
     local category = activeTab:lower()
-    if category == "todo" then
-        category = "todo_" .. DetaurBar.UI.activeTodoSubTab:lower()
-    elseif category == "notes" then
-        category = "notes_" .. DetaurBar.UI.activeNotesSubTab:lower()
+    if category == "notes" and DetaurBar.UI.activeNotesSubTab then
+        category = "tasks_" .. DetaurBar.UI.activeNotesSubTab:lower()
     elseif category == "loot" then
         category = "loot_" .. DetaurBar.UI.activeLootSubTab:lower()
         if DetaurBar.Core and DetaurBar.Core.UpdateAutoLootCVar then
@@ -940,11 +1195,12 @@ function DetaurBar.UI.RefreshTasks()
             row.titleText:SetPoint("RIGHT", row, "RIGHT", -10, 0)
             row.titleText:SetText(item.title)
             row.titleText:SetTextColor(1.0, 0.82, 0.0, 1.0)
-        elseif category:find("todo_") then
+        elseif category:find("^tasks_") then
             row.checkbox:Show()
             row.itemIcon:Hide()
             row.swapBtn:Hide()
             row.copyBtn:Hide()
+            row.deleteBtn:Show()
             row.checkbox:SetChecked(item.completed and 1 or nil)
             
             row.titleText:SetPoint("LEFT", row.checkbox, "RIGHT", 8, 0)
@@ -952,30 +1208,18 @@ function DetaurBar.UI.RefreshTasks()
             row.titleText:SetText(item.title)
             
             if item.completed then
-                row.titleText:SetTextColor(0.5, 0.5, 0.5, 0.7) -- Completed is muted grey
+                row.titleText:SetTextColor(0.5, 0.5, 0.5, 0.7)
             else
-                row.titleText:SetTextColor(1.0, 1.0, 1.0, 1.0) -- Active task is white
+                row.titleText:SetTextColor(1.0, 1.0, 1.0, 1.0)
             end
             
-        elseif category:find("notes_") then
-            row.checkbox:Hide()
-            row.itemIcon:Hide()
-            row.swapBtn:Hide()
-            row.copyBtn:Show()
-            row.deleteBtn:Show()
-            
-            textWidth = width - 60
-            row.titleText:SetPoint("LEFT", row, "LEFT", 8, 0)
-            row.titleText:SetPoint("RIGHT", row.copyBtn, "LEFT", -8, 0)
-            row.titleText:SetText(item.title)
-            row.titleText:SetTextColor(1.0, 1.0, 1.0, 1.0) -- Notes are white
-            
         elseif category == "price" then
+            row.titleText:SetFont("Fonts\\FRIZQT___CYR.ttf", 11, "OUTLINE")
             row.checkbox:Hide()
             row.copyBtn:Hide()
             row.deleteBtn:Show()
 
-            -- Notifications subtab: simple display with current price
+                -- Notifications subtab: simple display with current price
             if DetaurBar.UI.activePriceItemSubTab == "Notifications" then
                 row.swapBtn:Hide()
                 
@@ -993,6 +1237,10 @@ function DetaurBar.UI.RefreshTasks()
                             itemTexture = st
                             if sr then itemRarity = sr end
                         end
+                    end
+                    -- Fallback: try offline texture when name/GetItemInfo failed (item known in ItemIcons but not in name DB)
+                    if not itemTexture then
+                        itemTexture = DetaurBar.Data.GetItemTexture(itemId)
                     end
                 end
                 
@@ -1013,15 +1261,7 @@ function DetaurBar.UI.RefreshTasks()
                         end
                         if latestPrice > 0 then
                             priceCopper = latestPrice
-                            local gold = math.floor(priceCopper / 10000)
-                            local silver = math.floor((priceCopper % 10000) / 100)
-                            if gold > 0 then
-                                priceText = gold .. "g"
-                            elseif silver > 0 then
-                                priceText = silver .. "s"
-                            else
-                                priceText = (priceCopper % 100) .. "c"
-                            end
+                            priceText = DetaurBar.UI.FormatGold(priceCopper)
                         end
                     end
                 end
@@ -1073,6 +1313,10 @@ function DetaurBar.UI.RefreshTasks()
                             itemTexture = st
                             if sr then itemRarity = sr end
                         end
+                    end
+                    -- Fallback: try offline texture when name/GetItemInfo failed
+                    if not itemTexture then
+                        itemTexture = DetaurBar.Data.GetItemTexture(itemId)
                     end
                 end
                 
@@ -1224,7 +1468,8 @@ function DetaurBar.UI.RefreshTasks()
         -- Apply width constraints and calculate dynamic row height based on text wrapping
         row.titleText:SetWidth(textWidth)
         local textHeight = row.titleText:GetStringHeight()
-        local currentRowHeight = math.max(28, textHeight + 10)
+        local minRowHeight = (category == "price" and 22 or 28)
+        local currentRowHeight = (category == "price" and math.max(minRowHeight, textHeight + 6) or math.max(minRowHeight, textHeight + 10))
 
         row.graphFrame:Hide()
         row:SetHeight(currentRowHeight)
@@ -1326,10 +1571,8 @@ end)
 
 -- [PLACEHOLDER] UpdateInputPlaceholder — sets edit box hint text per active tab
 function DetaurBar.UI.UpdateInputPlaceholder()
-    if activeTab == "Todo" then
-        placeholderText:SetText("Enter todo (" .. DetaurBar.UI.activeTodoSubTab .. ")...")
-    elseif activeTab == "Notes" then
-        placeholderText:SetText("Enter new note (" .. DetaurBar.UI.activeNotesSubTab .. ")...")
+    if activeTab == "Notes" then
+        placeholderText:SetText("Enter task (" .. DetaurBar.UI.activeNotesSubTab .. ")...")
     elseif activeTab == "Loot" then
         if DetaurBar.UI.activeLootSubTab == "Add" then
             placeholderText:SetText("Whitelist item (Add)...")
@@ -1355,6 +1598,8 @@ end
 
 -- [TAB SWITCH] DetaurBar.UI.SelectTab — switches top-level tab, shows/hides sub-tab bars and panels
 function DetaurBar.UI.SelectTab(tabName)
+    if DetaurBar.UI.settingsMenuPanel then DetaurBar.UI.settingsMenuPanel:Hide() end
+    DetaurBar.UI.settingsMenuPanelVisible = false
     activeTab = tabName
     for _, tab in ipairs(tabs) do
         if tab.tabName == tabName then
@@ -1365,14 +1610,20 @@ function DetaurBar.UI.SelectTab(tabName)
     end
 
     if tabName == "Settings" then
-        for _, subTab in ipairs(DetaurBar.UI.todoSubTabs) do subTab:Hide() end
         for _, subTab in ipairs(DetaurBar.UI.lootSubTabs) do subTab:Hide() end
         for _, subTab in ipairs(DetaurBar.UI.priceItemSubTabs) do subTab:Hide() end
         if DetaurBar.UI.notesTabContainer then DetaurBar.UI.notesTabContainer:Hide() end
         if DetaurBar.UI.notesCatControls then DetaurBar.UI.notesCatControls:Hide() end
         if DetaurBar.UI.notesTabLeftArrow then DetaurBar.UI.notesTabLeftArrow:Hide() end
         if DetaurBar.UI.notesTabRightArrow then DetaurBar.UI.notesTabRightArrow:Hide() end
-        for _, subTab in ipairs(DetaurBar.UI.settingsSubTabs) do subTab:Show() end
+        local settings = DetaurBar.UI.GetSettingsDB()
+        for _, subTab in ipairs(DetaurBar.UI.alertSubTabs) do
+            if settings.alertSubTabsVisible and settings.alertSubTabsVisible[subTab.tabName] ~= false then
+                subTab:Show()
+            else
+                subTab:Hide()
+            end
+        end
         if DetaurBar.UI.deleteAllGraysCheckbox then DetaurBar.UI.deleteAllGraysCheckbox:Hide() end
         if scrollFrame then scrollFrame:Hide() end
         if listBackground then listBackground:Hide() end
@@ -1380,41 +1631,40 @@ function DetaurBar.UI.SelectTab(tabName)
         if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
         if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
         if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
-        if DetaurBar.UI.settingsSubTabBar then DetaurBar.UI.settingsSubTabBar:Show() end
-        if DetaurBar.UI.settingsPanel then DetaurBar.UI.settingsPanel:Show() end
-        if DetaurBar.UI.settingsListBackground then DetaurBar.UI.settingsListBackground:Show() end
-        if DetaurBar.UI.settingsScrollFrame then DetaurBar.UI.settingsScrollFrame:Show() end
-        if DetaurBar.UI.settingsScrollChild then DetaurBar.UI.settingsScrollChild:Show() end
+        if DetaurBar.UI.alertSubTabBar then DetaurBar.UI.alertSubTabBar:Show() end
+        if DetaurBar.UI.alertPanel then DetaurBar.UI.alertPanel:Show() end
+        if DetaurBar.UI.alertListBackground then DetaurBar.UI.alertListBackground:Show() end
+        if DetaurBar.UI.alertScrollFrame then DetaurBar.UI.alertScrollFrame:Show() end
+        if DetaurBar.UI.alertScrollChild then DetaurBar.UI.alertScrollChild:Show() end
         editBox:ClearFocus()
         editBox:Hide()
         addButton:Hide()
-        if not DetaurBar.UI.activeSettingsSubTab then DetaurBar.UI.activeSettingsSubTab = "Dungeon" end
-        DetaurBar.UI.SelectSettingsSubTab(DetaurBar.UI.activeSettingsSubTab)
-        if DetaurBar.UI.UpdateSettingsPanel then
-            DetaurBar.UI.UpdateSettingsPanel()
+        if not DetaurBar.UI.activeAlertSubTab then DetaurBar.UI.activeAlertSubTab = "Dung" end
+        if settings.alertSubTabsVisible and settings.alertSubTabsVisible[DetaurBar.UI.activeAlertSubTab] == false then
+            -- pick first visible sub-tab, or keep "Dung" as fallback
+            local found
+            for _, st in ipairs(DetaurBar.UI.alertSubTabs) do
+                if settings.alertSubTabsVisible[st.tabName] ~= false then found = st.tabName; break end
+            end
+            DetaurBar.UI.activeAlertSubTab = found or "Dung"
+        end
+        DetaurBar.UI.SelectAlertSubTab(DetaurBar.UI.activeAlertSubTab)
+        if DetaurBar.UI.UpdateAlertPanel then
+            DetaurBar.UI.UpdateAlertPanel()
         end
         DetaurBar.UI.UpdateInputPlaceholder()
         DetaurBar.UI.RefreshTasks()
         return
     end
 
-    for _, subTab in ipairs(DetaurBar.UI.settingsSubTabs) do
+    for _, subTab in ipairs(DetaurBar.UI.alertSubTabs) do
         subTab:Hide()
     end
-    if DetaurBar.UI.settingsSubTabBar then
-        DetaurBar.UI.settingsSubTabBar:Hide()
+    if DetaurBar.UI.alertSubTabBar then
+        DetaurBar.UI.alertSubTabBar:Hide()
     end
     
-    -- Show/hide todo sub-tabs
-    if tabName == "Todo" then
-        for _, subTab in ipairs(DetaurBar.UI.todoSubTabs) do subTab:Show() end
-        if not DetaurBar.UI.activeTodoSubTab then DetaurBar.UI.activeTodoSubTab = "Day" end
-        DetaurBar.UI.SelectTodoSubTab(DetaurBar.UI.activeTodoSubTab)
-    else
-        for _, subTab in ipairs(DetaurBar.UI.todoSubTabs) do subTab:Hide() end
-    end
-
-    -- Show/hide notes sub-tabs, category controls, and rebuild sub-tab buttons from DB
+    -- Show/hide notes (merged) sub-tabs, category controls, and rebuild sub-tab buttons from DB
     if tabName == "Notes" then
         DetaurBar.UI.RebuildNotesSubTabs()
         if DetaurBar.UI.notesTabContainer then DetaurBar.UI.notesTabContainer:Show() end
@@ -1427,10 +1677,25 @@ function DetaurBar.UI.SelectTab(tabName)
         if DetaurBar.UI.notesTabRightArrow then DetaurBar.UI.notesTabRightArrow:Hide() end
     end
 
-    -- Show/hide loot sub-tabs
+    -- Show/hide loot sub-tabs (filtered by settings menu)
     if tabName == "Loot" then
-        for _, subTab in ipairs(DetaurBar.UI.lootSubTabs) do subTab:Show() end
-        if not DetaurBar.UI.activeLootSubTab then DetaurBar.UI.activeLootSubTab = "Add" end
+        local settings = DetaurBar.UI.GetSettingsDB()
+        local firstVisible
+        for _, subTab in ipairs(DetaurBar.UI.lootSubTabs) do
+            if settings.lootSubTabsVisible and settings.lootSubTabsVisible[subTab.tabName] ~= false then
+                subTab:Show()
+                if not firstVisible then firstVisible = subTab.tabName end
+            else
+                subTab:Hide()
+            end
+        end
+        if DetaurBar.UI.activeLootSubTab and settings.lootSubTabsVisible and settings.lootSubTabsVisible[DetaurBar.UI.activeLootSubTab] ~= false then
+            -- keep current
+        elseif firstVisible then
+            DetaurBar.UI.activeLootSubTab = firstVisible
+        elseif DetaurBar.UI.lootSubTabs[1] then
+            DetaurBar.UI.activeLootSubTab = DetaurBar.UI.lootSubTabs[1].tabName
+        end
         DetaurBar.UI.SelectLootSubTab(DetaurBar.UI.activeLootSubTab)
     else
         for _, subTab in ipairs(DetaurBar.UI.lootSubTabs) do subTab:Hide() end
@@ -1439,7 +1704,7 @@ function DetaurBar.UI.SelectTab(tabName)
 
     -- Price sub-tab visuals (UpdateContentAnchors shows/hides the bar)
     if tabName == "Price" then
-        if DetaurBar.UI.settingsPanel then DetaurBar.UI.settingsPanel:Hide() end
+        if DetaurBar.UI.alertPanel then DetaurBar.UI.alertPanel:Hide() end
         if scrollFrame then scrollFrame:Show() end
         if listBackground then listBackground:Show() end
         for _, subTab in ipairs(DetaurBar.UI.priceItemSubTabs) do subTab:Show() end
@@ -1454,7 +1719,7 @@ function DetaurBar.UI.SelectTab(tabName)
         if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
         editBox:Show()
         addButton:Show()
-        if DetaurBar.UI.settingsPanel then DetaurBar.UI.settingsPanel:Hide() end
+        if DetaurBar.UI.alertPanel then DetaurBar.UI.alertPanel:Hide() end
         if scrollFrame then scrollFrame:Show() end
         if listBackground then listBackground:Show() end
     end
@@ -1469,7 +1734,7 @@ end
 
 -- [STATE] DetaurBar.UI.GetState — returns all active tab/sub-tab names
 function DetaurBar.UI.GetState()
-    return activeTab, DetaurBar.UI.activeTodoSubTab, DetaurBar.UI.activeNotesSubTab, DetaurBar.UI.activeLootSubTab, DetaurBar.UI.activePriceItemSubTab, DetaurBar.UI.activePriceSubTab
+    return activeTab, DetaurBar.UI.activeNotesSubTab, DetaurBar.UI.activeLootSubTab, DetaurBar.UI.activePriceItemSubTab, DetaurBar.UI.activePriceSubTab
 end
 
 -- [ADD ITEM] DetaurBar.UI.AddNewItem — submits editBox text as new task/item
@@ -1478,10 +1743,8 @@ function DetaurBar.UI.AddNewItem()
     title = title:gsub("^%s*(.-)%s*$", "%1") -- Trim spaces
     if title ~= "" then
         local category = activeTab:lower()
-        if category == "todo" then
-            category = "todo_" .. DetaurBar.UI.activeTodoSubTab:lower()
-        elseif category == "notes" then
-            category = "notes_" .. DetaurBar.UI.activeNotesSubTab:lower()
+        if category == "notes" then
+            category = "tasks_" .. DetaurBar.UI.activeNotesSubTab:lower()
         elseif category == "loot" then
             category = "loot_" .. DetaurBar.UI.activeLootSubTab:lower()
         end
@@ -1538,12 +1801,11 @@ resizeButton:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
 resizeButton:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
 resizeButton:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
 
-resizeButton:SetScript("OnMouseDown", function(self, button)
-    if button == "LeftButton" then
-        frame:StartSizing("BOTTOMRIGHT")
-    end
+resizeButton:RegisterForDrag("LeftButton")
+resizeButton:SetScript("OnDragStart", function(self)
+    frame:StartSizing("BOTTOMRIGHT")
 end)
-resizeButton:SetScript("OnMouseUp", function(self, button)
+resizeButton:SetScript("OnDragStop", function(self)
     frame:StopMovingOrSizing()
 end)
 
@@ -1552,16 +1814,16 @@ function DetaurBar.UI.OnResize()
     DetaurBar.UI.UpdateTabAnchors()
     DetaurBar.UI.UpdateContentAnchors()
     DetaurBar.UI.LayoutPriceSubTabs()
-    if DetaurBar.UI.settingsSubTabBar then
-        DetaurBar.UI.UpdateSettingsSubTabBar()
+    if DetaurBar.UI.alertSubTabBar then
+        DetaurBar.UI.UpdateAlertSubTabBar()
     end
     local width = scrollFrame:GetWidth()
     scrollChild:SetWidth(width)
     for _, row in ipairs(rowPool) do
         row:SetWidth(width)
     end
-    if DetaurBar.UI.settingsScrollFrame then
-        DetaurBar.UI.UpdateSettingsScroll()
+    if DetaurBar.UI.alertScrollFrame then
+        DetaurBar.UI.UpdateAlertScroll()
     end
     DetaurBar.UI.RefreshTasks()
 end
@@ -1585,7 +1847,7 @@ end
 -- [INIT] DetaurBar.UI.Initialize — sets up tabs, minimap, enemy detection, and window position
 function DetaurBar.UI.Initialize()
     DetaurBar.UI.UpdateTabAnchors()
-    DetaurBar.UI.SelectTab("Todo")
+    DetaurBar.UI.SelectTab("Notes")
     DetaurBar.UI.UpdateMinimapPosition()
     DetaurBar.UI.RestorePosition()
     if DetaurBar.Enemy and DetaurBar.Enemy.Initialize then
@@ -1599,6 +1861,11 @@ function DetaurBar.UI.ToggleVisibility()
         frame:Hide()
     else
         frame:Show()
+        if DetaurBar.UI.settingsMenuPanel then
+            DetaurBar.UI.settingsMenuPanel:Hide()
+        end
+        DetaurBar.UI.settingsMenuPanelVisible = false
+        DetaurBar.UI.SelectTab("Notes")
     end
 end
 

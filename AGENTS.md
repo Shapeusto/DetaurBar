@@ -46,7 +46,8 @@ You are a code assistant specialized in World of Warcraft addon development for 
 | `DetaurBar_UI_Notes.lua` | Notes sub-tabs (General/War/Guild) + drag-to-move + SelectNotesSubTab |
 | `DetaurBar_UI_Loot.lua` | Loot sub-tabs (Add/Delete) + deleteAllGraysCheckbox + SelectLootSubTab |
 | `DetaurBar_UI_Price.lua` | Price item sub-tabs, graph panel, threshold row, AH interval, price sub-tabs, all price functions |
-| `DetaurBar_UI_Settings.lua` | Settings panel (Dungeon/Wintergrasp/Random/Enemy sub-tabs, flash alerts, flash frames) |
+| `DetaurBar_UI_Settings.lua` | Alert panel (Dung/Raid/WG/Random/Enemy/Buffs sub-tabs, flash alerts, flash frames) |
+| `DetaurBar_UI_Buffs.lua` | Buffs tracking: cooldown expiry alerts, stacking buff change alerts, center-screen icon display |
 | `DetaurBar_UI_Enemy.lua` | Enemy detection engine, draggable monitor window, smooth/aggressive flash alerts, right-click dismiss |
 | `DetaurBar_UI_Graph.lua` | Price graph drawing (DrawPriceGraph, ClearGraphObjects, DrawGfLine) |
 | `DetaurBar_Data.lua` | SavedVariable helpers, 21,000+ item offline database, random alert CRUD functions |
@@ -58,7 +59,16 @@ You are a code assistant specialized in World of Warcraft addon development for 
 
 ## Tab Structure
 
-The addon has 5 main tabs: **Todo**, **Notes**, **Loot**, **Price**, **Settings**
+The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
+
+### Settings Menu (gear button panel)
+- Gear button (settings icon) next to close (X) opens a **panel** inside the main frame (same as other tab panels)
+- Panel has 3 sub-tabs: **Loot**, **Alert**, **Various**
+- **Settings > Loot**: 2 checkboxes (Add, Delete) — default both checked, unchecking hides the corresponding sub-tab from the Loot tab
+- **Settings > Alert**: 6 checkboxes (Dung, Raid, WG, Random, Enemy, Buffs) — default all checked, unchecking hides the corresponding sub-tab from the Settings/Alert tab
+- **Settings > Various**: 3 checkboxes (Alert Mind Control, Autosell junk and autorepair, Dismount on action) — persistent v `DetaurBarDB.settings.*`
+- State stored in `DetaurBarDB.settings.lootSubTabsVisible` and `DetaurBarDB.settings.alertSubTabsVisible`
+- Toggle via gear button; closes on tab switch
 
 ### Todo tab
 - 3 sub-tabs: **Day**, **Week**, **Month**
@@ -66,7 +76,7 @@ The addon has 5 main tabs: **Todo**, **Notes**, **Loot**, **Price**, **Settings*
 - SavedVariable: `DetaurBarDB.todo.day / .week / .month`
 - Category strings: `"todo_day"`, `"todo_week"`, `"todo_month"`
 
-### Notes tab
+### Note tab
 - 3 sub-tabs: **General**, **War**, **Guild**
 - SavedVariable: `DetaurBarDB.notes.general / .war / .guild`
 - Category strings: `"notes_general"`, `"notes_war"`, `"notes_guild"`
@@ -96,13 +106,15 @@ The addon has 5 main tabs: **Todo**, **Notes**, **Loot**, **Price**, **Settings*
   - Graph: dot-stepping lines, 3 X/Y axis labels
 - AH auto-scan: every N minutes when AH opened (page 0 only), configurable in Price > Notifications
 
-### Settings tab
-- 4 sub-tabs: **Dungeon**, **Wintergrasp**, **Random**, **Enemy**
+### Alert tab
+- 6 sub-tabs: **Dung**, **Raid**, **WG**, **Random**, **Enemy**, **Buffs** (visibility controlled by Settings Menu > Alert)
 - SavedVariable: `DetaurBarDB.settings`
-- **Dungeon sub-tab**: Enable screen flash on LFG proposal, flash duration, flash color (Green/Yellow/Red)
-- **Wintergrasp sub-tab**: Enable Wintergrasp alerts, Registration Warning (minutes, flash duration, flash color, play sound, select sound), Battle Start Warning (minutes, flash duration, flash color, play sound, select sound)
+- **Dung sub-tab**: Enable screen flash on LFG proposal, flash duration, flash color (Green/Yellow/Red)
+- **Raid sub-tab**: Raid roll/ready-check alerts with flash style, duration, color, sound
+- **WG sub-tab**: Wintergrasp alerts, Registration Warning (minutes, flash duration, flash color, play sound, select sound), Battle Start Warning (minutes, flash duration, flash color, play sound, select sound)
 - **Random sub-tab**: Enable random alerts, list of named alerts (each with interval, flash duration, flash color, play sound, select sound), Add/Delete buttons, click to select active alert
 - **Enemy sub-tab**: Enable enemy detection, screen flash (enable/disable), flash color (Green/Yellow/Red), flash style (Smooth/Aggressive), play sound (enable/disable), select sound (Raid/Ready)
+- **Buffs sub-tab**: Enable buff/cooldown tracking, 4 drag-from-spellbook cooldown slots (icon + close X), Follow Stacks checkbox, center-screen icon display on cooldown expiry or stack change
 
 ### Enemy tab
 - Detects hostile players via COMBAT_LOG_EVENT_UNFILTERED, PLAYER_TARGET_CHANGED, UPDATE_MOUSEOVER_UNIT
@@ -113,7 +125,7 @@ The addon has 5 main tabs: **Todo**, **Notes**, **Loot**, **Price**, **Settings*
 - Each row shows: enemy name (red, 4-char class abbrev, activity)
 - Left-click row = targets the enemy via SecureActionButtonTemplate macro
 - Right-click row = dismisses enemy from the list (session-only)
-- Eye icon toggle (center-right of monitor) synced bidirectionally with Settings > Enemy > Enable checkbox
+- Eye icon toggle (center-right of monitor) synced bidirectionally with Alert > Enemy > Enable checkbox
 - Enemies fade after 120s of inactivity
 - Max 10 enemies shown
 - **Aggressive flash**: fullscreen pulsing (pulsating 0.18–1.0 alpha over 2.6s)
@@ -142,6 +154,8 @@ DetaurBarDB = {
         dungeonFlashColor = "YELLOW",
         dungeonFlashDuration = 0,
         ahScanInterval = 10,
+        lootSubTabsVisible = { Add = true, Delete = true },
+        alertSubTabsVisible = { Dung = true, Raid = true, WG = true, Random = true, Enemy = true, Buffs = true },
         wgAlertsEnabled = true,
         wgAlert1Minutes = 15,
         wgAlert1Duration = 2,
@@ -165,6 +179,12 @@ DetaurBarDB = {
         enemyFlashStyle = "AGGRESSIVE",
         enemyPlaySound = false,
         enemySound = "RaidWarning",
+        mindControlAlertEnabled = false,
+        autoSellRepairEnabled = false,
+        dismountOnActionEnabled = false,
+        buffsEnabled = false,
+        buffsSpellSlots = { nil, nil, nil, nil },  -- each slot: { id = spellId, name = "Earth Shock", icon = "Interface\\Icons\\Spell_Nature_EarthShock" }
+        buffsFollowStacks = false,
     },
 }
 ```

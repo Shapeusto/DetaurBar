@@ -33,6 +33,7 @@ local scanCurrentPage = 0
 -- Flags set by OnResults, consumed by OnUpdate
 local scanNeedsNextPage = false
 local scanItemComplete = false
+local scanItemFound = false
 
 -- Timing
 local scanQueryTime = 0
@@ -164,6 +165,27 @@ local function CheckThresholds(itemId, minBuyout)
 end
 
 --------------------------------------------------------------------------------
+-- ClearStaleThresholds — volané keď item NEBOL nájdený na AH vôbec
+-- (vykúpený / mimo dosahu MAX_PAGES). Vyčistí len 'frequent' (low alert).
+-- 'frequentHigh' NESMIE byť ovplyvnené, lebo "nenájdený" nie je dôkaz vysokej ceny.
+--------------------------------------------------------------------------------
+
+local function ClearStaleThresholds(itemId)
+    if not itemId then return end
+    local priceItems = DetaurBar.Data.GetItems("price")
+    for _, item in ipairs(priceItems) do
+        local iid = tonumber(item.title:match("item:(%d+)"))
+                    or tonumber(item.title:match("^%d+$") and item.title)
+        if iid == itemId then
+            if item.frequent then
+                item.frequent = nil
+                print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " - nenájdené na AH (asi vykúpené). Odstránené z Notifications.")
+            end
+        end
+    end
+end
+
+--------------------------------------------------------------------------------
 -- Query page 0 for a new item
 -- Called ONLY from OnUpdate when guards pass and no item is active.
 --------------------------------------------------------------------------------
@@ -174,6 +196,7 @@ local function StartItemQuery(itemId)
     scanCurrentPage = 0
     scanNeedsNextPage = false
     scanItemComplete = false
+    scanItemFound = false
     scanQueryTime = GetTime()
     UpdateScanProgress()
     -- signature: QueryAuctionItems(name, minLvl, maxLvl, invType, class, subclass, page, usable, quality, getAll)
@@ -199,12 +222,19 @@ end
 --------------------------------------------------------------------------------
 
 local function AdvanceToNextItem()
+    if scanCurrentItemId and not scanItemFound then
+        ClearStaleThresholds(scanCurrentItemId)
+    end
     scanCurrentItemId = nil
     scanCurrentName = nil
     scanCurrentPage = 0
     scanNeedsNextPage = false
     scanItemComplete = false
+    scanItemFound = false
     UpdateScanProgress()
+    if DetaurBarFrame and DetaurBarFrame:IsShown() then
+        DetaurBar.UI.RefreshTasks()
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -215,10 +245,14 @@ end
 local scanFrame = CreateFrame("Frame")
 scanFrame:Hide()
 scanFrame:SetScript("OnUpdate", function(self)
-    -- AH closed → abort everything
+    -- AH closed → abort everything, reset timer so next open triggers fresh scan
     if not AuctionFrame or not AuctionFrame:IsShown() then
+        if scanCurrentItemId and not scanItemFound then
+            ClearStaleThresholds(scanCurrentItemId)
+        end
         scanQueue = {}
         scanCurrentItemId = nil
+        lastScanTime = 0
         HideScanStatus()
         self:Hide()
         return
@@ -329,10 +363,14 @@ function DetaurBar.AHScan.OnResults()
 
     if minBuyout and minBuyout > 0 then
         -- SUCCESS: found our item with a buyout price
+        scanItemFound = true
         DetaurBar.Data.SavePricePoint(scanCurrentItemId, minBuyout)
         CheckThresholds(scanCurrentItemId, minBuyout)
         scanItemComplete = true
         UpdateScanProgress()
+        if DetaurBarFrame and DetaurBarFrame:IsShown() then
+            DetaurBar.UI.RefreshTasks()
+        end
         return
     end
 

@@ -16,16 +16,26 @@ function DetaurBar.Data.InitializeDB()
     if not DetaurBarDB then
         DetaurBarDB = {}
     end
-    if DetaurBarDB.tasks and not DetaurBarDB.todo then
-        DetaurBarDB.todo = { day = DetaurBarDB.tasks, week = {}, month = {} }
-        DetaurBarDB.tasks = nil
-    end
     if not DetaurBarDB.todo then
         DetaurBarDB.todo = {}
     end
     if not DetaurBarDB.todo.day then DetaurBarDB.todo.day = {} end
     if not DetaurBarDB.todo.week then DetaurBarDB.todo.week = {} end
     if not DetaurBarDB.todo.month then DetaurBarDB.todo.month = {} end
+    if not DetaurBarDB.tasks then
+        DetaurBarDB.tasks = {
+            categories = { "General" },
+            data = {
+                ["General"] = {},
+            }
+        }
+    elseif not DetaurBarDB.tasks.categories then
+        DetaurBarDB.tasks.categories = { "General" }
+        DetaurBarDB.tasks.data = DetaurBarDB.tasks.data or {}
+        for _, name in ipairs(DetaurBarDB.tasks.categories) do
+            if not DetaurBarDB.tasks.data[name] then DetaurBarDB.tasks.data[name] = {} end
+        end
+    end
     if not DetaurBarDB.notes then
         DetaurBarDB.notes = {
             categories = { "General", "War", "Guild" },
@@ -71,6 +81,28 @@ function DetaurBar.Data.InitializeDB()
     end
     if not DetaurBarDB.price then
         DetaurBarDB.price = {}
+    end
+    -- [MIGRATION 2026-07-06] Convert old array-format price to faction-based format
+    -- Old: DetaurBarDB.price = { {title=...}, {title=...}, ["Horde"]={} }
+    -- New: DetaurBarDB.price = { ["Horde"] = { {title=...}, {title=...} } }
+    if DetaurBarDB.price[1] then
+        local faction = UnitFactionGroup("player") or "Horde"
+        local items = {}
+        local i = 1
+        while type(DetaurBarDB.price[i]) == "table" do
+            table.insert(items, DetaurBarDB.price[i])
+            DetaurBarDB.price[i] = nil
+            i = i + 1
+        end
+        DetaurBarDB.price[faction] = items
+        for k, v in pairs(DetaurBarDB.price) do
+            if type(k) ~= "string" then
+                DetaurBarDB.price[k] = nil
+            end
+        end
+        if not DetaurBarDB.price[faction] then
+            DetaurBarDB.price[faction] = {}
+        end
     end
     if not DetaurBarDB.priceHistory then
         DetaurBarDB.priceHistory = {}
@@ -153,6 +185,66 @@ function DetaurBar.Data.InitializeDB()
     if not DetaurBarDB.settings.enemyFlashStyle then
         DetaurBarDB.settings.enemyFlashStyle = "AGGRESSIVE"
     end
+    if DetaurBarDB.settings.raidRollAlertEnabled == nil then
+        DetaurBarDB.settings.raidRollAlertEnabled = false
+    end
+    if not DetaurBarDB.settings.raidRollAlertColor then
+        DetaurBarDB.settings.raidRollAlertColor = "YELLOW"
+    end
+    if DetaurBarDB.settings.raidRollAlertDuration == nil then
+        DetaurBarDB.settings.raidRollAlertDuration = 0
+    end
+    if not DetaurBarDB.settings.raidRollAlertStyle then
+        DetaurBarDB.settings.raidRollAlertStyle = "AGGRESSIVE"
+    end
+    if DetaurBarDB.settings.raidRollAlertPlaySound == nil then
+        DetaurBarDB.settings.raidRollAlertPlaySound = false
+    end
+    if not DetaurBarDB.settings.raidRollAlertSound then
+        DetaurBarDB.settings.raidRollAlertSound = "RaidWarning"
+    end
+    if DetaurBarDB.settings.raidReadyCheckAlertEnabled == nil then
+        DetaurBarDB.settings.raidReadyCheckAlertEnabled = false
+    end
+    if not DetaurBarDB.settings.raidReadyCheckAlertColor then
+        DetaurBarDB.settings.raidReadyCheckAlertColor = "YELLOW"
+    end
+    if DetaurBarDB.settings.raidReadyCheckAlertDuration == nil then
+        DetaurBarDB.settings.raidReadyCheckAlertDuration = 0
+    end
+    if not DetaurBarDB.settings.raidReadyCheckAlertStyle then
+        DetaurBarDB.settings.raidReadyCheckAlertStyle = "AGGRESSIVE"
+    end
+    if DetaurBarDB.settings.raidReadyCheckAlertPlaySound == nil then
+        DetaurBarDB.settings.raidReadyCheckAlertPlaySound = false
+    end
+    if not DetaurBarDB.settings.raidReadyCheckAlertSound then
+        DetaurBarDB.settings.raidReadyCheckAlertSound = "RaidWarning"
+    end
+    if not DetaurBarDB.settings.lootSubTabsVisible then
+        DetaurBarDB.settings.lootSubTabsVisible = { ["Add"] = true, ["Delete"] = true }
+    end
+    if not DetaurBarDB.settings.alertSubTabsVisible then
+        DetaurBarDB.settings.alertSubTabsVisible = { ["Dung"] = true, ["Raid"] = true, ["WG"] = true, ["Random"] = true, ["Enemy"] = true, ["Buffs"] = true }
+    end
+    if DetaurBarDB.settings.mindControlAlertEnabled == nil then
+        DetaurBarDB.settings.mindControlAlertEnabled = false
+    end
+    if DetaurBarDB.settings.autoSellRepairEnabled == nil then
+        DetaurBarDB.settings.autoSellRepairEnabled = false
+    end
+    if DetaurBarDB.settings.dismountOnActionEnabled == nil then
+        DetaurBarDB.settings.dismountOnActionEnabled = false
+    end
+    if DetaurBarDB.settings.buffsEnabled == nil then
+        DetaurBarDB.settings.buffsEnabled = false
+    end
+    if not DetaurBarDB.settings.buffsSpellSlots then
+        DetaurBarDB.settings.buffsSpellSlots = { nil, nil, nil, nil }
+    end
+    if DetaurBarDB.settings.buffsFollowStacks == nil then
+        DetaurBarDB.settings.buffsFollowStacks = false
+    end
     if not DetaurBarDB.minimapAngle then
         DetaurBarDB.minimapAngle = 45
     end
@@ -176,6 +268,77 @@ function DetaurBar.Data.InitializeDB()
         for _, task in ipairs(DetaurBarDB.todo.day) do
             task.completed = false
         end
+        if DetaurBarDB.tasks and DetaurBarDB.tasks.data then
+            for _, catName in ipairs(DetaurBarDB.tasks.categories) do
+                local items = DetaurBarDB.tasks.data[catName]
+                if items then
+                    for _, item in ipairs(items) do
+                        item.completed = false
+                    end
+                end
+            end
+        end
+    end
+
+    -- Clean up stale migration flags from previous buggy versions
+    if DetaurBarDB._migratedHerbIds or DetaurBarDB._migratedHerbIdsV2 or DetaurBarDB._migratedHerbIdsV3 or DetaurBarDB._migratedHerbIdsFinal then
+        DetaurBarDB._migratedHerbIds = nil
+        DetaurBarDB._migratedHerbIdsV2 = nil
+        DetaurBarDB._migratedHerbIdsV3 = nil
+        DetaurBarDB._migratedHerbIdsFinal = nil
+    end
+
+    -- [MIGRATION 2026-07-06 v4] Fix shifted herb IDs in BOTH link items AND item:ID format.
+    -- Warmane cache (2026-07): goldclover=36901, adder's tongue=36903, tiger lily=36904,
+    -- lichbloom=36905, icethorn=36906, talandra's rose=36907, frost lotus=36908, fire leaf=39970
+    -- Old WRONG DB had: frost lotus=36902, fire leaf=36903, adder's tongue=36905, lichbloom=36906, icethorn=36908
+    local herbIdFix = {
+        [36902] = 36908,  -- frost lotus
+        [36903] = 39970,  -- fire leaf
+        [36905] = 36903,  -- adder's tongue
+        [36906] = 36905,  -- lichbloom
+        [36908] = 36906,  -- icethorn
+    }
+    if not DetaurBarDB._migratedHerbIdsV4 then
+        local function fixItemId(title)
+            if title then
+                -- Fix link format: |c...|Hitem:36908|h[Icethorn]|h|r  -> correct ID via name lookup
+                local linkName = string.match(title, "%|h%[(.-)%]%|h")
+                if linkName then
+                    local cleaned = string.lower(linkName)
+                    local correctId = DetaurBar.Data.ItemDatabase and DetaurBar.Data.ItemDatabase[cleaned]
+                    if correctId then
+                        local newTitle = string.gsub(title, "|Hitem:(%d+)", "|Hitem:" .. correctId)
+                        if newTitle ~= title then
+                            return newTitle
+                        end
+                    end
+                end
+                -- Fix item:ID format: "item:36902" -> "item:36908" via herbIdFix mapping
+                local itemIdNum = tonumber(string.match(title, "^item:(%d+)$"))
+                if itemIdNum and herbIdFix[itemIdNum] then
+                    return "item:" .. herbIdFix[itemIdNum]
+                end
+            end
+            return title
+        end
+        local function fixList(list)
+            if list and type(list) == "table" then
+                for _, item in ipairs(list) do
+                    if item.title then
+                        item.title = fixItemId(item.title)
+                    end
+                end
+            end
+        end
+        fixList(DetaurBarDB.price)
+        fixList(DetaurBarDB.sell)
+        if DetaurBarDB.loot and type(DetaurBarDB.loot) == "table" then
+            fixList(DetaurBarDB.loot.add)
+            fixList(DetaurBarDB.loot.delete)
+            fixList(DetaurBarDB.loot.refuse)
+        end
+        DetaurBarDB._migratedHerbIdsV4 = true
     end
 end
 
@@ -187,6 +350,14 @@ function DetaurBar.Data.GetItems(category)
         return DetaurBarDB.todo.week
     elseif category == "todo_month" then
         return DetaurBarDB.todo.month
+    elseif category:find("^tasks_") then
+        local catName = category:sub(7)
+        for _, catDisplayName in ipairs(DetaurBarDB.tasks.categories) do
+            if catDisplayName:lower() == catName then
+                return DetaurBarDB.tasks.data[catDisplayName] or {}
+            end
+        end
+        return {}
     elseif category:find("^notes_") then
         local catName = category:sub(7)
         for _, catDisplayName in ipairs(DetaurBarDB.notes.categories) do
@@ -301,6 +472,16 @@ function DetaurBar.Data.GetSettings()
     return DetaurBarDB.settings
 end
 
+function DetaurBar.Data.IsSubTabVisible(tabType, subTabName)
+    local settings = DetaurBar.Data.GetSettings()
+    if tabType == "loot" then
+        return settings.lootSubTabsVisible and settings.lootSubTabsVisible[subTabName] ~= false
+    elseif tabType == "alert" then
+        return settings.alertSubTabsVisible and settings.alertSubTabsVisible[subTabName] ~= false
+    end
+    return true
+end
+
 function DetaurBar.Data.GetItemName(itemId)
     if not itemId then return nil end
     if DetaurBar.Data.ItemDatabaseReverse and DetaurBar.Data.ItemDatabaseReverse[itemId] then
@@ -412,6 +593,46 @@ function DetaurBar.Data.DeleteNoteCategory(name)
         if cat == name then
             table.remove(DetaurBarDB.notes.categories, i)
             DetaurBarDB.notes.data[name] = nil
+            return true
+        end
+    end
+    return false
+end
+
+function DetaurBar.Data.GetTaskCategories()
+    DetaurBar.Data.InitializeDB()
+    return DetaurBarDB.tasks.categories
+end
+
+function DetaurBar.Data.TaskCategoryExists(name)
+    DetaurBar.Data.InitializeDB()
+    if not name then return false end
+    for _, cat in ipairs(DetaurBarDB.tasks.categories) do
+        if cat == name then return true end
+    end
+    return false
+end
+
+function DetaurBar.Data.AddTaskCategory(name)
+    DetaurBar.Data.InitializeDB()
+    name = name:gsub("^%s*(.-)%s*$", "%1")
+    if name == "" then return nil end
+    for _, cat in ipairs(DetaurBarDB.tasks.categories) do
+        if cat:lower() == name:lower() then return nil end
+    end
+    table.insert(DetaurBarDB.tasks.categories, name)
+    DetaurBarDB.tasks.data[name] = {}
+    return name
+end
+
+function DetaurBar.Data.DeleteTaskCategory(name)
+    DetaurBar.Data.InitializeDB()
+    if not name or name:lower() == "general" then return false end
+    if #DetaurBarDB.tasks.categories <= 1 then return false end
+    for i, cat in ipairs(DetaurBarDB.tasks.categories) do
+        if cat:lower() == name:lower() then
+            table.remove(DetaurBarDB.tasks.categories, i)
+            DetaurBarDB.tasks.data[cat] = nil
             return true
         end
     end

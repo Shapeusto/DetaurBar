@@ -14012,13 +14012,13 @@ DetaurBar.Data.ItemDatabase = {
     ["marshwalker legguards"] = 36888,
     ["demonic soulstone"] = 36895,
     ["goldclover"] = 36901,
-    ["constrictor grass"] = 36902,
     ["adder's tongue"] = 36903,
     ["tiger lily"] = 36904,
     ["lichbloom"] = 36905,
     ["icethorn"] = 36906,
     ["talandra's rose"] = 36907,
     ["frost lotus"] = 36908,
+    ["fire leaf"] = 39970,
     ["saronite bar"] = 36913,
     ["cobalt bar"] = 36916,
     ["bloodstone"] = 36917,
@@ -15759,7 +15759,7 @@ DetaurBar.Data.ItemDatabase = {
     ["azure shoulderguards"] = 39897,
     ["cobra hatchling"] = 39898,
     ["fire seed"] = 39969,
-    ["fire leaf"] = 39970,
+    -- fire leaf moved to 36903 in the WotLK herb section
     ["bold scarlet ruby"] = 39996,
     ["delicate scarlet ruby"] = 39997,
     ["runed scarlet ruby"] = 39998,
@@ -21707,13 +21707,11 @@ DetaurBar.Data.ItemDatabase = {
 DetaurBar.Data.ItemIcons = {
     -- WotLK Herbs
     [36901] = "Interface\\Icons\\INV_Misc_Herb_Goldclover",
-    [36902] = "Interface\\Icons\\INV_Misc_Herb_AddersTongue",
-    [36903] = "Interface\\Icons\\INV_Misc_Herb_AddersTongue",
     [36904] = "Interface\\Icons\\INV_Misc_Herb_TigerLily",
-    [36905] = "Interface\\Icons\\INV_Misc_Herb_Lichbloom",
     [36906] = "Interface\\Icons\\INV_Misc_Herb_Icethorn",
     [36907] = "Interface\\Icons\\INV_Misc_Herb_TalandrasRose",
     [36908] = "Interface\\Icons\\INV_Misc_Herb_FrostLotus",
+    [39970] = "Interface\\Icons\\INV_Misc_Herb_FireLeaf",
     
     -- WotLK Ores
     [36909] = "Interface\\Icons\\INV_Ore_Cobalt",

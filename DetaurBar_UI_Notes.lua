@@ -1,5 +1,5 @@
 -- DetaurBar_UI_Notes.lua
--- Dynamic Notes categories: add/delete via bottom controls, ScrollFrame for horizontal scroll
+-- Merged Tasks tab: user-defined categories, checkboxes, click-to-copy, drag-to-move
 
 DetaurBar.UI.notesSubTabs = {}
 DetaurBar.UI.activeNotesSubTab = nil
@@ -59,8 +59,8 @@ local function CreateSubTabButton()
             self:SetBackdropBorderColor(1.0, 0.82, 0.0, 1.0)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:ClearLines()
-            GameTooltip:AddLine("Move Note", 1.0, 1.0, 1.0)
-            GameTooltip:AddLine("Release to move this note to " .. self.tabName .. ".", 0.5, 0.5, 0.5)
+            GameTooltip:AddLine("Move Task", 1.0, 1.0, 1.0)
+            GameTooltip:AddLine("Release to move this task to " .. self.tabName .. ".", 0.5, 0.5, 0.5)
             GameTooltip:Show()
         else
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -79,7 +79,7 @@ end
 
 -- [SUBTAB MANAGEMENT] DetaurBar.UI.RebuildNotesSubTabs — sync button pool with DB
 function DetaurBar.UI.RebuildNotesSubTabs()
-    local catNames = DetaurBar.Data.GetNoteCategories()
+    local catNames = DetaurBar.Data.GetTaskCategories()
     local pool = DetaurBar.UI.notesSubTabs
 
     while #pool < #catNames do
@@ -97,7 +97,7 @@ function DetaurBar.UI.RebuildNotesSubTabs()
         end
     end
 
-    if not DetaurBar.UI.activeNotesSubTab or not DetaurBar.Data.NoteCategoryExists(DetaurBar.UI.activeNotesSubTab) then
+    if not DetaurBar.UI.activeNotesSubTab or not DetaurBar.Data.TaskCategoryExists(DetaurBar.UI.activeNotesSubTab) then
         DetaurBar.UI.activeNotesSubTab = catNames[1] or "General"
     end
 
@@ -126,7 +126,7 @@ function DetaurBar.UI.LayoutNotesSubTabs()
     if n == 0 then return end
 
     local totalWidth = DetaurBar.UI.frame:GetWidth() - 28
-    local gap = 4
+    local gap = 1
 
     local maxTextWidth = 0
     for _, subTab in ipairs(shown) do
@@ -247,8 +247,8 @@ end
 
 -- [SUB-TAB SWITCH] DetaurBar.UI.SelectNotesSubTab
 function DetaurBar.UI.SelectNotesSubTab(subTabName)
-    if not subTabName or not DetaurBar.Data.NoteCategoryExists(subTabName) then
-        local cats = DetaurBar.Data.GetNoteCategories()
+    if not subTabName or not DetaurBar.Data.TaskCategoryExists(subTabName) then
+        local cats = DetaurBar.Data.GetTaskCategories()
         subTabName = cats[1]
         if not subTabName then return end
     end
@@ -276,13 +276,8 @@ do
     bg:Hide()
     DetaurBar.UI.notesCatControls = bg
 
-    local catLabel = bg:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    catLabel:SetText("Category:")
-    catLabel:SetTextColor(1.0, 0.82, 0.0, 1.0)
-
     local catEdit = CreateFrame("EditBox", nil, bg)
     catEdit:SetHeight(18)
-    catEdit:SetWidth(110)
     catEdit:SetFontObject("GameFontHighlightSmall")
     catEdit:SetAutoFocus(false)
     catEdit:SetTextInsets(4, 4, 0, 0)
@@ -296,18 +291,30 @@ do
     catEdit:SetBackdropBorderColor(0.4, 0.4, 0.4, 1.0)
     DetaurBar.UI.notesCatEdit = catEdit
 
+    -- Placeholder text inside the edit box
+    local catPlaceholder = catEdit:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    catPlaceholder:SetPoint("LEFT", catEdit, "LEFT", 6, 0)
+    catPlaceholder:SetText("Add category")
+    catEdit:SetScript("OnTextChanged", function(self)
+        if self:GetText() == "" then
+            catPlaceholder:Show()
+        else
+            catPlaceholder:Hide()
+        end
+    end)
+
     local addCatBtn = CreateFrame("Button", nil, bg, "UIPanelButtonTemplate")
     addCatBtn:SetSize(60, 18)
     addCatBtn:SetPoint("RIGHT", bg, "RIGHT", -6, 0)
     addCatBtn:SetText("Add")
 
+    catEdit:SetPoint("LEFT", bg, "LEFT", 72, 0)
     catEdit:SetPoint("RIGHT", addCatBtn, "LEFT", -6, 0)
-    catLabel:SetPoint("RIGHT", catEdit, "LEFT", -6, 0)
     addCatBtn:SetScript("OnClick", function()
         local name = catEdit:GetText()
         name = name:gsub("^%s*(.-)%s*$", "%1")
         if name ~= "" then
-            local result = DetaurBar.Data.AddNoteCategory(name)
+            local result = DetaurBar.Data.AddTaskCategory(name)
             if result then
                 catEdit:SetText("")
                 catEdit:ClearFocus()
@@ -336,7 +343,11 @@ do
     delCatBtn:SetScript("OnClick", function()
         local active = DetaurBar.UI.activeNotesSubTab
         if not active then return end
-        local cats = DetaurBar.Data.GetNoteCategories()
+        if active:lower() == "general" then
+            print("Cannot delete the General category.")
+            return
+        end
+        local cats = DetaurBar.Data.GetTaskCategories()
         if #cats <= 1 then
             print("Cannot delete the last category.")
             return
@@ -348,14 +359,14 @@ end
 
 -- [CONFIRM] StaticPopup dialog for category deletion
 StaticPopupDialogs["DETAURBAR_DELETE_CATEGORY"] = {
-    text = "Delete category '%s' and all its notes?",
+    text = "Delete category '%s' and all its tasks?",
     button1 = "Yes",
     button2 = "No",
     OnAccept = function()
         local active = DetaurBar.UI.activeNotesSubTab
         if not active then return end
-        if DetaurBar.Data.DeleteNoteCategory(active) then
-            local cats = DetaurBar.Data.GetNoteCategories()
+        if DetaurBar.Data.DeleteTaskCategory(active) then
+            local cats = DetaurBar.Data.GetTaskCategories()
             local newActive = cats[1] or "General"
             DetaurBar.UI.RebuildNotesSubTabs()
             DetaurBar.UI.SelectNotesSubTab(newActive)

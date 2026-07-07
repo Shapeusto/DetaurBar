@@ -233,14 +233,19 @@ DetaurBar.UI.ahLabel, DetaurBar.UI.ahIntervalEdit = DetaurBar.UI.CreateSettingsE
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.ahScanInterval = DetaurBar.UI.ClampNumber(self:GetText(), 10, 1, 120)
     self:SetText(tostring(settings.ahScanInterval))
+    print("|cffffff00DetaurBar:|r AH Scan Interval set to " .. settings.ahScanInterval .. " min.")
 end)
-DetaurBar.UI.SetSimpleTooltip(DetaurBar.UI.ahIntervalEdit, "AH Scan Interval", "How often the addon can auto-scan the Auction House while the AH is open.")
+DetaurBar.UI.SetSimpleTooltip(DetaurBar.UI.ahIntervalEdit, "AH Scan Interval", {
+    "Press Enter to save.",
+    "How often the addon can auto-scan",
+    "the Auction House while the AH is open.",
+})
 
 -- [PRICE/SUB-TABS] 4 price sub-tab names + visual update
 DetaurBar.UI.priceSubTabNames = { "Daily", "Weekly", "Monthly", "Yearly" }
 DetaurBar.UI.activePriceSubTab = "Daily"
 DetaurBar.UI.priceSubTabObjects = {}
-local subTabGap = 4
+local subTabGap = 1
 
 function DetaurBar.UI.UpdatePriceSubTabVisuals()
     for _, st in ipairs(DetaurBar.UI.priceSubTabObjects) do

@@ -1,28 +1,23 @@
 # DetaurBar
 
-![Showcase](show.webp)
+![Showcase](https://i.imgur.com/YgGRBRm.gif)
 
 In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3.3.5a)** — designed for Warmane (Icecrown).
 
 ## Features
 
-### Todo
-- Checklist split into **Day / Week / Month** sub-tabs
-- Day resets automatically at 3:00 AM
-- Week and Month persist indefinitely
+### Note
+- User-defined categories (Add / Delete, scroll arrows for many categories)
 - Checkbox toggles completed state (greyed out when done)
+- Click anywhere on a task to copy its text (1 second to press Ctrl+C)
+- Drag task between categories to reorganize
+- Daily reset at 3:00 AM unchecks all completed tasks
 - Delete (X) removes task
-
-### Notes
-- Quick text notes across **General / War / Guild** sub-tabs
-- Click any note to paste its text into chat
-- Copy button on each row to paste into chat
-- Drag notes between sub-tabs to reorganize (drag row, drop on target sub-tab)
 
 ### Loot
 - **Add** sub-tab: whitelist items you want to track (icons, rarity colors, tooltips with sell price)
 - **Delete** sub-tab: auto-delete list for gray items
-- **Delete All Grays** checkbox in Delete sub-tab
+- **Delete all grays** checkbox in Delete sub-tab
 - Arrow button copies item to Price list (item stays in Loot)
 - Shift-click to link item to chat
 - Drag & drop items from bags, AH, or profession windows
@@ -52,7 +47,7 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
 ### Enemy Detection
 - Detects hostile players via combat events, mouseover, and target scanning
 - **Draggable monitor window** with ornate WoW dialog frame (toggle via right-click minimap icon)
-- Eye icon toggle on monitor (center-right) — synced with Settings > Enemy > Enable checkbox
+- Eye icon toggle on monitor (center-right) — synced with Alert > Enemy > Enable checkbox
 - Resizable width (200–500px) with bottom-right grip
 - Each row shows: enemy name (red), level + 4-char class abbrev, current activity
 - **Left-click** row → targets the enemy
@@ -60,9 +55,10 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
 - Enemies auto-fade after 120s of inactivity
 - Automatically disabled in instances
 
-### Settings
-- **Dungeon** — Screen flash on LFG proposal: enable/disable, flash color (Green/Yellow/Red), flash duration
-- **Wintergrasp** — Two configurable alerts:
+### Alert
+- **Dung** — Screen flash on LFG proposal: enable/disable, flash color (Green/Yellow/Red), flash duration
+- **Raid** — Raid roll / ready-check alerts with flash style, duration, color, sound
+- **WG** — Two configurable alerts:
   - **Registration Warning**: minutes before, flash duration, flash color, play sound, sound selection
   - **Battle Start**: minutes before, flash duration, flash color, play sound, sound selection
 - **Random** — Multiple named timer alerts:
@@ -75,6 +71,19 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
   - Flash color (Green/Yellow/Red)
   - Flash style (Smooth = border fade / Aggressive = fullscreen pulse)
   - Play sound (on/off) + sound picker (Raid/Ready)
+  - **Alert Mind Control**: center-screen red text when party/raid member gets Mind Controlled (4s fade)
+- **Buffs** — Cooldown & stack tracking:
+  - Enable/disable tracking
+  - 4 drag-from-spellbook cooldown slots with icon display
+  - Center-screen alert on cooldown expiry or stack change
+  - Maelstrom Weapon stack tracking (Show maelstorm stack checkbox)
+
+### Settings (gear button)
+- **Loot sub-tab**: Show/hide Add and Delete sub-tabs in Loot tab
+- **Alert sub-tab**: Show/hide Dung/Raid/WG/Random/Enemy/Buffs sub-tabs in Alert tab
+- **Various sub-tab**:
+  - **Autosell junk and autorepair**: auto-sells all grey items and repairs equipment on merchant open
+  - **Dismount on action**: auto-dismounts when using any action button or keybind (mouse click and keyboard)
 
 ### General
 - Shift-click item linking from bags, profession windows, Auction House
@@ -89,7 +98,14 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
 ## Commands
 - `/todo` or `/detaurbar` — Toggle main window
 - `/detaurdebug` — Debug info (UI state, DB, minimap button)
+- `/detaurenemy` — Toggle enemy monitor window
 - `/detaurid scan` — Scan items in bags/bank for ID lookup
+- `/detaurid icon <id>` — Show icon path for an item ID
+- `/detaurid save <id>` — Save current target/item to price list by ID
+- `/detaurfixherbs` — Fix Northrend herb item IDs (safe mapping, no data loss)
+- `/detaurrecover` — Recover items stuck in legacy array format
+- `/detaurrestore` — Restore items from backup
+- `/detaurmigrate` — Manually re-run data migrations
 - Right-click minimap icon — Toggle enemy monitor window
 
 ## Installation
