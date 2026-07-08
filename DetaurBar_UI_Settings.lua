@@ -124,6 +124,9 @@ local function CreateAlertEditRow(parent, labelText, x, y, width, maxLetters, on
     edit:SetScript("OnEscapePressed", function(self)
         self:ClearFocus()
     end)
+    edit:SetScript("OnEditFocusLost", function(self)
+        onEnter(self)
+    end)
     return label, edit
 end
 
@@ -204,7 +207,7 @@ DetaurBar.UI.alertScrollChild:SetHeight(390)
 -- ============================================
 --  SETTINGS SUB-TABS: Dungeon / Wintergrasp / Random
 -- ============================================
-local alertSubTabNames = { "Dung", "Raid", "WG", "Random", "Enemy", "Buffs" }
+local alertSubTabNames = { "Dung", "Raid", "WG", "Random", "Enemy", "Buffs", "Item" }
 for i, name in ipairs(alertSubTabNames) do
     local subTab = CreateFrame("Button", "DetaurBarSettingsSubTab_" .. name, DetaurBar.UI.alertPanel)
     subTab:SetHeight(24)
@@ -965,6 +968,133 @@ table.insert(alertBuffsControls, buffsStacksCheckbox)
 table.insert(alertBuffsControls, buffsStacksLabel)
 
 -- ============================================
+--  SETTINGS CONTROLS: Item tracking sub-tab
+-- ============================================
+local alertItemControls = {}
+
+local itemTrackingEnableCheckbox, itemTrackingEnableLabel = CreateAlertCheck(sc, "Enable Item Tracking", 8, -8, function(self)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    settings.itemTrackingEnabled = self:GetChecked() and true or false
+end)
+DetaurBar.UI.SetSimpleTooltip(itemTrackingEnableCheckbox, "Enable Item Tracking", "Track item quantities in bags and get chat alerts when low.")
+table.insert(alertItemControls, itemTrackingEnableCheckbox)
+table.insert(alertItemControls, itemTrackingEnableLabel)
+
+local itemSlotsLabel = CreateAlertLabel(sc, "Item Slots (drag items from bags)", 8, -40)
+itemSlotsLabel:SetFontObject("GameFontNormalSmall")
+itemSlotsLabel:SetTextColor(0.6, 0.6, 0.6, 1.0)
+table.insert(alertItemControls, itemSlotsLabel)
+
+local itemTrackSlots = {}
+local slotGap = 8
+local slotSize = 36
+local COLS = 5
+local ROWS = 5
+for row = 1, ROWS do
+    for col = 1, COLS do
+        local idx = (row - 1) * COLS + col
+        local slot = CreateFrame("Button", nil, sc)
+        slot:SetSize(slotSize, slotSize)
+        slot:SetPoint("TOPLEFT", sc, "TOPLEFT", 8 + (col - 1) * (slotSize + slotGap), -64 - (row - 1) * (slotSize + slotGap))
+        slot:SetBackdrop({
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 12, edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        })
+        slot:SetBackdropColor(0, 0, 0, 0.8)
+        slot:SetBackdropBorderColor(0.4, 0.4, 0.4, 1.0)
+
+        local icon = slot:CreateTexture(nil, "ARTWORK")
+        icon:SetAllPoints(slot)
+        icon:Hide()
+
+        local closeX = CreateFrame("Button", nil, slot)
+        closeX:SetSize(12, 12)
+        closeX:SetPoint("TOPRIGHT", slot, "TOPRIGHT", 2, -2)
+        closeX:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+        closeX:SetHighlightTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Highlight")
+        closeX:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
+        closeX:Hide()
+        closeX:SetScript("OnClick", function()
+            DetaurBar.Data.InitializeDB()
+            if DetaurBarDB.settings.itemTrackingSlots then
+                DetaurBarDB.settings.itemTrackingSlots[idx] = nil
+            end
+            DetaurBar.UI.UpdateAlertPanel()
+        end)
+
+        slot:EnableMouse(true)
+        slot:SetScript("OnReceiveDrag", function()
+            local infoType, itemId, itemLink = GetCursorInfo()
+            if infoType == "item" and itemId and type(itemId) == "number" then
+                DetaurBar.Data.InitializeDB()
+                if not DetaurBarDB.settings.itemTrackingSlots then DetaurBarDB.settings.itemTrackingSlots = {} end
+                local name, _, _, _, _, _, _, _, _, icon = GetItemInfo(itemId)
+                DetaurBarDB.settings.itemTrackingSlots[idx] = { itemId = itemId, name = name or ("ID: " .. itemId), icon = icon }
+                ClearCursor()
+                DetaurBar.UI.UpdateAlertPanel()
+            end
+        end)
+        slot:SetScript("OnEnter", function(self)
+            local data = DetaurBarDB.settings.itemTrackingSlots and DetaurBarDB.settings.itemTrackingSlots[idx]
+            if data then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:ClearLines()
+                GameTooltip:AddLine(data.name or ("Item ID: " .. data.itemId), 1.0, 1.0, 1.0)
+                GameTooltip:Show()
+            end
+        end)
+        slot:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+        slot.icon = icon
+        slot.closeX = closeX
+
+        itemTrackSlots[idx] = slot
+        table.insert(alertItemControls, slot)
+    end
+end
+
+-- Divider after item slots
+local itemDivider = CreateSectionDivider(sc)
+itemDivider:SetPoint("TOP", itemTrackSlots[COLS * (ROWS - 1) + 1], "BOTTOM", 0, -12)
+itemDivider:SetPoint("LEFT", sc, "LEFT", 10)
+itemDivider:SetPoint("RIGHT", sc, "RIGHT", -10)
+table.insert(alertItemControls, itemDivider)
+
+-- Interval edit (below divider)
+local itemIntervalLabel, itemIntervalEdit = CreateAlertEditRow(sc, "Alert interval (minutes)", 8, -4, 50, 4, function(self)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    local val = tonumber(self:GetText()) or 30
+    if val < 1 then val = 1 end
+    settings.itemTrackingInterval = val
+end)
+itemIntervalLabel:ClearAllPoints()
+itemIntervalLabel:SetPoint("TOPLEFT", itemDivider, "BOTTOMLEFT", 10, -12)
+itemIntervalEdit:ClearAllPoints()
+itemIntervalEdit:SetPoint("LEFT", itemIntervalLabel, "RIGHT", 8, 0)
+table.insert(alertItemControls, itemIntervalLabel)
+table.insert(alertItemControls, itemIntervalEdit)
+
+-- Threshold edit (below interval)
+local itemThresholdLabel, itemThresholdEdit = CreateAlertEditRow(sc, "Alert threshold (count)", 8, -28, 50, 4, function(self)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    local val = tonumber(self:GetText())
+    if val and val > 0 then
+        settings.itemTrackingThreshold = val
+    else
+        settings.itemTrackingThreshold = 0
+    end
+
+end)
+itemThresholdLabel:ClearAllPoints()
+itemThresholdLabel:SetPoint("TOPLEFT", itemIntervalLabel, "BOTTOMLEFT", 0, -8)
+itemThresholdEdit:ClearAllPoints()
+itemThresholdEdit:SetPoint("LEFT", itemThresholdLabel, "RIGHT", 8, 0)
+table.insert(alertItemControls, itemThresholdLabel)
+table.insert(alertItemControls, itemThresholdEdit)
+
+-- ============================================
 --  SELECT SETTINGS SUB-TAB
 -- ============================================
 function DetaurBar.UI.SelectAlertSubTab(subTabName)
@@ -982,6 +1112,7 @@ function DetaurBar.UI.SelectAlertSubTab(subTabName)
     SetAlertControlsVisible(alertRandomControls, subTabName == "Random")
     SetAlertControlsVisible(alertEnemyControls, subTabName == "Enemy")
     SetAlertControlsVisible(alertBuffsControls, subTabName == "Buffs")
+    SetAlertControlsVisible(alertItemControls, subTabName == "Item")
 
     if DetaurBar.UI.UpdateContentAnchors then
         DetaurBar.UI.UpdateContentAnchors()
@@ -1054,6 +1185,36 @@ function DetaurBar.UI.UpdateAlertPanel()
     SetAlertControlsVisible(alertRandomControls, DetaurBar.UI.activeAlertSubTab == "Random")
     SetAlertControlsVisible(alertEnemyControls, DetaurBar.UI.activeAlertSubTab == "Enemy")
     SetAlertControlsVisible(alertBuffsControls, DetaurBar.UI.activeAlertSubTab == "Buffs")
+    SetAlertControlsVisible(alertItemControls, DetaurBar.UI.activeAlertSubTab == "Item")
+
+    -- Update item tracking slot icons
+    if DetaurBar.UI.activeAlertSubTab == "Item" then
+        itemTrackingEnableCheckbox:SetChecked(settings.itemTrackingEnabled and 1 or nil)
+        itemIntervalEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.itemTrackingInterval, 30, 1, 999)))
+        itemThresholdEdit:SetText(tostring(settings.itemTrackingThreshold or 0))
+        for i, slot in ipairs(itemTrackSlots) do
+            local data = settings.itemTrackingSlots and settings.itemTrackingSlots[i]
+            if data and data.itemId then
+                if data.icon then
+                    slot.icon:SetTexture(data.icon)
+                    slot.icon:Show()
+                else
+                    local _, _, _, _, _, _, _, _, _, icon = GetItemInfo(data.itemId)
+                    if icon then
+                        slot.icon:SetTexture(icon)
+                        slot.icon:Show()
+                        data.icon = icon
+                    else
+                        slot.icon:Hide()
+                    end
+                end
+                slot.closeX:Show()
+            else
+                slot.icon:Hide()
+                slot.closeX:Hide()
+            end
+        end
+    end
 
     -- Update spell slot icons
     if DetaurBar.UI.activeAlertSubTab == "Buffs" then
@@ -1118,6 +1279,8 @@ function DetaurBar.UI.UpdateAlertScroll()
         contentHeight = 300
     elseif DetaurBar.UI.activeAlertSubTab == "Buffs" then
         contentHeight = 220
+    elseif DetaurBar.UI.activeAlertSubTab == "Item" then
+        contentHeight = 380
     else
         contentHeight = 120
     end
@@ -1206,6 +1369,11 @@ function DetaurBar.UI.SaveSettings()
     for key, btn in pairs(alertEnemySoundButtons) do
         if not btn:IsEnabled() then settings.enemySound = key; break end
     end
+
+    settings.itemTrackingEnabled = itemTrackingEnableCheckbox:GetChecked() and true or false
+    settings.itemTrackingInterval = DetaurBar.UI.ClampNumber(itemIntervalEdit:GetText(), 30, 1, 999)
+    local t = tonumber(itemThresholdEdit:GetText())
+    settings.itemTrackingThreshold = (t and t >= 0) and t or 0
 
     DetaurBar.UI.UpdateAlertPanel()
     if DetaurBar.Alerts and DetaurBar.Alerts.ResetAlertState then

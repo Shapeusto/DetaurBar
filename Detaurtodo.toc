@@ -1,7 +1,7 @@
 ## Interface: 30300
 ## Title: DetaurBar
 ## Notes: A modular in-game organizer with multiple tabs for WOTLK (Patch 3.3.5a).
-## SavedVariables: DetaurBarDB DetaurIDFinderDB
+## SavedVariablesPerCharacter: DetaurBarDB DetaurIDFinderDB
 ## Version: 1.0
 
 DetaurBar_Data.lua

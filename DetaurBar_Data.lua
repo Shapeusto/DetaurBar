@@ -122,6 +122,9 @@ function DetaurBar.Data.InitializeDB()
     if not DetaurBarDB.settings.ahScanInterval then
         DetaurBarDB.settings.ahScanInterval = 10
     end
+    if DetaurBarDB.settings.ahScanningEnabled == nil then
+        DetaurBarDB.settings.ahScanningEnabled = true
+    end
     if DetaurBarDB.settings.wgAlertsEnabled == nil then
         DetaurBarDB.settings.wgAlertsEnabled = false
     end
@@ -225,7 +228,7 @@ function DetaurBar.Data.InitializeDB()
         DetaurBarDB.settings.lootSubTabsVisible = { ["Add"] = true, ["Delete"] = true }
     end
     if not DetaurBarDB.settings.alertSubTabsVisible then
-        DetaurBarDB.settings.alertSubTabsVisible = { ["Dung"] = true, ["Raid"] = true, ["WG"] = true, ["Random"] = true, ["Enemy"] = true, ["Buffs"] = true }
+        DetaurBarDB.settings.alertSubTabsVisible = { ["Dung"] = true, ["Raid"] = true, ["WG"] = true, ["Random"] = true, ["Enemy"] = true, ["Buffs"] = true, ["Item"] = true }
     end
     if DetaurBarDB.settings.mindControlAlertEnabled == nil then
         DetaurBarDB.settings.mindControlAlertEnabled = false
@@ -233,8 +236,8 @@ function DetaurBar.Data.InitializeDB()
     if DetaurBarDB.settings.autoSellRepairEnabled == nil then
         DetaurBarDB.settings.autoSellRepairEnabled = false
     end
-    if DetaurBarDB.settings.dismountOnActionEnabled == nil then
-        DetaurBarDB.settings.dismountOnActionEnabled = false
+    if DetaurBarDB.settings.showAlertsInChat == nil then
+        DetaurBarDB.settings.showAlertsInChat = false
     end
     if DetaurBarDB.settings.buffsEnabled == nil then
         DetaurBarDB.settings.buffsEnabled = false
@@ -244,6 +247,18 @@ function DetaurBar.Data.InitializeDB()
     end
     if DetaurBarDB.settings.buffsFollowStacks == nil then
         DetaurBarDB.settings.buffsFollowStacks = false
+    end
+    if DetaurBarDB.settings.itemTrackingEnabled == nil then
+        DetaurBarDB.settings.itemTrackingEnabled = false
+    end
+    if not DetaurBarDB.settings.itemTrackingSlots then
+        DetaurBarDB.settings.itemTrackingSlots = {}
+    end
+    if DetaurBarDB.settings.itemTrackingInterval == nil then
+        DetaurBarDB.settings.itemTrackingInterval = 30
+    end
+    if DetaurBarDB.settings.itemTrackingThreshold == nil then
+        DetaurBarDB.settings.itemTrackingThreshold = 0
     end
     if not DetaurBarDB.minimapAngle then
         DetaurBarDB.minimapAngle = 45
@@ -465,6 +480,21 @@ function DetaurBar.Data.GetPriceHistory(itemId)
     local faction = UnitFactionGroup("player") or "Unknown"
     local key = itemId .. ":" .. faction
     return DetaurBarDB.priceHistory[key] or {}
+end
+
+function DetaurBar.Data.DeletePricePoint(itemId, timestampStr)
+    DetaurBar.Data.InitializeDB()
+    local faction = UnitFactionGroup("player") or "Unknown"
+    local key = itemId .. ":" .. faction
+    DEFAULT_CHAT_FRAME:AddMessage("|cff888888[DEBUG] Delete: itemId=" .. tostring(itemId) .. " (" .. type(itemId) .. "), key=" .. tostring(key) .. ", ts=" .. tostring(timestampStr))
+    if DetaurBarDB.priceHistory[key] then
+        local before = DetaurBarDB.priceHistory[key][timestampStr]
+        DetaurBarDB.priceHistory[key][timestampStr] = nil
+        local after = DetaurBarDB.priceHistory[key][timestampStr]
+        DEFAULT_CHAT_FRAME:AddMessage("|cff888888[DEBUG] before=" .. tostring(before) .. ", after=" .. tostring(after))
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[DEBUG] key not found: " .. tostring(key))
+    end
 end
 
 function DetaurBar.Data.GetSettings()

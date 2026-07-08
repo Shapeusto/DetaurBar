@@ -77,13 +77,20 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
   - 4 drag-from-spellbook cooldown slots with icon display
   - Center-screen alert on cooldown expiry or stack change
   - Maelstrom Weapon stack tracking (Show maelstorm stack checkbox)
+- **Item** — Bag item tracking:
+  - Enable/disable tracking
+  - 5×5 drag-from-bags grid (25 item slots)
+  - Configurable alert interval (minutes) and threshold (count)
+  - Periodic bag scan via OnUpdate timer
+  - Chat alert when item count drops to or below threshold
 
 ### Settings (gear button)
 - **Loot sub-tab**: Show/hide Add and Delete sub-tabs in Loot tab
-- **Alert sub-tab**: Show/hide Dung/Raid/WG/Random/Enemy/Buffs sub-tabs in Alert tab
+- **Alert sub-tab**: Show/hide Dung/Raid/WG/Random/Enemy/Buffs/Item sub-tabs in Alert tab
 - **Various sub-tab**:
   - **Autosell junk and autorepair**: auto-sells all grey items and repairs equipment on merchant open
-  - **Dismount on action**: auto-dismounts when using any action button or keybind (mouse click and keyboard)
+  - **Show alerts in chat**: prints alert name to chat when any alert fires
+  - **Scan auction house**: enables/disables automatic AH price scanning
 
 ### General
 - Shift-click item linking from bags, profession windows, Auction House

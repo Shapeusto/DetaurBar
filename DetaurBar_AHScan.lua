@@ -305,6 +305,8 @@ end)
 --------------------------------------------------------------------------------
 
 function DetaurBar.AHScan.StartScan()
+    local settings = DetaurBar.Data.GetSettings()
+    if not settings.ahScanningEnabled then return end
     if (time() - lastScanTime) < GetAHScanIntervalSeconds() then return end
     local priceItems = DetaurBar.Data.GetItems("price")
     scanQueue = {}

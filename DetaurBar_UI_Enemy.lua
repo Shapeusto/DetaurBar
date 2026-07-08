@@ -178,6 +178,9 @@ local function AddOrUpdateEnemy(name, level, class, spellName, activityText)
     if not enemy then
         enemy = { name = name }
         enemies[name] = enemy
+        if DetaurBar.Core.PrintAlert then
+            DetaurBar.Core.PrintAlert("Enemy Alert: " .. name)
+        end
     end
     if level and level > 0 then enemy.level = level end
     if class then enemy.class = class end

@@ -157,7 +157,7 @@ local function RebuildSettingsMenuCheckboxes()
             lab:SetTextColor(1, 0.82, 0, 1)
         end
     elseif active == "Alert" then
-        local alertKeys = { "Dung", "Raid", "WG", "Random", "Enemy", "Buffs" }
+        local alertKeys = { "Dung", "Raid", "WG", "Random", "Enemy", "Buffs", "Item" }
         for idx, key in ipairs(alertKeys) do
             local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
             cb:SetSize(20, 20)
@@ -175,7 +175,8 @@ local function RebuildSettingsMenuCheckboxes()
     elseif active == "Various" then
         local variousKeys = {
             { key = "autoSellRepairEnabled", label = "Autosell junk and autorepair" },
-            { key = "dismountOnActionEnabled", label = "Dismount on action" },
+            { key = "showAlertsInChat", label = "Show alerts in chat" },
+            { key = "ahScanningEnabled", label = "Scan auction house" },
         }
         for idx, entry in ipairs(variousKeys) do
             local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
@@ -299,9 +300,8 @@ function DetaurBar.UI.ToggleSettingsMenu()
     panel:Show()
 end
 
--- [STATE] Settings sub-tabs: Dungeon / Wintergrasp / Random / Enemy
+-- [STATE] Settings sub-tabs array (populated by DetaurBar_UI_Settings.lua)
 DetaurBar.UI.alertSubTabs = {}
-DetaurBar.UI.alertSubTabNames = { "Dung", "Wintergrasp", "Random", "Enemy", "Buffs" }
 DetaurBar.UI.activeAlertSubTab = "Dung"
 
 -- [STATE] Settings panel/bar references

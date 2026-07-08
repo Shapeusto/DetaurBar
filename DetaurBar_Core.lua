@@ -22,7 +22,6 @@ eventFrame:RegisterEvent("LOOT_OPENED")
 eventFrame:RegisterEvent("BAG_UPDATE")
 eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 eventFrame:RegisterEvent("MERCHANT_SHOW")
-eventFrame:RegisterEvent("UPDATE_BINDINGS")
 
 local function GetSettingsTable()
     if DetaurBar.Data and DetaurBar.Data.GetSettings then
@@ -42,12 +41,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
         DetaurBar.Data.InitializeDB()
         DetaurBar.UI.Initialize()
         DetaurBar.Core.UpdateAutoLootCVar()
-        DetaurBar.Core.HookActionButtons()
-        DetaurBar.Core.SetupOverrideBindings()
         self:UnregisterEvent("PLAYER_LOGIN")
-
-    elseif event == "UPDATE_BINDINGS" then
-        DetaurBar.Core.SetupOverrideBindings()
 
     elseif event == "GET_ITEM_INFO_RECEIVED" then
         if DetaurBarFrame and DetaurBarFrame:IsShown() then
@@ -72,6 +66,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
         if settings.dungeonFlashEnabled and DetaurBar.Alerts and DetaurBar.Alerts.StartDungeonFlash then
             local duration = (settings.dungeonFlashDuration and settings.dungeonFlashDuration > 0) and settings.dungeonFlashDuration or nil
             DetaurBar.Alerts.StartDungeonFlash("lfg", settings.dungeonFlashColor or "YELLOW", duration)
+            DetaurBar.Core.PrintAlert("Dungeon Alert")
         end
 
     elseif event == "LFG_PROPOSAL_HIDE"
@@ -121,6 +116,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
                     end
                     if inGroup and DetaurBar.Core.ShowMindControlAlert then
                         DetaurBar.Core.ShowMindControlAlert(destName)
+                        DetaurBar.Core.PrintAlert("Mind Control Alert: " .. destName)
                     end
                 end
             end
@@ -132,7 +128,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
             DetaurBar.Core.AutoSellAndRepair()
         end
 
-    -- Dismount handled via PreClick hook (HookActionButtons)
     end
 end)
 
@@ -173,6 +168,37 @@ function DetaurBar.Core.ShowMindControlAlert(destName)
 end
 
 -- ============================================
+--  ITEM TRACKING - periodic bag scan
+-- ============================================
+local itemTrackingElapsed = 0
+eventFrame:SetScript("OnUpdate", function(self, elapsed)
+    if not elapsed then return end
+
+    -- Item tracking timer
+    local settings = GetSettingsTable()
+    if settings.itemTrackingEnabled and settings.itemTrackingSlots then
+        itemTrackingElapsed = itemTrackingElapsed + elapsed
+        local interval = (settings.itemTrackingInterval or 30) * 60
+        if interval <= 0 then interval = 300 end
+        if itemTrackingElapsed >= interval then
+            itemTrackingElapsed = 0
+            for i, slotData in pairs(settings.itemTrackingSlots) do
+                if slotData and slotData.itemId then
+                    local count = DetaurBar.Core.CountItemInBags(slotData.itemId)
+                    local threshold = settings.itemTrackingThreshold or 0
+                    if count <= threshold then
+                        local msg = "Low on " .. (slotData.name or ("item:" .. slotData.itemId)) .. ": " .. count .. " remaining"
+                        DEFAULT_CHAT_FRAME:AddMessage("|cff82c5ff[DetaurBar]|r " .. msg)
+                    end
+                end
+            end
+        end
+    else
+        itemTrackingElapsed = 0
+    end
+end)
+
+-- ============================================
 --  AUTO SELL JUNK + AUTO REPAIR
 -- ============================================
 function DetaurBar.Core.AutoSellAndRepair()
@@ -194,125 +220,15 @@ function DetaurBar.Core.AutoSellAndRepair()
     end
 end
 
--- ============================================
---  DISMOUNT ON ACTION
--- ============================================
-local lastDismountTime = 0
-function DetaurBar.Core.TryDismount()
+function DetaurBar.Core.CountItemInBags(itemId)
+    return GetItemCount(itemId, false) or 0
+end
+
+function DetaurBar.Core.PrintAlert(msg)
     local settings = GetSettingsTable()
-    if not settings.dismountOnActionEnabled or not IsMounted() then
-        return
+    if settings.showAlertsInChat then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff82c5ff[DetaurBar]|r " .. msg)
     end
-    local now = GetTime()
-    if now - lastDismountTime < 1 then
-        return
-    end
-    lastDismountTime = now
-    Dismount()
-end
-
-local function GetActionSlot(button)
-    local name = button:GetName()
-    if not name then return end
-    local num = name:match("^ActionButton(%d+)$")
-    if num then return tonumber(num) end
-    num = name:match("^MultiBarBottomLeftButton(%d+)$")
-    if num then return 12 + tonumber(num) end
-    num = name:match("^MultiBarBottomRightButton(%d+)$")
-    if num then return 24 + tonumber(num) end
-    num = name:match("^MultiBarRightButton(%d+)$")
-    if num then return 36 + tonumber(num) end
-    num = name:match("^MultiBarLeftButton(%d+)$")
-    if num then return 48 + tonumber(num) end
-end
-
-local function IsEquippableId(itemId)
-    if not itemId then return false end
-    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(itemId)
-    if not equipLoc then
-        return true  -- not cached; assume equippable (safe default)
-    end
-    return equipLoc ~= ""
-end
-
-local function MacroIsGearEquip(text)
-    if not text then return false end
-    return text:match("/equipset") or text:match("/equip ") or text:match("/equipslot")
-end
-
-local function HookActionButton(button)
-    if button and not button.DetaurBarHooked then
-        local slot = GetActionSlot(button)
-        button:HookScript("PreClick", function(self)
-            -- 1) Try button attributes (fastest)
-            local t = self:GetAttribute("type1") or self:GetAttribute("type")
-            if t == "item" then
-                local id = tonumber(self:GetAttribute("item1") or self:GetAttribute("item") or self:GetAttribute("spell1") or self:GetAttribute("spell"))
-                if IsEquippableId(id) then return end
-            elseif t == "macro" then
-                local text = self:GetAttribute("macrotext1") or self:GetAttribute("macrotext")
-                if MacroIsGearEquip(text) then return end
-            end
-
-            -- 2) Fallback: GetActionInfo from slot
-            if slot then
-                local at, aid = GetActionInfo(slot)
-                if at == "item" then
-                    if IsEquippableId(aid) then return end
-                elseif at == "macro" then
-                    if MacroIsGearEquip(GetMacroBody(aid)) then return end
-                end
-            end
-
-            DetaurBar.Core.TryDismount()
-        end)
-        button.DetaurBarHooked = true
-    end
-end
-
-function DetaurBar.Core.HookActionButtons()
-    for i = 1, 12 do
-        HookActionButton(_G["ActionButton" .. i])
-        HookActionButton(_G["MultiBarBottomLeftButton" .. i])
-        HookActionButton(_G["MultiBarBottomRightButton" .. i])
-        HookActionButton(_G["MultiBarRightButton" .. i])
-        HookActionButton(_G["MultiBarLeftButton" .. i])
-    end
-    for i = 1, 10 do
-        HookActionButton(_G["PetActionButton" .. i])
-        HookActionButton(_G["StanceButton" .. i])
-    end
-    HookActionButton(_G["ExtraActionButton1"])
-end
-
--- Route keybinds through action buttons so PreClick fires (taint-safe)
-local bindingOwner = CreateFrame("Frame", "DetaurBarBindingOwner")
-bindingOwner:Hide()
-
-local function OverrideActionBinding(actionName, buttonName)
-    local k1, k2 = GetBindingKey(actionName)
-    if k1 and k1 ~= "" then
-        SetOverrideBindingClick(bindingOwner, false, k1, buttonName, "LeftButton")
-    end
-    if k2 and k2 ~= "" then
-        SetOverrideBindingClick(bindingOwner, false, k2, buttonName, "LeftButton")
-    end
-end
-
-function DetaurBar.Core.SetupOverrideBindings()
-    ClearOverrideBindings(bindingOwner)
-    for i = 1, 12 do
-        OverrideActionBinding("ACTIONBUTTON" .. i, "ActionButton" .. i)
-        OverrideActionBinding("MULTIACTIONBAR1BUTTON" .. i, "MultiBarBottomLeftButton" .. i)
-        OverrideActionBinding("MULTIACTIONBAR2BUTTON" .. i, "MultiBarBottomRightButton" .. i)
-        OverrideActionBinding("MULTIACTIONBAR3BUTTON" .. i, "MultiBarRightButton" .. i)
-        OverrideActionBinding("MULTIACTIONBAR4BUTTON" .. i, "MultiBarLeftButton" .. i)
-    end
-    for i = 1, 10 do
-        OverrideActionBinding("BONUSACTIONBUTTON" .. i, "PetActionButton" .. i)
-        OverrideActionBinding("STANCEBUTTON" .. i, "StanceButton" .. i)
-    end
-    OverrideActionBinding("EXTRAACTIONBUTTON1", "ExtraActionButton1")
 end
 
 function DetaurBar.Core.UpdateAutoLootCVar()

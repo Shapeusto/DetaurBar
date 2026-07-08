@@ -208,6 +208,7 @@ local function CheckWintergraspAlerts(forceReset)
         end
         local duration = math.max(0.1, tonumber(settings.wgAlert1Duration) or 2)
         DetaurBar.Alerts.StartDungeonFlash("wintergrasp", settings.wgAlert1Color or "YELLOW", duration)
+        DetaurBar.Core.PrintAlert("Wintergrasp Alert")
     end
 
     if alert2Seconds >= 0
@@ -219,6 +220,7 @@ local function CheckWintergraspAlerts(forceReset)
         if settings.wgAlert2Duration and settings.wgAlert2Duration > 0 then
             local duration = settings.wgAlert2Duration
             DetaurBar.Alerts.StartDungeonFlash("wintergrasp2", settings.wgAlert2Color or "YELLOW", duration)
+            DetaurBar.Core.PrintAlert("Wintergrasp Battle Start")
         end
         if settings.wgAlert2PlaySound then
             PlayConfiguredSound(settings.wgAlert2Sound)
@@ -259,6 +261,7 @@ alertUpdateFrame:SetScript("OnUpdate", function(self, elapsed)
                     if duration then
                         DetaurBar.Alerts.StartDungeonFlash("random", activeAlert.flashColor or "YELLOW", duration)
                     end
+                    DetaurBar.Core.PrintAlert("Random Alert: " .. (activeAlert.name or "unnamed"))
                     if activeAlert.playSound then
                         PlayConfiguredSound(activeAlert.sound)
                     end

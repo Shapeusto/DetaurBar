@@ -21,6 +21,68 @@
 - **Klávesa**: keybind → SetOverrideBindingClick → ActionButton:Click() → PreClick (hook) → TryDismount() → OnClick → spell
 - Žiadny taint, lebo `HookScript` a `SetOverrideBindingClick` sú taint-safe API.
 
+### Changed: Dismount on action – len na lietajúcom mounte (gear/equipset bez dismountu)
+
+#### Problém
+- Dismount na každej akcii spôsoboval zbytočné dismouty pri prepínaní gearu (equipment manager, `/equipset`).
+- Detekcia cez `GetActionInfo` / `GetAttribute` zlyhávala, lebo equipment manager volá `UseEquipmentSet()` priamo (obchádza action buttony).
+
+#### Riešenie: Dismountovať len keď si na lietajúcom mounte
+- Pridaná `IsOnFlyingMount()` – detekcia lietajúceho mounta:
+  - `IsMounted()` + `IsFlyableArea()` (neflyable zóna = ground mount → nikdy dismount)
+  - `GetUnitSpeed("player") > 2.25` (násobiteľ rýchlosti; ground max ~2.0, flying min ~2.5)
+  - Speed = 0 (stojíš na mieste) v flyable zóne → predpoklad flying → dismount
+- `TryDismount()` teraz kontroluje `IsOnFlyingMount()` namiesto `IsMounted()`
+- Odstránené komplexné `GetActionSlot`, `IsEquippableId`, `MacroIsGearEquip` – už netreba
+- `HookActionButton` zjednodušený naspäť na priame volanie `TryDismount()`
+
+#### Flow
+- **Lietajúci mount**: akcia → PreClick → `IsOnFlyingMount()` = true → `Dismount()`
+- **Pozemný mount**: akcia → PreClick → `IsOnFlyingMount()` = false → bez dismountu (gear, macro, equipset, všetko funguje)
+- **Bez mounta**: `IsMounted()` = false → bez dismountu (netreba)
+
+### Added: Show alerts in chat (Settings > Various)
+- Nová voľba "Show alerts in chat" v Settings > Various
+- `DetaurBar.Core.PrintAlert(msg)` – helper ktorý skontroluje nastavenie a vypíše do chatu modrou správu s prefixom `[DetaurBar]`
+- Chat výpis pridaný ku všetkým alertom:
+  - **Dungeon Alert** – na LFG_PROPOSAL_SHOW
+  - **Wintergrasp Alert** / **Wintergrasp Battle Start** – pri WG alertoch
+  - **Random Alert: <názov>** – pri random alertoch (vypíše meno alertu)
+  - **Enemy Alert: <meno>** – pri prvom objavení v monitorovacom okne (po zmiznutí a novom objavení znovu)
+  - **Mind Control Alert: <meno>** – pri Mind Controle v parté/raide
+- Default vypnuté
+
+### Fixed: Enemy chat alert len pri prvom objavení v monitori; Buffy bez chatu
+- **Enemy Alert** – presunutý z `OnNewEnemy` (volaný pri každom combat log evente) do `AddOrUpdateEnemy()` – vypíše sa len keď sa nepriateľ prvýkrát objaví v monitorovacom okne. Po zmiznutí (120s) a novom objavení sa vypíše znova.
+- **Buff Alert** – odstránený chat výpis úplne (cooldown alert aj Maelstrom Weapon stacks). Flash a center-screen ikona ostávajú.
+
+### Added: Delete price data point (right-click on graph dot)
+- Každá bodka v grafe má hover frame (Button) s `RegisterForClicks("RightButtonUp")` a `OnClick` handlerom
+- Pravým klikom na bodku sa zobrazí custom confirm frame s Yes/No tlačidlami
+- Po potvrdení `DetaurBar.Data.DeletePricePoint(itemId, timestampStr)` vymaže iba tú jednu bodku
+- `DetaurBar_Data.lua` – nová funkcia `DeletePricePoint`
+- `DetaurBar_UI_Graph.lua` – `GfFrame` zmenený z `Frame` na `Button` (RegisterForClicks v 3.3.5a nie je na Frame)
+- Tooltip zobrazuje "Right-click to delete"
+
+### Changed: SavedVariables → SavedVariablesPerCharacter
+- `Detaurtodo.toc` – `## SavedVariables` → `## SavedVariablesPerCharacter`
+- Dáta sú per-char, nie account-wide
+- Migrácia: account-wide `Detaurtodo.lua` skopírovaný do `Account\MATUSY\Icecrown\Detaur\SavedVariables\`
+- Ostatné postavy na MATUSY začínajú s prázdnym DetaurBarDB
+
+### Added: Scan auction house checkbox (Settings > Various)
+- Nový checkbox "Scan auction house" v Settings > Various
+- `ahScanningEnabled = true` default
+- Keď vypnuté, `AHScan.StartScan()` returnne hneď na začiatku – žiadny scan sa nespustí
+- `DetaurBar_Data.lua`, `DetaurBar_UI.lua`, `DetaurBar_AHScan.lua`
+
+### Removed: Dismount on action (funkcia je v 3.3.5a zabudovaná)
+- Odstránené `IsOnFlyingMount()`, `TryDismount()`, `HookActionButton()`, `HookActionButtons()`, `SetupOverrideBindings()`, `OverrideActionBinding()`
+- Odstránený checkbox "Dismount on action" z Settings > Various
+- Odstránený `dismountOnActionEnabled` z InitializeDB
+- Odstránené `UPDATE_BINDINGS` event a handler
+- Všetky súbory: `DetaurBar_Core.lua`, `DetaurBar_Data.lua`, `DetaurBar_UI.lua`
+
 ## 2026-07-06
 
 ### Fixed: Northrend herb ID nightmare (konečne správne)
@@ -156,7 +218,26 @@ Po priamom prečítaní `Cache/WDB/enUS/itemcache.wdb`:
 
 ---
 
-## 2026-07-08 — Buffs sub-tab: cooldown tracking, stack tracking, UI
+## 2026-07-08 — Item tracking (Alert > Item sub-tab), bugfixy
+
+### Added
+- **Item sub-tab** v Alert: 5×5 drag-from-bags grid (25 slotov), Enable Item Tracking checkbox
+- Divider, Alert interval (minutes, default 30) a Alert threshold (count, default 0) edit boxy
+- **Item tracking timer** v `DetaurBar_Core.lua` – OnUpdate na eventFrame, každých N minút skontroluje počty itemov v bagoch
+- **Chat alert** keď počet ≤ threshold: `[DetaurBar] Low on <meno>: <count> remaining`
+- Settings > Alert checkbox pre skrytie Item sub-tabu (v settingsMenuPanel)
+
+### Fixed
+- **Settings file crash** – `DetaurBar.UI.SetSimpleTooltip()` volaný na **FontString** (nie Frame), čo v 3.3.5a padá. Celý `DetaurBar_UI_Settings.lua` sa nenačítal → `SelectAlertSubTab` ostal nil → všetky sub-tab kontrolky boli viditeľné naraz
+- **Drag do slotu** – `GetCursorInfo()` vracia v 3.3.5a druhú hodnotu ako **itemID (number)**, nie itemLink string. Opravené na `type(itemId) == "number"` a priame použitie
+- **Threshold sa nezobrazoval** – `if thresh > 0 then` skrýval hodnotu 0. Teraz vždy zobrazí aktuálnu hodnotu
+- **Hodnoty sa neukladali bez Enter** – pridaný `OnEditFocusLost` do `CreateAlertEditRow`; `SaveSettings()` teraz číta aj `itemTrackingEnabled`, `itemTrackingInterval`, `itemTrackingThreshold`
+- **Positioning** – interval/threshold label-y zarovnané na divider_left + 10
+
+### Changed
+- Odstránený mŕtvy `DetaurBar.UI.alertSubTabNames` z `DetaurBar_UI.lua` (bol neaktuálny, nikdy nepoužitý)
+
+---
 
 ### Added
 - **Buffs sub-tab** v Alerts: 4 cooldown sloty (drag-from-spellbook), Maelstrom Weapon stack tracking, Follow Stacks checkbox

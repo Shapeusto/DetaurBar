@@ -33,7 +33,11 @@ You are a code assistant specialized in World of Warcraft addon development for 
 - `RunMacroText()` — protected function; will taint from insecure contexts. Must be called from a secure execution path (hardware event or secure template PreClick/OnClick).
 - `SetAttribute` on secure frames — protected function; will taint the entire secure frame tree if called from insecure context. Once tainted, ALL game interactions (quest, vendor, NPC) will fail with "Interaction action failed because of an Addon". **Never call SetAttribute outside PreClick or hardware-event handlers.**
 - `SecureActionButtonTemplate` — using this template and calling `SetAttribute` from insecure code (PLAYER_LOGIN, OnUpdate, timers) taints the global secure frame tree. Always set type/macrotext attributes inside `PreClick` (which runs in the secure template's own secure context).
+- `UseAction(slot)` — wrapping this C function from insecure Lua code taints the secure execution path, causing "blocked from an action only available to Blizzard UI". Do NOT wrap UseAction.
+- `GetUnitSpeed("player")` — returns a **multiplier** (1.0 = normal run speed), NOT yards per second. Ground mounts: ~1.6–2.0, flying mounts: ~2.5–3.8. Do not compare against yds/s values.
 - To target by name without taint: use `SecureActionButtonTemplate` with `PreClick` setting `"type1"` and `"macrotext1"` attributes, then `/target Name` macro executes securely. Do NOT use `RunMacroText()` from insecure code. Do NOT use `TargetUnit()` from insecure code.
+- `GetCursorInfo()` — in 3.3.5a returns `"item", itemID, itemLink` where `itemID` is a **number**. Do NOT assume the second return is a string or call `.match()` on it.
+- `CreateFontString()` — returns a FontString, NOT a Frame. FontStrings do NOT have `SetScript()`. Do NOT call `SetScript` or `SetSimpleTooltip` (which calls `SetScript`) on FontStrings.
 
 ## File Structure
 
@@ -46,7 +50,7 @@ You are a code assistant specialized in World of Warcraft addon development for 
 | `DetaurBar_UI_Notes.lua` | Notes sub-tabs (General/War/Guild) + drag-to-move + SelectNotesSubTab |
 | `DetaurBar_UI_Loot.lua` | Loot sub-tabs (Add/Delete) + deleteAllGraysCheckbox + SelectLootSubTab |
 | `DetaurBar_UI_Price.lua` | Price item sub-tabs, graph panel, threshold row, AH interval, price sub-tabs, all price functions |
-| `DetaurBar_UI_Settings.lua` | Alert panel (Dung/Raid/WG/Random/Enemy/Buffs sub-tabs, flash alerts, flash frames) |
+| `DetaurBar_UI_Settings.lua` | Alert panel (Dung/Raid/WG/Random/Enemy/Buffs/Item sub-tabs, flash alerts, flash frames) |
 | `DetaurBar_UI_Buffs.lua` | Buffs tracking: cooldown expiry alerts, stacking buff change alerts, center-screen icon display |
 | `DetaurBar_UI_Enemy.lua` | Enemy detection engine, draggable monitor window, smooth/aggressive flash alerts, right-click dismiss |
 | `DetaurBar_UI_Graph.lua` | Price graph drawing (DrawPriceGraph, ClearGraphObjects, DrawGfLine) |
@@ -65,8 +69,8 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - Gear button (settings icon) next to close (X) opens a **panel** inside the main frame (same as other tab panels)
 - Panel has 3 sub-tabs: **Loot**, **Alert**, **Various**
 - **Settings > Loot**: 2 checkboxes (Add, Delete) — default both checked, unchecking hides the corresponding sub-tab from the Loot tab
-- **Settings > Alert**: 6 checkboxes (Dung, Raid, WG, Random, Enemy, Buffs) — default all checked, unchecking hides the corresponding sub-tab from the Settings/Alert tab
-- **Settings > Various**: 3 checkboxes (Alert Mind Control, Autosell junk and autorepair, Dismount on action) — persistent v `DetaurBarDB.settings.*`
+- **Settings > Alert**: 7 checkboxes (Dung, Raid, WG, Random, Enemy, Buffs, Item) — default all checked, unchecking hides the corresponding sub-tab from the Settings/Alert tab
+- **Settings > Various**: 3 checkboxes (Autosell junk and autorepair, Show alerts in chat, Scan auction house) — persistent v `DetaurBarDB.settings.*`
 - State stored in `DetaurBarDB.settings.lootSubTabsVisible` and `DetaurBarDB.settings.alertSubTabsVisible`
 - Toggle via gear button; closes on tab switch
 
@@ -107,14 +111,15 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - AH auto-scan: every N minutes when AH opened (page 0 only), configurable in Price > Notifications
 
 ### Alert tab
-- 6 sub-tabs: **Dung**, **Raid**, **WG**, **Random**, **Enemy**, **Buffs** (visibility controlled by Settings Menu > Alert)
+- 7 sub-tabs: **Dung**, **Raid**, **WG**, **Random**, **Enemy**, **Buffs**, **Item** (visibility controlled by Settings Menu > Alert)
 - SavedVariable: `DetaurBarDB.settings`
 - **Dung sub-tab**: Enable screen flash on LFG proposal, flash duration, flash color (Green/Yellow/Red)
 - **Raid sub-tab**: Raid roll/ready-check alerts with flash style, duration, color, sound
 - **WG sub-tab**: Wintergrasp alerts, Registration Warning (minutes, flash duration, flash color, play sound, select sound), Battle Start Warning (minutes, flash duration, flash color, play sound, select sound)
 - **Random sub-tab**: Enable random alerts, list of named alerts (each with interval, flash duration, flash color, play sound, select sound), Add/Delete buttons, click to select active alert
-- **Enemy sub-tab**: Enable enemy detection, screen flash (enable/disable), flash color (Green/Yellow/Red), flash style (Smooth/Aggressive), play sound (enable/disable), select sound (Raid/Ready)
+- **Enemy sub-tab**: Enable enemy detection, screen flash (enable/disable), flash color (Green/Yellow/Red), flash style (Smooth/Aggressive), play sound (enable/disable), select sound (Raid/Ready), **Alert Mind Control** checkbox (center-screen text when party/raid member gets Mind Controlled)
 - **Buffs sub-tab**: Enable buff/cooldown tracking, 4 drag-from-spellbook cooldown slots (icon + close X), Follow Stacks checkbox, center-screen icon display on cooldown expiry or stack change
+- **Item sub-tab**: Enable item tracking, 5×5 drag-from-bags grid (25 item slots), alert interval (minutes), alert threshold (count), periodic bag scan via OnUpdate timer, chat alert when count ≤ threshold
 
 ### Enemy tab
 - Detects hostile players via COMBAT_LOG_EVENT_UNFILTERED, PLAYER_TARGET_CHANGED, UPDATE_MOUSEOVER_UNIT
@@ -181,10 +186,14 @@ DetaurBarDB = {
         enemySound = "RaidWarning",
         mindControlAlertEnabled = false,
         autoSellRepairEnabled = false,
-        dismountOnActionEnabled = false,
+        showAlertsInChat = false,
         buffsEnabled = false,
         buffsSpellSlots = { nil, nil, nil, nil },  -- each slot: { id = spellId, name = "Earth Shock", icon = "Interface\\Icons\\Spell_Nature_EarthShock" }
         buffsFollowStacks = false,
+        itemTrackingEnabled = false,
+        itemTrackingSlots = {},   -- indexed 1..25: { itemId, name, icon }
+        itemTrackingInterval = 30, -- minutes
+        itemTrackingThreshold = 0, -- count
     },
 }
 ```

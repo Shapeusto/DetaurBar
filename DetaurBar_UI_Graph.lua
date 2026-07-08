@@ -4,6 +4,52 @@
 DetaurBar = DetaurBar or {}
 DetaurBar.UI = DetaurBar.UI or {}
 
+-- Custom confirmation frame for deleting price data points
+local confirmFrame = CreateFrame("Frame", nil, UIParent)
+confirmFrame:SetSize(250, 100)
+confirmFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+confirmFrame:SetBackdrop({
+    bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true, tileSize = 12, edgeSize = 12,
+    insets = { left = 3, right = 3, top = 3, bottom = 3 }
+})
+confirmFrame:SetBackdropColor(0, 0, 0, 0.9)
+confirmFrame:SetBackdropBorderColor(1, 1, 1, 0.8)
+confirmFrame:Hide()
+confirmFrame:SetScript("OnHide", function(self)
+    self.pendingItemId = nil
+    self.pendingTimestamp = nil
+end)
+
+local confirmText = confirmFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+confirmText:SetPoint("TOP", confirmFrame, "TOP", 0, -15)
+confirmText:SetText("Delete this price data point?")
+
+local confirmYes = CreateFrame("Button", nil, confirmFrame, "GameMenuButtonTemplate")
+confirmYes:SetSize(80, 25)
+confirmYes:SetPoint("BOTTOMLEFT", confirmFrame, "BOTTOMLEFT", 35, 25)
+confirmYes:SetText("Yes")
+confirmYes:SetScript("OnClick", function()
+    if confirmFrame.pendingItemId and confirmFrame.pendingTimestamp then
+        DetaurBar.Data.DeletePricePoint(confirmFrame.pendingItemId, confirmFrame.pendingTimestamp)
+        confirmFrame.pendingItemId = nil
+        confirmFrame.pendingTimestamp = nil
+        confirmFrame:Hide()
+        DetaurBar.UI.RefreshTasks()
+    end
+end)
+
+local confirmNo = CreateFrame("Button", nil, confirmFrame, "GameMenuButtonTemplate")
+confirmNo:SetSize(80, 25)
+confirmNo:SetPoint("BOTTOMRIGHT", confirmFrame, "BOTTOMRIGHT", -35, 25)
+confirmNo:SetText("No")
+confirmNo:SetScript("OnClick", function()
+    confirmFrame.pendingItemId = nil
+    confirmFrame.pendingTimestamp = nil
+    confirmFrame:Hide()
+end)
+
 -- [HELPERS] FormatMoney — converts copper to gold/silver/copper coin texture string
 function DetaurBar.UI.FormatMoney(amount)
     local gold = math.floor(amount / 10000)
@@ -66,7 +112,7 @@ function DetaurBar.UI.GfFrame(row, gf)
     if not row.graphFrames then
         row.graphFrames = {}
     end
-    local f = CreateFrame("Frame", nil, gf)
+    local f = CreateFrame("Button", nil, gf)
     table.insert(row.graphFrames, f)
     return f
 end
@@ -207,6 +253,7 @@ function DetaurBar.UI.DrawPriceGraph(row, gf, itemId)
         hover:SetSize(16, 16)
         hover:SetPoint("CENTER", gf, "BOTTOMLEFT", x, y)
         hover:EnableMouse(true)
+        hover:RegisterForClicks("RightButtonUp")
         hover:SetScript("OnEnter", function(self)
             dot:SetSize(8, 8)
             dot:SetTexture(1, 0.82, 0, 1)
@@ -214,12 +261,22 @@ function DetaurBar.UI.DrawPriceGraph(row, gf, itemId)
             GameTooltip:ClearLines()
             GameTooltip:AddLine(date("%d.%m.%Y %H:%M", p.ts), 1.0, 0.82, 0.0)
             GameTooltip:AddLine(DetaurBar.UI.FormatMoney(p.price), 1.0, 1.0, 1.0)
+            GameTooltip:AddLine("Right-click to delete", 0.5, 0.5, 0.5)
             GameTooltip:Show()
         end)
         hover:SetScript("OnLeave", function(self)
             dot:SetSize(5, 5)
             dot:SetTexture(1, 1, 1, 1)
             GameTooltip:Hide()
+        end)
+        hover:SetScript("OnClick", function(self, button)
+            if button == "RightButton" then
+                confirmFrame.pendingItemId = itemId
+                confirmFrame.pendingTimestamp = tostring(p.ts)
+                confirmFrame:ClearAllPoints()
+                confirmFrame:SetPoint("CENTER", UIParent, "CENTER")
+                confirmFrame:Show()
+            end
         end)
 
         prevX, prevY = x, y
