@@ -1,31 +1,26 @@
 # Changelog
 
-## 2026-07-09 — Buffs 5×2 grid, Arena sub-tab, sub-tab arrow leak fix, ALT+RightClick move to bank
-
-### Added
-- **ALT+RightClick move to bank** (Settings > Various > "Move items with ALT+RightClick"):
-  - When bank is open, ALT+RightClick any item → all matching items from bags are queued and moved to empty bank slots
-  - Uses `OnUpdate` timer to process one transfer per frame (no taint, smooth animation)
-  - Automatically finds next available empty bank slot for each item
-  - Cancels pending items if bank fills up mid-transfer
-- **Arena sub-tab** in Alert (works like Dung):
-  - Enable/disable flash, flash color (Green/Yellow/Red), flash duration
-  - Triggered by `ARENA_OPPONENT_UPDATE` when first opponent appears
-  - Guarded by `settings.arenaFlashEnabled` in `StartDungeonFlash`
-  - Visible in Settings > Alert checkbox list (gear menu)
-- **Buffs cooldown slots**: expanded from 4 to 5×2 grid (10 slots) — nested `for row, col` loop in `DetaurBar_UI_Settings.lua`
+## 2026-07-09 — Enemy row click stability, PrintAlert fix, Dataanalysis price viewer
 
 ### Fixed
-- **Enemy row bottom half not clickable** — rows used `SetHeight(18)` with only TOPLEFT+TOPRIGHT anchors, leaving the BOTTOM edge un-anchored. In 3.3.5a, this caused WoW to only register clicks in the upper portion of the button. Fixed by adding explicit `BOTTOMRIGHT` (row 1) / `BOTTOMLEFT` (rows 2+) anchors in `DetaurBar_UI_Enemy.lua`, ensuring the full height is clickable.
-- **Notes scroll arrows leaking into Loot tab** — `UpdateContentAnchors` in `DetaurBar_UI.lua` now hides `notesTabLeftArrow`/`notesTabRightArrow` (plus container/category controls) for all tabs except `"Notes"`. Previously only hidden in `SelectTab("Settings")`, causing arrows to remain visible when switching from Notes to Loot.
-- **Loot sub-tab not resizing on visibility change** — `SelectTab("Loot")` now calls `UpdateTabAnchors()` after showing/hiding sub-tabs, so a single visible sub-tab takes full width (was only recalculated on frame resize).
-- **Alert sub-tab bar not resizing on visibility change** — `SelectTab("Settings")` now calls `UpdateAlertSubTabBar()` after showing/hiding alert sub-tabs.
+- **Enemy row click broken after dismiss all** — `ClearAllPoints` called after `Show()` caused rows to momentarily lose anchors. Row anchors changed from chained (row2 → row1's BOTTOM) to direct (each row → monitorFrame TOPLEFT). Added `Enable()` and `Show()` after all positioning. Unused rows are cleared + moved off-screen before `Hide()` to prevent stale layout on re-show.
+- **Enemy PrintAlert fires on every alert** — moved from `AddOrUpdateEnemy` (first detection only) to `OnNewEnemy` (fires alongside every flash).
+- **Dismissed enemies reappear on re-detection** — `dismissed[name]` is cleared when `AddOrUpdateEnemy` creates a new entry for a previously dismissed enemy.
 
-### Changed
-- `DetaurBarDB.settings.buffsSpellSlots` default: from `{nil,nil,nil,nil}` to `{}` (dynamic 5×2 grid)
-- `DetaurBarDB.settings.alertSubTabsVisible` now includes `Arena = true`
+### Removed
+- **ALT+RightClick move to bank** — feature removed entirely (Settings > Various checkbox, `SetupAltClickHooks`, debug frame, `/altdebug`/`/altdebugshow`).
+
+### Added
+- **Dataanalysis/ folder** — standalone offline HTML/JS price history viewer.
+  - Load `WTF/.../SavedVariables/Detaurtodo.lua` via File API
+  - Canvas-based price chart with Daily/Weekly/Monthly/Yearly/All filters
+  - Item name lookup from 21k+ offline database (`items.js` generated from `DetaurBar_ItemDB.lua`)
+  - Tooltip hover on data points
+  - See `Dataanalysis/README.md`
 
 ---
+
+## 2026-07-09 — Buffs 5×2 grid, Arena sub-tab, sub-tab arrow leak fix
 
 ## 2026-07-08 — Item tracking (Alert > Item sub-tab), bugfixes
 

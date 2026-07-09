@@ -178,6 +178,7 @@ local function AddOrUpdateEnemy(name, level, class, spellName, activityText)
     if not enemy then
         enemy = { name = name }
         enemies[name] = enemy
+        dismissed[name] = nil
     end
     if level and level > 0 then enemy.level = level end
     if class then enemy.class = class end
@@ -316,7 +317,7 @@ local function CreateMonitor()
     -- Enable/disable toggle button (aligned with first row)
     monitorToggleBtn = CreateFrame("Button", nil, monitorFrame)
     monitorToggleBtn:SetSize(20, 20)
-    monitorToggleBtn:SetPoint("RIGHT", monitorFrame, "RIGHT", -18, 0)
+    monitorToggleBtn:SetPoint("TOPRIGHT", monitorFrame, "TOPRIGHT", -14, -14)
     monitorToggleBtn:SetFrameLevel(monitorFrame:GetFrameLevel() + 50)
     monitorToggleBtn:SetNormalTexture("Interface\\Icons\\Spell_Nature_BloodLust")
     monitorToggleBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
@@ -402,7 +403,11 @@ function DetaurBar.Enemy.UpdateMonitor()
 
     if #enemyDisplay == 0 then
         monitorEmptyText:Show()
-        for _, r in ipairs(monitorRows) do r:Hide() end
+        for _, r in ipairs(monitorRows) do
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", monitorFrame, "TOPLEFT", 0, -9999)
+            r:Hide()
+        end
         monitorFrame:SetHeight(innerTop + rowHeight + spacing + bottomPad)
         return
     end
@@ -418,16 +423,12 @@ function DetaurBar.Enemy.UpdateMonitor()
         if not row then break end
 
         row:ClearAllPoints()
-        if i == 1 then
-            row:SetPoint("TOPLEFT", monitorFrame, "TOPLEFT", 14, -innerTop)
-            row:SetPoint("TOPRIGHT", monitorFrame, "TOPRIGHT", -16, 0)
-            row:SetHeight(rowHeight)
-            monitorToggleBtn:SetPoint("TOP", monitorRows[1], "TOP", 0, (rowHeight - 20) / 2)
-        else
-            row:SetPoint("TOPLEFT", monitorRows[i-1], "BOTTOMLEFT", 0, -spacing)
-            row:SetPoint("TOPRIGHT", monitorRows[i-1], "BOTTOMRIGHT", 0, -spacing)
-            row:SetHeight(rowHeight)
-        end
+        local yOffset = -innerTop - (i - 1) * (rowHeight + spacing)
+        row:SetPoint("TOPLEFT", monitorFrame, "TOPLEFT", 14, yOffset)
+        row:SetPoint("TOPRIGHT", monitorFrame, "TOPRIGHT", -16, yOffset)
+        row:SetHeight(rowHeight)
+        row:Enable()
+        row:Show()
 
         row.nameText:SetText(enemy.name or "?")
         row.nameText:SetTextColor(0.9, 0.2, 0.2, 1.0)
@@ -447,8 +448,6 @@ function DetaurBar.Enemy.UpdateMonitor()
 
         row.activityText:SetText("[" .. (enemy.activity or "Detected") .. "]")
         row.activityText:SetTextColor(0.5, 0.5, 0.7, 1.0)
-
-        row:Show()
     end
 
     for i = count + 1, #monitorRows do
