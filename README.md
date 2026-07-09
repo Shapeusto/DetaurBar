@@ -92,7 +92,11 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
   - **Autosell junk and autorepair**: auto-sells all grey items and repairs equipment on merchant open
   - **Show alerts in chat**: prints alert name to chat when any alert fires
   - **Scan auction house**: enables/disables automatic AH price scanning
-  - **Move items with ALT+RightClick**: when bank is open, ALT+RightClick an item → moves all matching items from bags to empty bank slots
+
+### Price History Viewer (standalone)
+- `Dataanalysis/` folder contains an offline HTML/JS tool to browse price history from SavedVariables
+- Open `index.html` in a browser, load `WTF/.../SavedVariables/Detaurtodo.lua`, view charts
+- No server required, works offline, 21k+ item name database included
 
 ### General
 - Shift-click item linking from bags, profession windows, Auction House

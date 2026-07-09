@@ -70,7 +70,7 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - Panel has 3 sub-tabs: **Loot**, **Alert**, **Various**
 - **Settings > Loot**: 2 checkboxes (Add, Delete) — default both checked, unchecking hides the corresponding sub-tab from the Loot tab
 - **Settings > Alert**: 8 checkboxes (Dung, Raid, WG, Arena, Random, Enemy, Buffs, Item) — default all checked, unchecking hides the corresponding sub-tab from the Settings/Alert tab
-- **Settings > Various**: 4 checkboxes (Autosell junk and autorepair, Show alerts in chat, Scan auction house, Move items with ALT+RightClick) — persistent v `DetaurBarDB.settings.*`
+- **Settings > Various**: 3 checkboxes (Autosell junk and autorepair, Show alerts in chat, Scan auction house) — persistent v `DetaurBarDB.settings.*`
 - State stored in `DetaurBarDB.settings.lootSubTabsVisible` and `DetaurBarDB.settings.alertSubTabsVisible`
 - Toggle via gear button; closes on tab switch
 
@@ -188,7 +188,6 @@ DetaurBarDB = {
         mindControlAlertEnabled = false,
         autoSellRepairEnabled = false,
         showAlertsInChat = false,
-        altClickMoveEnabled = false,
         buffsEnabled = false,
         buffsSpellSlots = {},  -- each slot: { id = spellId, name = "Earth Shock", icon = "Interface\\Icons\\Spell_Nature_EarthShock" }
         buffsFollowStacks = false,
