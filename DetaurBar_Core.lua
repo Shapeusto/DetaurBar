@@ -22,6 +22,8 @@ eventFrame:RegisterEvent("LOOT_OPENED")
 eventFrame:RegisterEvent("BAG_UPDATE")
 eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 eventFrame:RegisterEvent("MERCHANT_SHOW")
+eventFrame:RegisterEvent("ARENA_OPPONENT_UPDATE")
+local arenaFlashShown = false
 
 local function GetSettingsTable()
     if DetaurBar.Data and DetaurBar.Data.GetSettings then
@@ -78,7 +80,19 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
             DetaurBar.Alerts.StopDungeonFlash("lfg")
         end
 
+    elseif event == "ARENA_OPPONENT_UPDATE" then
+        if arg1 == "oponent1" and UnitName("oponent1") and not arenaFlashShown then
+            local s = GetSettingsTable()
+            if s.arenaFlashEnabled and DetaurBar.Alerts and DetaurBar.Alerts.StartDungeonFlash then
+                local duration = (s.arenaFlashDuration and s.arenaFlashDuration > 0) and s.arenaFlashDuration or nil
+                DetaurBar.Alerts.StartDungeonFlash("arena", s.arenaFlashColor or "YELLOW", duration)
+                DetaurBar.Core.PrintAlert("Arena Match Started!")
+                arenaFlashShown = true
+            end
+        end
+
     elseif event == "ZONE_CHANGED_NEW_AREA" or event == "PLAYER_ENTERING_WORLD" then
+        arenaFlashShown = false
         if DetaurBar.Alerts and DetaurBar.Alerts.ResetAlertState then
             DetaurBar.Alerts.ResetAlertState()
         end
@@ -99,9 +113,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
         if eventType == "SPELL_AURA_APPLIED" and spellName and spellName:find("Mind Control") then
             local settings = GetSettingsTable()
             if settings.mindControlAlertEnabled and destName and destName ~= UnitName("player") then
-                -- Check if it's a player (not NPC) via GUID prefix
                 if destGUID and destGUID:find("^Player%-") then
-                    -- Check if they're in our party/raid by iterating
                     local inGroup = false
                     if GetNumRaidMembers() > 0 then
                         for i = 1, GetNumRaidMembers() do
@@ -182,7 +194,7 @@ eventFrame:SetScript("OnUpdate", function(self, elapsed)
         if interval <= 0 then interval = 300 end
         if itemTrackingElapsed >= interval then
             itemTrackingElapsed = 0
-            for i, slotData in pairs(settings.itemTrackingSlots) do
+            for _, slotData in pairs(settings.itemTrackingSlots) do
                 if slotData and slotData.itemId then
                     local count = DetaurBar.Core.CountItemInBags(slotData.itemId)
                     local threshold = settings.itemTrackingThreshold or 0

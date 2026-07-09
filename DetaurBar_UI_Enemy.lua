@@ -408,7 +408,8 @@ function DetaurBar.Enemy.UpdateMonitor()
 
     monitorEmptyText:Hide()
 
-    monitorFrame:SetHeight(innerTop + count * (rowHeight + spacing) + bottomPad)
+    local desiredHeight = innerTop + count * (rowHeight + spacing) + bottomPad
+    monitorFrame:SetHeight(desiredHeight)
 
     for i = 1, count do
         local enemy = enemyDisplay[i]
@@ -418,12 +419,13 @@ function DetaurBar.Enemy.UpdateMonitor()
         row:ClearAllPoints()
         if i == 1 then
             row:SetPoint("TOPLEFT", monitorFrame, "TOPLEFT", 14, -innerTop)
-            row:SetPoint("TOPRIGHT", monitorFrame, "TOPRIGHT", -16, -innerTop)
-            -- Align toggle button with first row
+            row:SetPoint("TOPRIGHT", monitorFrame, "TOPRIGHT", -16, 0)
+            row:SetHeight(rowHeight)
             monitorToggleBtn:SetPoint("TOP", monitorRows[1], "TOP", 0, (rowHeight - 20) / 2)
         else
             row:SetPoint("TOPLEFT", monitorRows[i-1], "BOTTOMLEFT", 0, -spacing)
             row:SetPoint("TOPRIGHT", monitorRows[i-1], "BOTTOMRIGHT", 0, -spacing)
+            row:SetHeight(rowHeight)
         end
 
         row.nameText:SetText(enemy.name or "?")

@@ -371,13 +371,24 @@ function DetaurBar.UI.UpdateThresholdRow()
         return
     end
 
-    local itemTexture = nil
+    local itemTexture, itemName
+    local itemRarity = 1
     local itemId = DetaurBar.UI.GetItemIdFromText(item.title)
     if itemId then
-        local _, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemId)
-        itemTexture = texture
-        if DetaurBar.Data.ItemIcons and DetaurBar.Data.ItemIcons[itemId] then
-            itemTexture = DetaurBar.Data.ItemIcons[itemId]
+        itemName = DetaurBar.UI.GetOfflineItemNameById(itemId)
+        if itemName then
+            itemRarity = 1
+            itemTexture = DetaurBar.Data.GetItemTexture(itemId)
+            if not itemTexture then
+                local _, _, sr, _, _, _, _, _, _, st = GetItemInfo(itemId)
+                itemTexture = st
+                if sr then itemRarity = sr end
+            end
+        else
+            itemName, _, itemRarity, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
+        end
+        if not itemTexture then
+            itemTexture = DetaurBar.Data.GetItemTexture(itemId)
         end
     end
 
@@ -388,7 +399,9 @@ function DetaurBar.UI.UpdateThresholdRow()
         DetaurBar.UI.priceThresholdRow.icon:Hide()
     end
 
-    local itemName = DetaurBar.UI.GetOfflineItemNameById(itemId) or item.title
+    if not itemName then
+        itemName = item.title
+    end
     if #itemName > 11 then
         itemName = itemName:sub(1, 11)
     end

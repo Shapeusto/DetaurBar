@@ -153,12 +153,54 @@ DetaurBar.UI.alertPanel:SetBackdrop({
 DetaurBar.UI.alertPanel:SetBackdropColor(0, 0, 0, 0.0)
 DetaurBar.UI.alertPanel:SetBackdropBorderColor(0, 0, 0, 0)
 
--- Sub-tab bar inside settings panel
-DetaurBar.UI.alertSubTabBar = CreateFrame("Frame", "DetaurBarSettingsSubTabBar", DetaurBar.UI.alertPanel)
+-- Sub-tab bar inside settings panel (ScrollFrame with arrows, like Notes)
+DetaurBar.UI.alertSubTabBar = CreateFrame("ScrollFrame", "DetaurBarSettingsSubTabBar", DetaurBar.UI.alertPanel)
 DetaurBar.UI.alertSubTabBar:SetHeight(24)
 DetaurBar.UI.alertSubTabBar:SetPoint("TOPLEFT", DetaurBar.UI.alertPanel, "TOPLEFT", 8, -8)
 DetaurBar.UI.alertSubTabBar:SetPoint("TOPRIGHT", DetaurBar.UI.alertPanel, "TOPRIGHT", -24, -8)
 DetaurBar.UI.alertSubTabBar:Hide()
+
+local alertSubTabScrollChild = CreateFrame("Frame", nil, DetaurBar.UI.alertSubTabBar)
+alertSubTabScrollChild:SetHeight(24)
+DetaurBar.UI.alertSubTabBar:SetScrollChild(alertSubTabScrollChild)
+DetaurBar.UI.alertSubTabScrollChild = alertSubTabScrollChild
+
+-- Scroll arrows for alert sub-tab bar
+local alertTabLeftArrow = CreateFrame("Button", nil, DetaurBar.UI.alertPanel)
+alertTabLeftArrow:SetSize(12, 24)
+alertTabLeftArrow:SetPoint("LEFT", DetaurBar.UI.alertSubTabBar, "LEFT", 0, 0)
+alertTabLeftArrow:SetFrameLevel(DetaurBar.UI.alertPanel:GetFrameLevel() + 10)
+alertTabLeftArrow:Hide()
+alertTabLeftArrow:SetScript("OnClick", function()
+    local c = DetaurBar.UI.alertSubTabBar
+    if not c then return end
+    c:SetHorizontalScroll(math.max(0, (c:GetHorizontalScroll() or 0) - 60))
+    DetaurBar.UI.UpdateAlertSubTabArrows()
+end)
+local ll = alertTabLeftArrow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+ll:SetPoint("CENTER")
+ll:SetText("<")
+ll:SetTextColor(1.0, 0.82, 0.0, 1.0)
+DetaurBar.UI.alertTabLeftArrow = alertTabLeftArrow
+
+local alertTabRightArrow = CreateFrame("Button", nil, DetaurBar.UI.alertPanel)
+alertTabRightArrow:SetSize(12, 24)
+alertTabRightArrow:SetPoint("RIGHT", DetaurBar.UI.alertSubTabBar, "RIGHT", 0, 0)
+alertTabRightArrow:SetFrameLevel(DetaurBar.UI.alertPanel:GetFrameLevel() + 10)
+alertTabRightArrow:Hide()
+alertTabRightArrow:SetScript("OnClick", function()
+    local c = DetaurBar.UI.alertSubTabBar
+    if not c then return end
+    local scroll = (c:GetHorizontalScroll() or 0) + 60
+    local maxScroll = math.max(0, (DetaurBar.UI.alertSubTabScrollChild:GetWidth() or 0) - c:GetWidth())
+    c:SetHorizontalScroll(math.min(scroll, maxScroll))
+    DetaurBar.UI.UpdateAlertSubTabArrows()
+end)
+local rl = alertTabRightArrow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+rl:SetPoint("CENTER")
+rl:SetText(">")
+rl:SetTextColor(1.0, 0.82, 0.0, 1.0)
+DetaurBar.UI.alertTabRightArrow = alertTabRightArrow
 
 -- Background frame for settings content
 DetaurBar.UI.alertListBackground = CreateFrame("Frame", "DetaurBarSettingsListBackground", DetaurBar.UI.alertPanel)
@@ -207,11 +249,11 @@ DetaurBar.UI.alertScrollChild:SetHeight(390)
 -- ============================================
 --  SETTINGS SUB-TABS: Dungeon / Wintergrasp / Random
 -- ============================================
-local alertSubTabNames = { "Dung", "Raid", "WG", "Random", "Enemy", "Buffs", "Item" }
+local alertSubTabNames = { "Dung", "Raid", "WG", "Arena", "Random", "Enemy", "Buffs", "Item" }
 for i, name in ipairs(alertSubTabNames) do
-    local subTab = CreateFrame("Button", "DetaurBarSettingsSubTab_" .. name, DetaurBar.UI.alertPanel)
+    local subTab = CreateFrame("Button", "DetaurBarSettingsSubTab_" .. name, alertSubTabScrollChild)
     subTab:SetHeight(24)
-    subTab:SetFrameLevel(DetaurBar.UI.alertPanel:GetFrameLevel() + 6)
+    subTab:SetFrameLevel(alertSubTabScrollChild:GetFrameLevel() + 6)
     subTab:EnableMouse(true)
     subTab.tabName = name
     subTab:Hide()
@@ -219,13 +261,15 @@ for i, name in ipairs(alertSubTabNames) do
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 12, edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        insets = { left = 4, right = 4, top = 3, bottom = 3 }
     })
     subTab:SetBackdropColor(0, 0, 0, 0.55)
     subTab:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.9)
     local label = subTab:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    label:SetPoint("CENTER", subTab, "CENTER", 0, 0)
+    label:SetPoint("LEFT", subTab, "LEFT", 8, 0)
+    label:SetPoint("RIGHT", subTab, "RIGHT", -8, 0)
     label:SetText(name)
+    label:SetJustifyH("CENTER")
     subTab.label = label
     local highlight = subTab:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints(subTab)
@@ -252,8 +296,11 @@ local function SetAlertSubTabStyle(subTab)
 end
 
 function DetaurBar.UI.UpdateAlertSubTabBar()
-    local totalWidth = _G["DetaurBarFrame"]:GetWidth() - 28
-    local subTabGap = 1
+    local container = DetaurBar.UI.alertSubTabBar
+    if not container then return end
+    local scrollChild = DetaurBar.UI.alertSubTabScrollChild
+    if not scrollChild then return end
+
     local settings = DetaurBar.UI.GetSettingsDB()
     local visibleTabs = {}
     for _, subTab in ipairs(DetaurBar.UI.alertSubTabs) do
@@ -261,16 +308,59 @@ function DetaurBar.UI.UpdateAlertSubTabBar()
             table.insert(visibleTabs, subTab)
         end
     end
-    local numTabs = #visibleTabs
-    local subTabWidth = (totalWidth - (subTabGap * (numTabs - 1))) / math.max(1, numTabs)
+    for _, subTab in ipairs(visibleTabs) do
+        subTab:Show()
+    end
+    local n = #visibleTabs
+    if n == 0 then return end
+
+    local containerWidth = container:GetWidth()
+    local gap = 1
+
+    local maxTextWidth = 0
+    for _, subTab in ipairs(visibleTabs) do
+        local tw = subTab.label:GetStringWidth() or 0
+        if tw > maxTextWidth then maxTextWidth = tw end
+    end
+    local MIN_WIDTH = math.max(50, maxTextWidth + 18)
+
+    local btnWidth = math.max(MIN_WIDTH, (containerWidth - (n - 1) * gap) / n)
+    local totalContentWidth = n * btnWidth + (n - 1) * gap
+
     for i, subTab in ipairs(visibleTabs) do
-        subTab:SetWidth(subTabWidth)
+        subTab:SetWidth(btnWidth)
         subTab:ClearAllPoints()
         if i == 1 then
-            subTab:SetPoint("TOPLEFT", DetaurBar.UI.alertSubTabBar, "TOPLEFT", 0, 0)
+            subTab:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, 0)
         else
-            subTab:SetPoint("LEFT", visibleTabs[i-1], "RIGHT", subTabGap, 0)
+            subTab:SetPoint("LEFT", visibleTabs[i-1], "RIGHT", gap, 0)
         end
+    end
+
+    scrollChild:SetWidth(totalContentWidth)
+
+    -- Clamp scroll on resize
+    local maxScroll = math.max(0, totalContentWidth - containerWidth)
+    local cur = container:GetHorizontalScroll() or 0
+    if cur > maxScroll then
+        container:SetHorizontalScroll(maxScroll)
+    end
+
+    DetaurBar.UI.UpdateAlertSubTabArrows()
+end
+
+function DetaurBar.UI.UpdateAlertSubTabArrows()
+    local container = DetaurBar.UI.alertSubTabBar
+    local scrollChild = DetaurBar.UI.alertSubTabScrollChild
+    if not container or not scrollChild then return end
+    local scroll = container:GetHorizontalScroll() or 0
+    local maxScroll = math.max(0, (scrollChild:GetWidth() or 0) - container:GetWidth())
+
+    if DetaurBar.UI.alertTabLeftArrow then
+        if scroll > 0 then DetaurBar.UI.alertTabLeftArrow:Show() else DetaurBar.UI.alertTabLeftArrow:Hide() end
+    end
+    if DetaurBar.UI.alertTabRightArrow then
+        if scroll < maxScroll then DetaurBar.UI.alertTabRightArrow:Show() else DetaurBar.UI.alertTabRightArrow:Hide() end
     end
 end
 
@@ -313,6 +403,34 @@ CreateAlertChoiceRow(sc, dungeonColorRow, {
 }, 8, -94, 162, function(value)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.dungeonFlashColor = value
+end)
+
+-- ============================================
+--  SETTINGS CONTROLS: Arena sub-tab
+-- ============================================
+local arenaEnableCheckbox, arenaEnableLabel = CreateAlertCheck(sc, "Enable Arena Flash Alert", 8, -8, function(self)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    settings.arenaFlashEnabled = self:GetChecked() and true or false
+end)
+DetaurBar.UI.SetSimpleTooltip(arenaEnableCheckbox, "Enable Arena Flash Alert", "Flash the whole screen when an arena match is found.")
+
+local arenaColorLabel = CreateAlertLabel(sc, "Flash Color", 8, -40)
+
+local arenaDurationLabel, arenaDurationEdit = CreateAlertEditRow(sc, "Flash duration", 8, -68, 36, 3, function(self)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    settings.arenaFlashDuration = DetaurBar.UI.ClampNumber(self:GetText(), 0, 0, 120)
+    self:SetText(tostring(settings.arenaFlashDuration))
+end)
+DetaurBar.UI.SetSimpleTooltip(arenaDurationEdit, "Flash Duration", "How many seconds to flash. Set 0 for infinite (until arena starts).")
+
+local arenaColorRow = {}
+CreateAlertChoiceRow(sc, arenaColorRow, {
+    { key = "GREEN", label = "Green", tooltip = "Use a green full-screen flash." },
+    { key = "YELLOW", label = "Yellow", tooltip = "Use a yellow full-screen flash." },
+    { key = "RED", label = "Red", tooltip = "Use a red full-screen flash." },
+}, 8, -94, 162, function(value)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    settings.arenaFlashColor = value
 end)
 
 -- ============================================
@@ -606,6 +724,13 @@ local alertDungeonControls = {
     dungeonColorRow.GREEN, dungeonColorRow.YELLOW, dungeonColorRow.RED,
 }
 
+local alertArenaControls = {
+    arenaEnableCheckbox, arenaEnableLabel,
+    arenaColorLabel,
+    arenaDurationLabel, arenaDurationEdit,
+    arenaColorRow.GREEN, arenaColorRow.YELLOW, arenaColorRow.RED,
+}
+
 local alertRaidControls = {
     raidRollCheckbox, raidRollLabel,
     raidRollColorLabel,
@@ -883,75 +1008,82 @@ table.insert(alertBuffsControls, buffsCooldownLabel)
 local buffsSpellSlots = {}
 local slotGap = 8
 local slotSize = 36
-for i = 1, 4 do
-    local slot = CreateFrame("Button", nil, sc)
-    slot:SetSize(slotSize, slotSize)
-    slot:SetPoint("TOPLEFT", sc, "TOPLEFT", 8 + (i - 1) * (slotSize + slotGap), -64)
-    slot:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 12, edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    slot:SetBackdropColor(0, 0, 0, 0.8)
-    slot:SetBackdropBorderColor(0.4, 0.4, 0.4, 1.0)
+local buffsCols = 5
+local buffsRows = 2
+local idx = 0
+for row = 1, buffsRows do
+    for col = 1, buffsCols do
+        idx = idx + 1
+        local i = idx
+        local slot = CreateFrame("Button", nil, sc)
+        slot:SetSize(slotSize, slotSize)
+        slot:SetPoint("TOPLEFT", sc, "TOPLEFT", 8 + (col - 1) * (slotSize + slotGap), -64 - (row - 1) * (slotSize + slotGap))
+        slot:SetBackdrop({
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 12, edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        })
+        slot:SetBackdropColor(0, 0, 0, 0.8)
+        slot:SetBackdropBorderColor(0.4, 0.4, 0.4, 1.0)
 
-    local icon = slot:CreateTexture(nil, "ARTWORK")
-    icon:SetAllPoints(slot)
-    icon:Hide()
+        local icon = slot:CreateTexture(nil, "ARTWORK")
+        icon:SetAllPoints(slot)
+        icon:Hide()
 
-    local closeX = CreateFrame("Button", nil, slot)
-    closeX:SetSize(12, 12)
-    closeX:SetPoint("TOPRIGHT", slot, "TOPRIGHT", 2, -2)
-    closeX:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
-    closeX:SetHighlightTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Highlight")
-    closeX:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
-    closeX:Hide()
-    closeX:SetScript("OnClick", function()
-        DetaurBar.Data.InitializeDB()
-        if DetaurBarDB.settings.buffsSpellSlots then
-            DetaurBarDB.settings.buffsSpellSlots[i] = nil
-        end
-        DetaurBar.UI.UpdateAlertPanel()
-        if DetaurBar.Buffs and DetaurBar.Buffs.OnSlotChanged then DetaurBar.Buffs.OnSlotChanged() end
-    end)
-
-    slot:EnableMouse(true)
-    slot:RegisterForDrag("LeftButton")
-    slot:SetScript("OnReceiveDrag", function()
-        local infoType, bookIndexOrId, bookType = GetCursorInfo()
-        if infoType == "spell" and bookIndexOrId then
+        local closeX = CreateFrame("Button", nil, slot)
+        closeX:SetSize(12, 12)
+        closeX:SetPoint("TOPRIGHT", slot, "TOPRIGHT", 2, -2)
+        closeX:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+        closeX:SetHighlightTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Highlight")
+        closeX:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
+        closeX:Hide()
+        closeX:SetScript("OnClick", function()
             DetaurBar.Data.InitializeDB()
-            if not DetaurBarDB.settings.buffsSpellSlots then DetaurBarDB.settings.buffsSpellSlots = {} end
-            local name, _, icon = GetSpellInfo(bookIndexOrId, bookType or "spell")
-            local spellId = select(10, GetSpellInfo(bookIndexOrId, bookType or "spell"))
-            DetaurBarDB.settings.buffsSpellSlots[i] = { id = spellId or bookIndexOrId, name = name, icon = icon, bookIndex = bookIndexOrId, bookType = bookType or "spell" }
-            ClearCursor()
+            if DetaurBarDB.settings.buffsSpellSlots then
+                DetaurBarDB.settings.buffsSpellSlots[i] = nil
+            end
             DetaurBar.UI.UpdateAlertPanel()
             if DetaurBar.Buffs and DetaurBar.Buffs.OnSlotChanged then DetaurBar.Buffs.OnSlotChanged() end
-        end
-    end)
-    slot:SetScript("OnEnter", function(self)
-        local data = DetaurBarDB.settings.buffsSpellSlots and DetaurBarDB.settings.buffsSpellSlots[i]
-        if data then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:ClearLines()
-            GameTooltip:AddLine(data.name or ("Spell ID: " .. data.id), 1.0, 1.0, 1.0)
-            GameTooltip:Show()
-        end
-    end)
-    slot:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        end)
 
-    slot.icon = icon
-    slot.closeX = closeX
+        slot:EnableMouse(true)
+        slot:RegisterForDrag("LeftButton")
+        slot:SetScript("OnReceiveDrag", function()
+            local infoType, bookIndexOrId, bookType = GetCursorInfo()
+            if infoType == "spell" and bookIndexOrId then
+                DetaurBar.Data.InitializeDB()
+                if not DetaurBarDB.settings.buffsSpellSlots then DetaurBarDB.settings.buffsSpellSlots = {} end
+                local name, _, icon = GetSpellInfo(bookIndexOrId, bookType or "spell")
+                local spellId = select(10, GetSpellInfo(bookIndexOrId, bookType or "spell"))
+                DetaurBarDB.settings.buffsSpellSlots[i] = { id = spellId or bookIndexOrId, name = name, icon = icon, bookIndex = bookIndexOrId, bookType = bookType or "spell" }
+                ClearCursor()
+                DetaurBar.UI.UpdateAlertPanel()
+                if DetaurBar.Buffs and DetaurBar.Buffs.OnSlotChanged then DetaurBar.Buffs.OnSlotChanged() end
+            end
+        end)
+        slot:SetScript("OnEnter", function(self)
+            local data = DetaurBarDB.settings.buffsSpellSlots and DetaurBarDB.settings.buffsSpellSlots[i]
+            if data then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:ClearLines()
+                GameTooltip:AddLine(data.name or ("Spell ID: " .. data.id), 1.0, 1.0, 1.0)
+                GameTooltip:Show()
+            end
+        end)
+        slot:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    buffsSpellSlots[i] = slot
-    table.insert(alertBuffsControls, slot)
+        slot.icon = icon
+        slot.closeX = closeX
+
+        buffsSpellSlots[i] = slot
+        table.insert(alertBuffsControls, slot)
+    end
 end
 
 -- Divider after cooldown slots
 local buffsDivider = CreateSectionDivider(sc)
-buffsDivider:SetPoint("TOP", buffsSpellSlots[1], "BOTTOM", 0, -12)
+buffsDivider:SetPoint("TOP", buffsSpellSlots[buffsCols * (buffsRows - 1) + 1], "BOTTOM", 0, -12)
 buffsDivider:SetPoint("LEFT", sc, "LEFT", 10)
 buffsDivider:SetPoint("RIGHT", sc, "RIGHT", -10)
 table.insert(alertBuffsControls, buffsDivider)
@@ -962,7 +1094,7 @@ local buffsStacksCheckbox, buffsStacksLabel = CreateAlertCheck(sc, "Show maelsto
     settings.buffsFollowStacks = self:GetChecked() and true or false
 end)
 buffsStacksCheckbox:ClearAllPoints()
-buffsStacksCheckbox:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -132)
+buffsStacksCheckbox:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -64 - (buffsRows - 1) * (slotSize + slotGap) - slotSize - 20)
 DetaurBar.UI.SetSimpleTooltip(buffsStacksCheckbox, "Show maelstorm stack", "Show icon center-screen when Maelstrom Weapon reaches 5 stacks.")
 table.insert(alertBuffsControls, buffsStacksCheckbox)
 table.insert(alertBuffsControls, buffsStacksLabel)
@@ -1107,6 +1239,7 @@ function DetaurBar.UI.SelectAlertSubTab(subTabName)
     end
 
     SetAlertControlsVisible(alertDungeonControls, subTabName == "Dung")
+    SetAlertControlsVisible(alertArenaControls, subTabName == "Arena")
     SetAlertControlsVisible(alertRaidControls, subTabName == "Raid")
     SetAlertControlsVisible(alertWintergraspControls, subTabName == "WG")
     SetAlertControlsVisible(alertRandomControls, subTabName == "Random")
@@ -1130,6 +1263,10 @@ function DetaurBar.UI.UpdateAlertPanel()
     SetButtonGroupValue(dungeonColorRow, settings.dungeonFlashColor or "YELLOW")
     dungeonDurationEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.dungeonFlashDuration, 0, 0, 120)))
     DetaurBar.UI.ahIntervalEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.ahScanInterval, 10, 1, 120)))
+
+    arenaEnableCheckbox:SetChecked(settings.arenaFlashEnabled and 1 or nil)
+    SetButtonGroupValue(arenaColorRow, settings.arenaFlashColor or "YELLOW")
+    arenaDurationEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.arenaFlashDuration, 0, 0, 120)))
 
     raidRollCheckbox:SetChecked(settings.raidRollAlertEnabled and 1 or nil)
     SetButtonGroupValue(alertRaidRollColorButtons, settings.raidRollAlertColor or "YELLOW")
@@ -1180,6 +1317,7 @@ function DetaurBar.UI.UpdateAlertPanel()
     enemyMindControlCheckbox:SetChecked(settings.mindControlAlertEnabled and 1 or nil)
 
     SetAlertControlsVisible(alertDungeonControls, DetaurBar.UI.activeAlertSubTab == "Dung")
+    SetAlertControlsVisible(alertArenaControls, DetaurBar.UI.activeAlertSubTab == "Arena")
     SetAlertControlsVisible(alertRaidControls, DetaurBar.UI.activeAlertSubTab == "Raid")
     SetAlertControlsVisible(alertWintergraspControls, DetaurBar.UI.activeAlertSubTab == "WG")
     SetAlertControlsVisible(alertRandomControls, DetaurBar.UI.activeAlertSubTab == "Random")
@@ -1317,6 +1455,12 @@ function DetaurBar.UI.SaveSettings()
     settings.dungeonFlashEnabled = dungeonEnableCheckbox:GetChecked() and true or false
     settings.dungeonFlashDuration = DetaurBar.UI.ClampNumber(dungeonDurationEdit:GetText(), 0, 0, 120)
     settings.ahScanInterval = DetaurBar.UI.ClampNumber(DetaurBar.UI.ahIntervalEdit:GetText(), 10, 1, 120)
+
+    settings.arenaFlashEnabled = arenaEnableCheckbox:GetChecked() and true or false
+    settings.arenaFlashDuration = DetaurBar.UI.ClampNumber(arenaDurationEdit:GetText(), 0, 0, 120)
+    for key, btn in pairs(arenaColorRow) do
+        if not btn:IsEnabled() then settings.arenaFlashColor = key; break end
+    end
     settings.raidRollAlertEnabled = raidRollCheckbox:GetChecked() and true or false
     settings.raidRollAlertDuration = DetaurBar.UI.ClampNumber(raidRollDurationEdit:GetText(), 0, 0, 30)
     settings.raidRollAlertPlaySound = raidRollSoundCheckbox:GetChecked() and true or false
@@ -1384,4 +1528,14 @@ end
 
 DetaurBar.UI.alertPanel:SetScript("OnSizeChanged", function()
     DetaurBar.UI.UpdateAlertSubTabBar()
+    local container = DetaurBar.UI.alertSubTabBar
+    local scrollChild = DetaurBar.UI.alertSubTabScrollChild
+    if container and scrollChild then
+        local maxScroll = math.max(0, (scrollChild:GetWidth() or 0) - container:GetWidth())
+        local cur = container:GetHorizontalScroll() or 0
+        if cur > maxScroll then
+            container:SetHorizontalScroll(maxScroll)
+        end
+    end
+    DetaurBar.UI.UpdateAlertSubTabArrows()
 end)

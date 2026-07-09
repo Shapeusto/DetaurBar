@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DetaurBar Price History Viewer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+    <h1>DetaurBar Price Viewer</h1>
+    <span class="sub">SavedVariables price history analyzer</span>
+    <label class="file-btn" for="fileInput">Load SavedVariables…</label>
+    <input type="file" id="fileInput" accept=".lua">
+    <span id="status">no file loaded</span>
+</header>
+
+<div class="container">
+    <div class="sidebar">
+        <h2>Tracked Items</h2>
+        <input type="text" id="searchBox" placeholder="Search by name or ID…">
+        <div class="item-list" id="itemList"></div>
+    </div>
+
+    <div class="main">
+        <div class="placeholder" id="placeholder">
+            <div>
+                <strong>No data loaded</strong><br>
+                Click "Load SavedVariables…" and select your<br>
+                <code style="color:#b0a080">WTF\Account\&lt;account&gt;\SavedVariables\Detaurtodo.lua</code>
+            </div>
+        </div>
+
+        <div class="detail-bar" id="detailBar">
+            <span class="d-name" id="dName"></span>
+            <span class="d-id" id="dId"></span>
+            <span class="d-thresh" id="dThresh"></span>
+            <span class="d-count" id="dCount"></span>
+            <span class="d-freq" id="dFreq"></span>
+        </div>
+
+        <div class="chart-controls" id="chartControls" style="display:none">
+            <button data-period="D" class="active">Daily</button>
+            <button data-period="W">Weekly</button>
+            <button data-period="M">Monthly</button>
+            <button data-period="Y">Yearly</button>
+            <button data-period="ALL">All</button>
+            <span class="info" id="chartInfo"></span>
+        </div>
+
+        <div class="chart-wrap" id="chartWrap">
+            <canvas id="chartCanvas"></canvas>
+            <div class="chart-tooltip" id="chartTooltip"></div>
+        </div>
+    </div>
+</div>
+
+<script src="items.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

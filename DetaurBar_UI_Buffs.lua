@@ -80,11 +80,11 @@ end
 -- ============================================
 --  COOLDOWN TRACKING
 -- ============================================
-local prevCooldownState = {} -- keyed by SLOT INDEX (1-4)
+local prevCooldownState = {} -- keyed by SLOT INDEX (1-10)
 
 function DetaurBar.Buffs.OnSlotChanged()
     local slots = DetaurBarDB and DetaurBarDB.settings and DetaurBarDB.settings.buffsSpellSlots or {}
-    for i = 1, 4 do
+    for i = 1, 10 do
         local data = slots[i]
         if data and data.id then
             prevCooldownState[i] = 0
@@ -112,7 +112,7 @@ updateFrame:SetScript("OnUpdate", function(self, elapsed)
 
     -- Cooldown check (gated by buffsEnabled)
     if settings.buffsEnabled then
-    for i = 1, 4 do
+    for i = 1, 10 do
         local data = slots[i]
         if data and data.id then
             -- Try GetSpellCooldown(bookIndex, bookType) first, fallback to (spellId)

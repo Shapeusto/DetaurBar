@@ -1,332 +1,366 @@
 # Changelog
 
+## 2026-07-09 — Buffs 5×2 grid, Arena sub-tab, sub-tab arrow leak fix, ALT+RightClick move to bank
+
+### Added
+- **ALT+RightClick move to bank** (Settings > Various > "Move items with ALT+RightClick"):
+  - When bank is open, ALT+RightClick any item → all matching items from bags are queued and moved to empty bank slots
+  - Uses `OnUpdate` timer to process one transfer per frame (no taint, smooth animation)
+  - Automatically finds next available empty bank slot for each item
+  - Cancels pending items if bank fills up mid-transfer
+- **Arena sub-tab** in Alert (works like Dung):
+  - Enable/disable flash, flash color (Green/Yellow/Red), flash duration
+  - Triggered by `ARENA_OPPONENT_UPDATE` when first opponent appears
+  - Guarded by `settings.arenaFlashEnabled` in `StartDungeonFlash`
+  - Visible in Settings > Alert checkbox list (gear menu)
+- **Buffs cooldown slots**: expanded from 4 to 5×2 grid (10 slots) — nested `for row, col` loop in `DetaurBar_UI_Settings.lua`
+
+### Fixed
+- **Enemy row bottom half not clickable** — rows used `SetHeight(18)` with only TOPLEFT+TOPRIGHT anchors, leaving the BOTTOM edge un-anchored. In 3.3.5a, this caused WoW to only register clicks in the upper portion of the button. Fixed by adding explicit `BOTTOMRIGHT` (row 1) / `BOTTOMLEFT` (rows 2+) anchors in `DetaurBar_UI_Enemy.lua`, ensuring the full height is clickable.
+- **Notes scroll arrows leaking into Loot tab** — `UpdateContentAnchors` in `DetaurBar_UI.lua` now hides `notesTabLeftArrow`/`notesTabRightArrow` (plus container/category controls) for all tabs except `"Notes"`. Previously only hidden in `SelectTab("Settings")`, causing arrows to remain visible when switching from Notes to Loot.
+- **Loot sub-tab not resizing on visibility change** — `SelectTab("Loot")` now calls `UpdateTabAnchors()` after showing/hiding sub-tabs, so a single visible sub-tab takes full width (was only recalculated on frame resize).
+- **Alert sub-tab bar not resizing on visibility change** — `SelectTab("Settings")` now calls `UpdateAlertSubTabBar()` after showing/hiding alert sub-tabs.
+
+### Changed
+- `DetaurBarDB.settings.buffsSpellSlots` default: from `{nil,nil,nil,nil}` to `{}` (dynamic 5×2 grid)
+- `DetaurBarDB.settings.alertSubTabsVisible` now includes `Arena = true`
+
+---
+
+## 2026-07-08 — Item tracking (Alert > Item sub-tab), bugfixes
+
+### Added
+- **Item sub-tab** in Alert: 5×5 drag-from-bags grid (25 slots), Enable Item Tracking checkbox
+- Divider, Alert interval (minutes, default 30) and Alert threshold (count, default 0) edit boxes
+- **Item tracking timer** in `DetaurBar_Core.lua` – OnUpdate on eventFrame, checks item counts in bags every N minutes
+- **Chat alert** when count ≤ threshold: `[DetaurBar] Low on <name>: <count> remaining`
+- Settings > Alert checkbox to hide Item sub-tab (in settingsMenuPanel)
+
+### Fixed
+- **Settings file crash** – `DetaurBar.UI.SetSimpleTooltip()` called on a **FontString** (not Frame), which crashes in 3.3.5a. Entire `DetaurBar_UI_Settings.lua` failed to load → `SelectAlertSubTab` stayed nil → all sub-tab controls were visible at once
+- **Drag into slot** – `GetCursorInfo()` in 3.3.5a returns second value as **itemID (number)**, not itemLink string. Fixed to `type(itemId) == "number"` and direct usage
+- **Threshold not displaying** – `if thresh > 0 then` hid value 0. Now always shows the current value
+- **Values not saving without Enter** – added `OnEditFocusLost` to `CreateAlertEditRow`; `SaveSettings()` now reads `itemTrackingEnabled`, `itemTrackingInterval`, `itemTrackingThreshold`
+- **Positioning** – interval/threshold labels aligned at divider_left + 10
+- **Price threshold row wrong/missing names** – `UpdateThresholdRow()` in `DetaurBar_UI_Price.lua` had two bugs: (1) no `GetItemInfo` fallback when offline DB had no name – showed raw `item.title` (e.g. `"item:20532"`) instead of the resolved name. Fixed by adding the same fallback chain as the chart list (offline DB → `GetItemInfo` → `GetItemTexture` → `item.title`).
+- **Settings menu sub-tabs not resizing with window** – `CreateSettingsMenuPanel()` in `DetaurBar_UI.lua` calculated sub-tab widths once at creation from `frame:GetWidth()`, with no `OnSizeChanged` handler. Added `LayoutSettingsMenuSubTabs()` with `OnSizeChanged` on the sub-tab bar, matching the pattern used by price sub-tabs.
+- **Alert sub-tabs now scrollable with arrows** – Converted `alertSubTabBar` from a plain Frame to a ScrollFrame with scroll child (matching the Notes sub-tab pattern). Added left/right arrow buttons, dynamic min-width based on text content + padding (`insets left/right = 4`, label `LEFT`/`RIGHT` with 8px offset, `CENTER` justify). No more squished text.
+
+### Changed
+- Removed dead `DetaurBar.UI.alertSubTabNames` from `DetaurBar_UI.lua` (was outdated, never used)
+
+---
+
+## 2026-07-08 — Buffs sub-tab: cooldown tracking, stack tracking, UI
+
+### Added
+- **Buffs sub-tab** in Alerts: 4 cooldown slots (drag-from-spellbook), Maelstrom Weapon stack tracking, Follow Stacks checkbox
+- Center-screen alert pool: 6 frames, horizontal, 1s + 0.5s fade
+- `GetSpellCooldown(bookIndex, bookType)` — works in 3.3.5a same as `GetSpellInfo`
+
+### Fixed
+- **Cooldown alert not showing**: `prevCooldownState` was keyed by spell ID, but `data.id` was book index (not spell ID). Fix: key by slot index `i` (1-4).
+- **False alerts after casting**: `GetSpellCooldown` returned GCD (1-1.5s) for spells without their own cooldown, triggering alert after GCD expired. Fix: filter `duration > 1.5` ignores GCD.
+- Removed `LookupSpellInfo` — in 3.3.5a `GetSpellInfo(index, bookType)` does not return spellID as 10th value
+- Removed `FindSpellIdOnBars` — unnecessary dependency on action bars
+
+### Changed
+- **Stack tracking**: simplified to Maelstrom Weapon (spell ID 53817) — alert at 5 stacks. No learning/peak cycles.
+- **Independent controls**: `buffsEnabled` (Enable Cooldown Tracking) controls only cooldown slots; `buffsFollowStacks` (Show maelstorm stack) controls only stack tracking
+- **Divider** (same `UI-FriendsFrame-OnlineDivider` as in WG) between cooldown slots and stack checkbox
+- **Label "Cooldown Slots"**: changed to `GameFontNormalSmall`, gray (0.6, 0.6, 0.6)
+- **"Follow Stacks"** → **"Show maelstorm stack"**
+- **Center-screen alert icons**: 34×34 (40% smaller), y=-200 (bottom half), no text
+- **Spell names removed** from slots and alerts — only icons remain
+
+### Fixed
+- Enable Cooldown Tracking checkbox now restores state from `DetaurBarDB.settings.buffsEnabled`
+- Drag handler correctly saves `bookIndex`/`bookType` from `GetCursorInfo()` for reliable icon display
+
+---
+
 ## 2026-07-07
 
-### Fixed: Dismount on action nefungovalo z keybindingov a spôsobovalo taint
+### Fixed: Dismount on action did not work from keybindings and caused taint
 
-#### Problém 1: Syntax error – chýbajúci `end` v event handleri
-- `DetaurBar_Core.lua:131` – po bloku `MERCHANT_SHOW` chýbal druhý `end` pre uzavretie hlavného `if...elseif` reťazca. Lua parser hlásil "unexpected symbol near ')'".
+#### Problem 1: Syntax error – missing `end` in event handler
+- `DetaurBar_Core.lua:131` – after the `MERCHANT_SHOW` block, a second `end` was missing to close the main `if...elseif` chain. Lua parser reported "unexpected symbol near ')'".
 
-#### Problém 2: PreClick hook nechytal keybinding
-- V 3.3.5a keybinding volá `UseAction(slot)` priamo v C kóde, čím obchádza `PreClick` na action buttonoch.
-- Pokus o wrapper na `UseAction` fungoval, ale spôsobil **taint** ("Detaurtodo has been blocked from an action only available to Blizzard UI").
+#### Problem 2: PreClick hook did not catch keybinding
+- In 3.3.5a, keybinding calls `UseAction(slot)` directly in C code, bypassing `PreClick` on action buttons.
+- A wrapper around `UseAction` worked but caused **taint** ("Detaurtodo has been blocked from an action only available to Blizzard UI").
 
-#### Riešenie: SetOverrideBindingClick namiesto wrapp eru UseAction
-- Pridaný `DetaurBar.Core.SetupOverrideBindings()` – pre každý action slot (ActionButton1-12, MultiBar*, PetActionButton1-10, StanceButton1-10, ExtraActionButton1) získa binding key cez `GetBindingKey()` a nastaví `SetOverrideBindingClick`, ktorý presmeruje keybind na `:Click()` na príslušnom button frame.
-- `:Click()` spustí secure `OnClick` handler, ktorý zavolá `PreClick` – a tam náš `HookScript` hook zavolá `TryDismount()`.
-- Registrovaný `UPDATE_BINDINGS` event – obnoví overrides pri zmene keybindingov.
+#### Solution: SetOverrideBindingClick instead of UseAction wrapper
+- Added `DetaurBar.Core.SetupOverrideBindings()` – for each action slot (ActionButton1-12, MultiBar*, PetActionButton1-10, StanceButton1-10, ExtraActionButton1) gets the binding key via `GetBindingKey()` and sets `SetOverrideBindingClick`, which redirects the keybind to `:Click()` on the corresponding button frame.
+- `:Click()` triggers the secure `OnClick` handler, which calls `PreClick` – and there our `HookScript` hook calls `TryDismount()`.
+- Registered `UPDATE_BINDINGS` event – refreshes overrides when keybindings change.
 
-#### Výsledný flow
-- **Myš**: klik → PreClick (hook) → TryDismount() → OnClick → spell
-- **Klávesa**: keybind → SetOverrideBindingClick → ActionButton:Click() → PreClick (hook) → TryDismount() → OnClick → spell
-- Žiadny taint, lebo `HookScript` a `SetOverrideBindingClick` sú taint-safe API.
+#### Resulting flow
+- **Mouse**: click → PreClick (hook) → TryDismount() → OnClick → spell
+- **Keyboard**: keybind → SetOverrideBindingClick → ActionButton:Click() → PreClick (hook) → TryDismount() → OnClick → spell
+- No taint because `HookScript` and `SetOverrideBindingClick` are taint-safe APIs.
 
-### Changed: Dismount on action – len na lietajúcom mounte (gear/equipset bez dismountu)
+### Changed: Dismount on action – only on flying mount (no dismount for gear/equipset)
 
-#### Problém
-- Dismount na každej akcii spôsoboval zbytočné dismouty pri prepínaní gearu (equipment manager, `/equipset`).
-- Detekcia cez `GetActionInfo` / `GetAttribute` zlyhávala, lebo equipment manager volá `UseEquipmentSet()` priamo (obchádza action buttony).
+#### Problem
+- Dismount on every action caused unnecessary dismounts when switching gear (equipment manager, `/equipset`).
+- Detection via `GetActionInfo` / `GetAttribute` failed because equipment manager calls `UseEquipmentSet()` directly (bypasses action buttons).
 
-#### Riešenie: Dismountovať len keď si na lietajúcom mounte
-- Pridaná `IsOnFlyingMount()` – detekcia lietajúceho mounta:
-  - `IsMounted()` + `IsFlyableArea()` (neflyable zóna = ground mount → nikdy dismount)
-  - `GetUnitSpeed("player") > 2.25` (násobiteľ rýchlosti; ground max ~2.0, flying min ~2.5)
-  - Speed = 0 (stojíš na mieste) v flyable zóne → predpoklad flying → dismount
-- `TryDismount()` teraz kontroluje `IsOnFlyingMount()` namiesto `IsMounted()`
-- Odstránené komplexné `GetActionSlot`, `IsEquippableId`, `MacroIsGearEquip` – už netreba
-- `HookActionButton` zjednodušený naspäť na priame volanie `TryDismount()`
+#### Solution: Only dismount when on a flying mount
+- Added `IsOnFlyingMount()` – flying mount detection:
+  - `IsMounted()` + `IsFlyableArea()` (non-flyable zone = ground mount → never dismount)
+  - `GetUnitSpeed("player") > 2.25` (speed multiplier; ground max ~2.0, flying min ~2.5)
+  - Speed = 0 (standing still) in flyable zone → assume flying → dismount
+- `TryDismount()` now checks `IsOnFlyingMount()` instead of `IsMounted()`
+- Removed complex `GetActionSlot`, `IsEquippableId`, `MacroIsGearEquip` – no longer needed
+- `HookActionButton` simplified back to direct `TryDismount()` call
 
 #### Flow
-- **Lietajúci mount**: akcia → PreClick → `IsOnFlyingMount()` = true → `Dismount()`
-- **Pozemný mount**: akcia → PreClick → `IsOnFlyingMount()` = false → bez dismountu (gear, macro, equipset, všetko funguje)
-- **Bez mounta**: `IsMounted()` = false → bez dismountu (netreba)
+- **Flying mount**: action → PreClick → `IsOnFlyingMount()` = true → `Dismount()`
+- **Ground mount**: action → PreClick → `IsOnFlyingMount()` = false → no dismount (gear, macro, equipset, everything works)
+- **No mount**: `IsMounted()` = false → no dismount (not needed)
 
 ### Added: Show alerts in chat (Settings > Various)
-- Nová voľba "Show alerts in chat" v Settings > Various
-- `DetaurBar.Core.PrintAlert(msg)` – helper ktorý skontroluje nastavenie a vypíše do chatu modrou správu s prefixom `[DetaurBar]`
-- Chat výpis pridaný ku všetkým alertom:
-  - **Dungeon Alert** – na LFG_PROPOSAL_SHOW
-  - **Wintergrasp Alert** / **Wintergrasp Battle Start** – pri WG alertoch
-  - **Random Alert: <názov>** – pri random alertoch (vypíše meno alertu)
-  - **Enemy Alert: <meno>** – pri prvom objavení v monitorovacom okne (po zmiznutí a novom objavení znovu)
-  - **Mind Control Alert: <meno>** – pri Mind Controle v parté/raide
-- Default vypnuté
+- New option "Show alerts in chat" in Settings > Various
+- `DetaurBar.Core.PrintAlert(msg)` – helper that checks the setting and prints a blue message with `[DetaurBar]` prefix to chat
+- Chat output added to all alerts:
+  - **Dungeon Alert** – on LFG_PROPOSAL_SHOW
+  - **Wintergrasp Alert** / **Wintergrasp Battle Start** – on WG alerts
+  - **Random Alert: <name>** – on random alerts (prints alert name)
+  - **Enemy Alert: <name>** – on first appearance in monitor window (reappears after fade and rediscovery)
+  - **Mind Control Alert: <name>** – on Mind Control in party/raid
+- Default off
 
-### Fixed: Enemy chat alert len pri prvom objavení v monitori; Buffy bez chatu
-- **Enemy Alert** – presunutý z `OnNewEnemy` (volaný pri každom combat log evente) do `AddOrUpdateEnemy()` – vypíše sa len keď sa nepriateľ prvýkrát objaví v monitorovacom okne. Po zmiznutí (120s) a novom objavení sa vypíše znova.
-- **Buff Alert** – odstránený chat výpis úplne (cooldown alert aj Maelstrom Weapon stacks). Flash a center-screen ikona ostávajú.
+### Fixed: Enemy chat alert only on first appearance in monitor; Buffs no chat
+- **Enemy Alert** – moved from `OnNewEnemy` (called on every combat log event) to `AddOrUpdateEnemy()` – only prints when an enemy first appears in the monitor window. After fading (120s) and reappearing, it prints again.
+- **Buff Alert** – removed chat output entirely (cooldown alert and Maelstrom Weapon stacks). Flash and center-screen icon remain.
 
 ### Added: Delete price data point (right-click on graph dot)
-- Každá bodka v grafe má hover frame (Button) s `RegisterForClicks("RightButtonUp")` a `OnClick` handlerom
-- Pravým klikom na bodku sa zobrazí custom confirm frame s Yes/No tlačidlami
-- Po potvrdení `DetaurBar.Data.DeletePricePoint(itemId, timestampStr)` vymaže iba tú jednu bodku
-- `DetaurBar_Data.lua` – nová funkcia `DeletePricePoint`
-- `DetaurBar_UI_Graph.lua` – `GfFrame` zmenený z `Frame` na `Button` (RegisterForClicks v 3.3.5a nie je na Frame)
-- Tooltip zobrazuje "Right-click to delete"
+- Each dot in the graph has a hover frame (Button) with `RegisterForClicks("RightButtonUp")` and `OnClick` handler
+- Right-clicking a dot shows a custom confirm frame with Yes/No buttons
+- After confirmation, `DetaurBar.Data.DeletePricePoint(itemId, timestampStr)` deletes only that single data point
+- `DetaurBar_Data.lua` – new function `DeletePricePoint`
+- `DetaurBar_UI_Graph.lua` – `GfFrame` changed from `Frame` to `Button` (RegisterForClicks not available on Frame in 3.3.5a)
+- Tooltip shows "Right-click to delete"
 
 ### Changed: SavedVariables → SavedVariablesPerCharacter
 - `Detaurtodo.toc` – `## SavedVariables` → `## SavedVariablesPerCharacter`
-- Dáta sú per-char, nie account-wide
-- Migrácia: account-wide `Detaurtodo.lua` skopírovaný do `Account\MATUSY\Icecrown\Detaur\SavedVariables\`
-- Ostatné postavy na MATUSY začínajú s prázdnym DetaurBarDB
+- Data is per-character, not account-wide
+- Migration: account-wide `Detaurtodo.lua` copied to `Account\MATUSY\Icecrown\Detaur\SavedVariables\`
+- Other characters on MATUSY start with empty DetaurBarDB
 
 ### Added: Scan auction house checkbox (Settings > Various)
-- Nový checkbox "Scan auction house" v Settings > Various
+- New checkbox "Scan auction house" in Settings > Various
 - `ahScanningEnabled = true` default
-- Keď vypnuté, `AHScan.StartScan()` returnne hneď na začiatku – žiadny scan sa nespustí
+- When disabled, `AHScan.StartScan()` returns immediately – no scan starts
 - `DetaurBar_Data.lua`, `DetaurBar_UI.lua`, `DetaurBar_AHScan.lua`
 
-### Removed: Dismount on action (funkcia je v 3.3.5a zabudovaná)
-- Odstránené `IsOnFlyingMount()`, `TryDismount()`, `HookActionButton()`, `HookActionButtons()`, `SetupOverrideBindings()`, `OverrideActionBinding()`
-- Odstránený checkbox "Dismount on action" z Settings > Various
-- Odstránený `dismountOnActionEnabled` z InitializeDB
-- Odstránené `UPDATE_BINDINGS` event a handler
-- Všetky súbory: `DetaurBar_Core.lua`, `DetaurBar_Data.lua`, `DetaurBar_UI.lua`
+### Removed: Dismount on action (functionality is built-in in 3.3.5a)
+- Removed `IsOnFlyingMount()`, `TryDismount()`, `HookActionButton()`, `HookActionButtons()`, `SetupOverrideBindings()`, `OverrideActionBinding()`
+- Removed "Dismount on action" checkbox from Settings > Various
+- Removed `dismountOnActionEnabled` from InitializeDB
+- Removed `UPDATE_BINDINGS` event and handler
+- All files: `DetaurBar_Core.lua`, `DetaurBar_Data.lua`, `DetaurBar_UI.lua`
+
+---
 
 ## 2026-07-06
 
-### Fixed: Northrend herb ID nightmare (konečne správne)
+### Fixed: Northrend herb ID nightmare (finally correct)
 
-#### Problém
-Warmane (WotLK 3.3.5a private server) používa **iné itemID pre Northrend bylinky** než oficiálny Blizzard cache `itemcache.wdb`. Bylinky sú posunuté – nie systematicky (nie +N), ale každá má iný posun oproti stock WotLK databáze.
+#### Problem
+Warmane (WotLK 3.3.5a private server) uses **different itemIDs for Northrend herbs** than the official Blizzard cache `itemcache.wdb`. Herbs are shifted – not systematically (not +N), but each has a different offset from the stock WotLK database.
 
-#### Čo všetko zlyhalo
+#### Everything that failed
 
-| Pokus | Čo sa stalo |
-|-------|-------------|
-| **v1** (forward mapping) | V1 naniesla mapovanie staré→nové ID na všetky `item:ID` položky. Fungovalo pre tie, čo mali správny pôvodný názov. |
-| **v2** | Spustila to isté mapovanie ZNOVA. Stacking: 36903→36905→36906→36908→36902 – každé ďalšie spustenie posunulo ID o ďalší krok. |
-| **v3** | Rovnaký problém – stacking pokračoval. Bylinky sa reťazovo menili na úplne iné. |
-| **`_migratedHerbIdsFinal`** | Opravovala už len **link formát** (`\|Hitem:ID\|h[Meno]\|h`), nie `item:ID` – lebo pri ňom nie je uložené meno a nedá sa skrížiť s DB. Tento prístup bol správny, ale neriešil `item:ID` položky. |
-| **`/detaurfixherbs` (pôvodný)** | **DEVASTATUJÚCE**: nastavil `DetaurBarDB.price = {}` namiesto opravy ID. Zmazal všetky cenníkové záznamy. **ODSTRÁNENÝ**. |
-| **ItemDatabase ručná oprava** | Namiesto vygenerovania DB z Warmane cache boli ID nastavené tipovaním: `frost lotus=36902`, `fire leaf=36903`, `adder's tongue=36905`, `lichbloom=36906`, `icethorn=36908`. **ŽIADNE z týchto ID nesedí na Warmane!** |
-| **DetaurIDFinder in-game** | Nástroj ukázal správne ID pre Goldclover, ale ostatné bylinky neboli v session cache a `GetItemInfo` vrátil nil. Výsledok: databáza zostala nesprávna. |
+| Attempt | What happened |
+|---------|---------------|
+| **v1** (forward mapping) | V1 applied old→new ID mapping to all `item:ID` entries. Worked for those that had the correct original name. |
+| **v2** | Ran the same mapping AGAIN. Stacking: 36903→36905→36906→36908→36902 – each subsequent run shifted IDs by another step. |
+| **v3** | Same problem – stacking continued. Herbs chain-mutated into completely different ones. |
+| **`_migratedHerbIdsFinal`** | Only fixed **link format** (`\|Hitem:ID\|h[Name]\|h`), not `item:ID` – because `item:ID` stores no name and cannot be cross-referenced with DB. This approach was correct but did not solve `item:ID` entries. |
+| **`/detaurfixherbs` (original)** | **DEVASTATING**: set `DetaurBarDB.price = {}` instead of fixing IDs. Deleted all price entries. **REMOVED**. |
+| **ItemDatabase manual fix** | Instead of generating DB from Warmane cache, IDs were guessed: `frost lotus=36902`, `fire leaf=36903`, `adder's tongue=36905`, `lichbloom=36906`, `icethorn=36908`. **NONE of these IDs are correct on Warmane!** |
+| **DetaurIDFinder in-game** | Tool showed correct ID for Goldclover, but other herbs were not in session cache and `GetItemInfo` returned nil. Result: database remained incorrect. |
 
-#### Čo ukázala Warmane cache (7. 7. 2026)
-Po priamom prečítaní `Cache/WDB/enUS/itemcache.wdb`:
+#### What Warmane cache showed (July 7, 2026)
+After directly reading `Cache/WDB/enUS/itemcache.wdb`:
 
-| ID | Warmane meno | Čo hovorila stará DB |
-|---|-------------|---------------------|
+| ID | Warmane name | What old DB said |
+|----|--------------|------------------|
 | 36901 | Goldclover | Goldclover (✓) |
-| 36902 | **NOT FOUND** (neexistuje) | frost lotus (✗) |
+| 36902 | **NOT FOUND** (does not exist) | frost lotus (✗) |
 | 36903 | **Adder's Tongue** | fire leaf (✗) |
 | 36904 | Tiger Lily | Tiger Lily (✓) |
 | 36905 | **Lichbloom** | adder's tongue (✗) |
 | 36906 | **Icethorn** | lichbloom (✗) |
 | 36907 | Talandra's Rose | Talandra's Rose (✓) |
 | 36908 | **Frost Lotus** | icethorn (✗) |
-| 39970 | **Fire Leaf** | chýbal v DB |
+| 39970 | **Fire Leaf** | missing from DB |
 
-Žiadne ID 36902 na Warmane neexistuje. Frost Lotus je na 36908, Fire Leaf na 39970.
+No ID 36902 exists on Warmane. Frost Lotus is at 36908, Fire Leaf at 39970.
 
-#### Konečné riešenie
-1. **ItemDatabase** (name→ID) opravený podľa Warmane cache:
-   - `frost lotus = 36908` (nebol 36902)
-   - `adder's tongue = 36903` (nebol 36905)
-   - `lichbloom = 36905` (nebol 36906)
-   - `icethorn = 36906` (nebol 36908)
-   - `fire leaf = 39970` (nebol 36903)
-2. **ItemIcons** (ID→textúra) opravené:
-   - [36905] → Lichbloom (bol AddersTongue)
-   - [36906] → Icethorn (bol Lichbloom)
-   - [39970] → FireLeaf (chýbalo)
-   - [36903] a [36905] odstránené z ItemIcons → nechá sa vyriešiť cez `GetItemInfo` (server poskytne skutočnú cestu ikony)
-3. **Migrácia v4** (`_migratedHerbIdsV4`): opraví `item:ID` aj link formát pri každom reload-e pomocou mapovania:
+#### Final solution
+1. **ItemDatabase** (name→ID) fixed according to Warmane cache:
+   - `frost lotus = 36908` (was 36902)
+   - `adder's tongue = 36903` (was 36905)
+   - `lichbloom = 36905` (was 36906)
+   - `icethorn = 36906` (was 36908)
+   - `fire leaf = 39970` (was 36903)
+2. **ItemIcons** (ID→texture) fixed:
+   - [36905] → Lichbloom (was AddersTongue)
+   - [36906] → Icethorn (was Lichbloom)
+   - [39970] → FireLeaf (was missing)
+   - [36903] and [36905] removed from ItemIcons → left to be resolved via `GetItemInfo` (server provides actual icon path)
+3. **Migration v4** (`_migratedHerbIdsV4`): fixes `item:ID` and link format on every reload using mapping:
    - `36902→36908, 36903→39970, 36905→36903, 36906→36905, 36908→36906`
-4. **`/detaurfixherbs`** (nová bezpečná verzia): to isté mapovanie aplikuje okamžite, nič nemaže, iba mení ID.
-5. **`/detaurrecover` a `/detaurrestore`** obnovia dáta z disku (ktoré boli v starom array formáte a nedostupné).
+4. **`/detaurfixherbs`** (new safe version): applies the same mapping immediately, deletes nothing, only changes IDs.
+5. **`/detaurrecover` and `/detaurrestore`** restore data from disk (which was in old array format and inaccessible).
 
-#### Poučenie
-- Nikdy nemeniť `ItemDatabase` ručne – vždy generovať z `itemcache.wdb` (parse_itemcache.py)
-- Pri `item:ID` formáte sa nedá zistiť pôvodné meno – ak je ID zlé, treba mapovať staré→nové ID explicitne
-- Warmane ID sa LÍŠIA od stock WotLK – overovať vždy z cache, nie z webu
-- `DetaurIDFinder` je spoľahlivý len ak je item v session cache (`GetItemInfo` vracia data)
-- Mazanie cenníka v menej migrácie je neprípustné – vždy len premapovať ID, nikdy nemaž
+#### Lessons learned
+- Never edit `ItemDatabase` manually – always generate from `itemcache.wdb` (parse_itemcache.py)
+- With `item:ID` format, the original name cannot be determined – if ID is wrong, old→new ID must be mapped explicitly
+- Warmane IDs DIFFER from stock WotLK – always verify from cache, not from websites
+- `DetaurIDFinder` is reliable only if the item is in session cache (`GetItemInfo` returns data)
+- Deleting price list in the name of migration is unacceptable – always remap IDs, never delete
 
-### Fixed: Price list data boli v pamäti prázdne ale na disku v poriadku
-- **Príčina**: kód v `GetItems("price")` očakával `DetaurBarDB.price["Horde"]` (faction-kľúč), ale staré dáta boli uložené ako pole `DetaurBarDB.price[1], [2], ...` (array formát). Po prechode na faction formát nikto nenapísal migráciu starých dát.
-- **Dôsledok**: `GetItems("price")` vracal `DetaurBarDB.price["Horde"]` čo bolo prázdne `{}`, hoci reálne položky boli na indexoch 1-13.
-- **Oprava**: migrácia v `InitializeDB()` + `/detaurrecover` (okamžitá oprava v pamäti bez reloadu).
+### Fixed: Price list data was empty in memory but intact on disk
+- **Cause**: code in `GetItems("price")` expected `DetaurBarDB.price["Horde"]` (faction key), but old data was stored as array `DetaurBarDB.price[1], [2], ...` (array format). After switching to faction format, no one wrote a migration for old data.
+- **Consequence**: `GetItems("price")` returned `DetaurBarDB.price["Horde"]` which was empty `{}`, while actual entries existed at indices 1-13.
+- **Fix**: migration in `InitializeDB()` + `/detaurrecover` (immediate in-memory fix without reload).
 
 ### Added
-- `/detaurrecover` – zachráni položky uviaznuté v starom array formáte
-- `/detaurrestore` – obnoví 18 chýbajúcich položiek zo zálohy (1.7.) s thresholdmi
-- `_migratedHerbIdsV4` – migrácia herb ID v `InitializeDB()`
-- Settings Menu (gear) > Various sub-tab s dvoma checkboxmi:
-  - **Alert Mind Control**: keď parták dostane Mind Control, zobrazí sa v strede obrazovky červený text "[Meno] has Mind Control!" (fade po 4s). Detekcia cez `COMBAT_LOG_EVENT_UNFILTERED` pre kúzla obsahujúce "Mind Control" na hráčoch v parté/raide.
-  - **Autosell junk and autorepair**: pri otvorení vendora (`MERCHANT_SHOW`) automaticky predá všetky grey itemy (quality=0) a opraví výstroj (`RepairAllItems(true)`).
-- Obe nastavenia persistentné v `DetaurBarDB.settings.mindControlAlertEnabled` / `autoSellRepairEnabled`.
-- Settings > Various: pridaný checkbox **Dismount on action** — automaticky zosadí z mounta (`Dismount()`) pri `UNIT_SPELLCAST_SENT`, `ACTIONBAR_UPDATE_STATE` a `BAG_UPDATE` (aby zachytil akcie blokované mountom aj itemy z batoha). Debounce 1s.
-- Opravené `AutoSellAndRepair`: `RepairAllItems(true)` → `RepairAllItems()` (3.3.5a nepozná guild bank parameter) + `CanMerchantRepair()` check.
+- `/detaurrecover` – rescues items stuck in old array format
+- `/detaurrestore` – restores 18 missing entries from backup (July 1) with thresholds
+- `_migratedHerbIdsV4` – herb ID migration in `InitializeDB()`
+- Settings Menu (gear) > Various sub-tab with two checkboxes:
+  - **Alert Mind Control**: when a party member gets Mind Control, shows red text "[Name] has Mind Control!" in center screen (fade after 4s). Detection via `COMBAT_LOG_EVENT_UNFILTERED` for spells containing "Mind Control" on players in party/raid.
+  - **Autosell junk and autorepair**: on merchant open (`MERCHANT_SHOW`) automatically sells all grey items (quality=0) and repairs equipment (`RepairAllItems()`).
+- Both settings persistent in `DetaurBarDB.settings.mindControlAlertEnabled` / `autoSellRepairEnabled`.
+- Settings > Various: added **Dismount on action** checkbox — automatically dismounts (`Dismount()`) on `UNIT_SPELLCAST_SENT`, `ACTIONBAR_UPDATE_STATE` and `BAG_UPDATE` (to catch actions blocked by mount as well as bag items). Debounce 1s.
+- Fixed `AutoSellAndRepair`: `RepairAllItems(true)` → `RepairAllItems()` (3.3.5a does not have guild bank parameter) + `CanMerchantRepair()` check.
 
 ### Changed
-- Settings Menu checkboxes (Loot a Alert) používajú `GameFontNormal` namiesto `GameFontNormalSmall` (väčšie písmo)
-- Enemy monitor toggle ikona: `INV_Misc_Eye_01` → `Spell_Nature_BloodLust`
-- Minimap button ikona: `INV_Misc_Note_01` → `Spell_Nature_BloodLust`
+- Settings Menu checkboxes (Loot and Alert) use `GameFontNormal` instead of `GameFontNormalSmall` (larger text)
+- Enemy monitor toggle icon: `INV_Misc_Eye_01` → `Spell_Nature_BloodLust`
+- Minimap button icon: `INV_Misc_Note_01` → `Spell_Nature_BloodLust`
 
-### Renamed (kód — žiadny vplyv na funkčnosť)
-- **Alert tab** kód: všetky `settings*` prefixy premenované na `alert*`, aby nedošlo k zámene so Settings Menu (gear button). Týka sa `DetaurBar.UI.*` API aj lokálnych premenných/funkcií v `DetaurBar_UI_Settings.lua`:
+### Renamed (code — no functional impact)
+- **Alert tab** code: all `settings*` prefixes renamed to `alert*` to avoid confusion with Settings Menu (gear button). Affects `DetaurBar.UI.*` API and local variables/functions in `DetaurBar_UI_Settings.lua`:
   - `settingsPanel/SubTabBar/SubTabs/ListBackground/ScrollFrame/ScrollChild/SaveButton` → `alert*`
   - `activeSettingsSubTab` → `activeAlertSubTab`
   - `UpdateSettingsSubTabBar/Visuals/Panel/Scroll` → `UpdateAlert*`
   - `SelectSettingsSubTab` → `SelectAlertSubTab`
   - `SetSettingsControlsVisible/SubTabStyle` → `SetAlert*`
-  - Všetky control group premenné (`settingsDungeonControls`, `settingsRaidRollColorButtons`, atď.) → `alert*`
-  - Factory funkcie (`CreateSettingsLabel/Check/ChoiceRow/EditRow/EditBox`) → `CreateAlert*`
-- **Settings Menu** (gear) názvy (`settingsMenu*`, `settingsBtn`, `smSettings*`) zostali nezmenené.
+  - All control group variables (`settingsDungeonControls`, `settingsRaidRollColorButtons`, etc.) → `alert*`
+  - Factory functions (`CreateSettingsLabel/Check/ChoiceRow/EditRow/EditBox`) → `CreateAlert*`
+- **Settings Menu** (gear) names (`settingsMenu*`, `settingsBtn`, `smSettings*`) remained unchanged.
 
 ### Merged
-- Zlúčené tab-y Todo a Notes do jedného tabu "Note"
-- Nová dátová štruktúra `DetaurBarDB.tasks` (staré `todo` / `notes` sa ignorujú)
-- Daily reset o 3:00 odškrtáva všetky položky vo všetkých kategóriách
+- Merged Todo and Notes tabs into a single "Note" tab
+- New data structure `DetaurBarDB.tasks` (old `todo` / `notes` are ignored)
+- Daily reset at 3:00 unchecks all items in all categories
 
 ### Added
-- Checkbox ku každej položke (completed/nesplnené) z Todo
-- Užívateľom definované kategórie (Add/Delete category, scroll šípky)
-- Click-to-copy: klik na riadok skopíruje text, 1 sekunda na Ctrl+C
-- Drag-to-move: pretiahnutie riadku na inú kategóriu
-- Nový **Settings Menu** panel (gear button) — namiesto otvárania Alert tabu
-  - Dva sub-taby: Loot (Add/Delete checkboxes) a Alert (Dung/Raid/WG/Random/Enemy checkboxes)
-  - Persistentné nastavenia v `DetaurBarDB.settings.lootSubTabsVisible` / `alertSubTabsVisible`
-- Dynamické skrývanie/zobrazovanie Loot a Alert sub-tabov podľa zaškrtnutia v Settings Menu
-- Ochrana General kategórie (nedá sa zmazať — `DeleteTaskCategory` + UI)
+- Checkbox for each item (completed/unchecked) in Todo
+- User-defined categories (Add/Delete category, scroll arrows)
+- Click-to-copy: clicking a row copies text, 1 second for Ctrl+C
+- Drag-to-move: dragging a row to another category
+- New **Settings Menu** panel (gear button) — instead of opening Alert tab
+  - Two sub-tabs: Loot (Add/Delete checkboxes) and Alert (Dung/Raid/WG/Random/Enemy checkboxes)
+  - Persistent settings in `DetaurBarDB.settings.lootSubTabsVisible` / `alertSubTabsVisible`
+- Dynamic hiding/showing of Loot and Alert sub-tabs based on Settings Menu checkboxes
+- General category protection (cannot be deleted — `DeleteTaskCategory` + UI)
 
 ### Changed
 - Tab button "Notes" → "Note"
 - Tab button "Settings" → "Alert"
-- Sub-tab "Dungeon" → "Dung" v Alert tab-e
-- Resize grip: používa `RegisterForDrag` namiesto `OnMouseDown`/`OnMouseUp`
-- `DetaurBar_UI_Todo.lua` odstránený z TOC
-- Tooltip pre copy-to-chat skrátený, ikonka copyBtn odstránená z task riadkov
-- Gear button otvára Settings Menu panel (inline v hlavnom frame) namiesto Alert tabu
-- Settings Menu panel: kontajner bez vlastného backdropu, dark box je samostatný frame 28px pod sub-tabmi (vizuálne zhodné s Loot tabom)
-- Zatvorenie Settings Menu (gear button / tab switch) vráti zobrazenie na Notes > General
-- Gear button nezanecháva focusnutý tab — všetky 4 hlavné taby sú v normálnom stave
+- Sub-tab "Dungeon" → "Dung" in Alert tab
+- Resize grip: uses `RegisterForDrag` instead of `OnMouseDown`/`OnMouseUp`
+- `DetaurBar_UI_Todo.lua` removed from TOC
+- Tooltip for copy-to-chat shortened, copyBtn icon removed from task rows
+- Gear button opens Settings Menu panel (inline in main frame) instead of Alert tab
+- Settings Menu panel: container without its own backdrop, dark box is a separate frame 28px below sub-tabs (visually identical to Loot tab)
+- Closing Settings Menu (gear button / tab switch) returns view to Notes > General
+- Gear button does not leave a focused tab — all 4 main tabs remain in normal state
 
 ### Fixed
-- **`listBackground` prekrývanie (REKURENTNÝ BUG)**: pri prepnutí na Settings tab (Alert) alebo otvorení Settings Menu (gear) zostával `listBackground` (tmavý box zoznamu) viditeľný a prekrýval sa s `settingsListBackground`. Prejavilo sa to ako duplicitné okraje/dvojité čiary.
-  - Príčina 1: v `UpdateContentAnchors()` chýbalo `listBackground:Hide()` v `activeTab == "Settings"` vetve
-  - Príčina 2: `UpdateContentAnchors()` je definovaná pred lokálnou deklaráciou `listBackground` (Lua 5.1 scope — lokálna premenná nie je viditeľná pred svojou deklaráciou), takže holý `listBackground` sa vyhodnocoval ako globál → nil, a `if listBackground then` nikdy neprešlo. Oprava: používať `DetaurBar.UI.listBackground` (vždy prístupné cez globálny namespace)
-  - **Rovnaký problém** platí pre `editBox` a `addButton` — všetky tri lokálne premenné sú deklarované až po `UpdateContentAnchors`, preto v nej treba vždy používať `DetaurBar.UI.*` verziu
-- Checkboxy v Settings Menu ukladajú zmeny do DB okamžite (nie až po reloade)
-- `ToggleVisibility` (minimap button / slash command) vždy zobrazí Notes > General
-- `ToggleSettingsMenu`: pridané `SetTabButtonsActive` pre správne focusovanie tabov
-- `tabs` a `activeTab` scope: funkcie `SetTabButtonsActive` a `ToggleSettingsMenu` presunuté až po deklarácii lokálnych premenných
+- **`listBackground` overlap (RECURRING BUG)**: when switching to Settings tab (Alert) or opening Settings Menu (gear), `listBackground` (dark list box) remained visible and overlapped with `settingsListBackground`. Manifested as duplicate borders/double lines.
+  - Cause 1: `UpdateContentAnchors()` was missing `listBackground:Hide()` in the `activeTab == "Settings"` branch
+  - Cause 2: `UpdateContentAnchors()` is defined before the local declaration of `listBackground` (Lua 5.1 scope — local variable is not visible before its declaration), so bare `listBackground` evaluated as global → nil, and `if listBackground then` never passed. Fix: use `DetaurBar.UI.listBackground` (always accessible via global namespace)
+  - **Same problem** applies to `editBox` and `addButton` — all three local variables are declared after `UpdateContentAnchors`, so always use `DetaurBar.UI.*` version inside it
+- Checkboxes in Settings Menu save changes to DB immediately (not only after reload)
+- `ToggleVisibility` (minimap button / slash command) always shows Notes > General
+- `ToggleSettingsMenu`: added `SetTabButtonsActive` for correct tab focus
+- `tabs` and `activeTab` scope: functions `SetTabButtonsActive` and `ToggleSettingsMenu` moved after local variable declarations
 
 ### Removed
-- Copy button (ikonka) z task riadkov — zbytočná, keďže copy funguje klikom na celý riadok
-
----
-
-## 2026-07-08 — Item tracking (Alert > Item sub-tab), bugfixy
-
-### Added
-- **Item sub-tab** v Alert: 5×5 drag-from-bags grid (25 slotov), Enable Item Tracking checkbox
-- Divider, Alert interval (minutes, default 30) a Alert threshold (count, default 0) edit boxy
-- **Item tracking timer** v `DetaurBar_Core.lua` – OnUpdate na eventFrame, každých N minút skontroluje počty itemov v bagoch
-- **Chat alert** keď počet ≤ threshold: `[DetaurBar] Low on <meno>: <count> remaining`
-- Settings > Alert checkbox pre skrytie Item sub-tabu (v settingsMenuPanel)
-
-### Fixed
-- **Settings file crash** – `DetaurBar.UI.SetSimpleTooltip()` volaný na **FontString** (nie Frame), čo v 3.3.5a padá. Celý `DetaurBar_UI_Settings.lua` sa nenačítal → `SelectAlertSubTab` ostal nil → všetky sub-tab kontrolky boli viditeľné naraz
-- **Drag do slotu** – `GetCursorInfo()` vracia v 3.3.5a druhú hodnotu ako **itemID (number)**, nie itemLink string. Opravené na `type(itemId) == "number"` a priame použitie
-- **Threshold sa nezobrazoval** – `if thresh > 0 then` skrýval hodnotu 0. Teraz vždy zobrazí aktuálnu hodnotu
-- **Hodnoty sa neukladali bez Enter** – pridaný `OnEditFocusLost` do `CreateAlertEditRow`; `SaveSettings()` teraz číta aj `itemTrackingEnabled`, `itemTrackingInterval`, `itemTrackingThreshold`
-- **Positioning** – interval/threshold label-y zarovnané na divider_left + 10
-
-### Changed
-- Odstránený mŕtvy `DetaurBar.UI.alertSubTabNames` z `DetaurBar_UI.lua` (bol neaktuálny, nikdy nepoužitý)
-
----
-
-### Added
-- **Buffs sub-tab** v Alerts: 4 cooldown sloty (drag-from-spellbook), Maelstrom Weapon stack tracking, Follow Stacks checkbox
-- Center-screen alert pool: 6 framov, horizontálne, 1s + 0.5s fade
-- `GetSpellCooldown(bookIndex, bookType)` — funguje v 3.3.5a rovnako ako `GetSpellInfo`
-
-### Fixed
-- **Cooldown alert sa nezobrazoval**: `prevCooldownState` bol kľúčovaný spell ID, ale `data.id` bol book index (nie spell ID). Oprava: kľúčovať slot indexom `i` (1-4).
-- **Falošné alerty po caste**: `GetSpellCooldown` vracalo GCD (1-1.5s) pre spelly bez vlastného cooldownu, čo spúšťalo alert po skončení GCD. Oprava: filter `duration > 1.5` ignoruje GCD.
-- `LookupSpellInfo` odstránená — v 3.3.5a `GetSpellInfo(index, bookType)` nevracia spellID ako 10. hodnotu
-- `FindSpellIdOnBars` odstránená — zbytočná závislosť na action baroch
-
-### Changed
-- **Stack tracking**: zjednodušený na Maelstrom Weapon (spell ID 53817) — alert pri 5 stackoch. Žiadne learning/peak cykly.
-- **Nezávislé ovládanie**: `buffsEnabled` (Enable Cooldown Tracking) riadi iba cooldown sloty; `buffsFollowStacks` (Show maelstorm stack) riadi iba stack tracking
-- **Divider** (rovnaký `UI-FriendsFrame-OnlineDivider` ako vo WG) medzi cooldown slotmi a stack checkboxom
-- **Label "Cooldown Slots"**: zmenšený na `GameFontNormalSmall`, šedý (0.6, 0.6, 0.6)
-- **"Follow Stacks"** → **"Show maelstorm stack"**
-- **Center-screen alert ikony**: 34×34 (40% menšie), y=-200 (dolná polovica), bez textu
-- **Názvy spellov odstránené** zo slotov aj z alertov — ostávajú len ikony
-
-### Fixed
-- Enable Cooldown Tracking checkbox teraz obnovuje stav z `DetaurBarDB.settings.buffsEnabled`
-- Drag handler správne ukladá `bookIndex`/`bookType` z `GetCursorInfo()` pre spoľahlivé zobrazenie ikony
+- Copy button (icon) from task rows — unnecessary since copy works by clicking the entire row
 
 ---
 
 ## 2026-07-03 — Flask icons fix
 
-### Opravené: Ikonky flaskov v Price > Chart
+### Fixed: Flask icons in Price > Chart
 - Flask of Endless Rage (46377), Pure Mojo (46378), Stoneblood (46379),
-  Frost Wyrm (46376) mali nesprávne icon pathe `INV_Flask_1`–`INV_Flask_4`,
-  ktoré v 3.3.5a neexistujú
-- Opravené na `inv_alchemy_endlessflask_03`–`06` (overené z WotLK database)
+  Frost Wyrm (46376) had incorrect icon paths `INV_Flask_1`–`INV_Flask_4`,
+  which do not exist in 3.3.5a
+- Fixed to `inv_alchemy_endlessflask_03`–`06` (verified from WotLK database)
 
 ## 2026-07-02 — Notes clipboard, delete button, loot fallback
 
-### Opravené: Loot itemy bez názvu ukazovali "Loading Item [ID: ...]"
-- Keď item nebol v offline DB a GetItemInfo vrátil nil, zobrazilo sa
-  "Loading Item [ID: 9276]..." namiesto uloženého textu
-- Oprava: zobrazí sa `item.title` (napr. "9276" alebo "item:9276")
-- GetItemInfo sa stále volá pre server request; po doručení dát
-  (GET_ITEM_INFO_RECEIVED) sa RefreshTasks zavolá a ukáže meno itemu
+### Fixed: Loot items without name showed "Loading Item [ID: ...]"
+- When item was not in offline DB and GetItemInfo returned nil, it showed
+  "Loading Item [ID: 9276]..." instead of the saved text
+- Fix: shows `item.title` (e.g. "9276" or "item:9276")
+- GetItemInfo is still called for server request; when data arrives
+  (GET_ITEM_INFO_RECEIVED), RefreshTasks is called and shows the item name
 
-### Pridané: Delete button na Notes riadkoch
-- Notes riadky teraz zobrazujú delete (X) tlačidlo — `row.deleteBtn:Show()`
-- Predtým bolo tlačidlo skryté pre všetky notes kategórie
+### Added: Delete button on Notes rows
+- Notes rows now show delete (X) button — `row.deleteBtn:Show()`
+- Previously the button was hidden for all notes categories
 
-### Zmenené: Klik na note kopíruje text do clipboardu
-- Namiesto `ChatFrame_OpenChat()` (otváralo chat) používa skrytý `EditBox`
-  s `InputBoxTemplate`, umiestnený off-screen
-- Po kliknutí: text sa nastaví, vyberie (highlight) a editačný box dostane focus
-- Hráč stlačí Ctrl+C a môže vložiť kamkoľvek
-- Rovnaké správanie pre klik na riadok aj na copy (📋) tlačidlo
-- Focus sa automaticky zruší po 1 sekunde, na Escape, alebo kliknutím inam
-- OnKeyDown handler na Escape: `ClearFocus()`; OnUpdate timeout 1s
+### Changed: Click on note copies text to clipboard
+- Instead of `ChatFrame_OpenChat()` (opened chat) uses a hidden `EditBox`
+  with `InputBoxTemplate`, positioned off-screen
+- After click: text is set, selected (highlighted) and the edit box gets focus
+- Player presses Ctrl+C and can paste anywhere
+- Same behavior for row click and copy (📋) button
+- Focus is automatically cleared after 1 second, on Escape, or clicking elsewhere
+- OnKeyDown handler for Escape: `ClearFocus()`; OnUpdate timeout 1s
 
 ## 2026-07-01 — Icon cache, gem icon fixes, AH pagination
 
-### Opravené: Chýbajúce/nesprávne ikony gemov
-- Väčšina `DetaurBar.Data.ItemIcons` pre WotLK gemy (rare aj epic) mala
-  nesprávne icon pathe — používala špecifické názvy (`Bloodstone_01`,
-  `TwilightOpal_01`, atď.), ktoré v 3.3.5a clienti neexistujú. Reálne ikony
-  na Warmane sú `INV_Jewelcrafting_Gem_XX` (XX = 04–36).
-- Opravené položky: 36917, 36918, 36919, 36922, 36923, 36925, 36927, 36928,
-  36929, 36931, 36932, 36934. Overené v hre cez `/detaurid icon <id>`.
-- Dve položky (36921 Autumn's Glow, 36930 Monarch Topaz) neboli v session cache
-  — ponechané staré pathe, kým sa neoveria.
+### Fixed: Missing/incorrect gem icons
+- Most `DetaurBar.Data.ItemIcons` for WotLK gems (rare and epic) had
+  incorrect icon paths — used specific names (`Bloodstone_01`,
+  `TwilightOpal_01`, etc.) which don't exist in 3.3.5a client. Real icons
+  on Warmane are `INV_Jewelcrafting_Gem_XX` (XX = 04–36).
+- Fixed entries: 36917, 36918, 36919, 36922, 36923, 36925, 36927, 36928,
+  36929, 36931, 36932, 36934. Verified in-game via `/detaurid icon <id>`.
+- Two entries (36921 Autumn's Glow, 36930 Monarch Topaz) were not in session
+  cache — left with old paths until verified.
 
-### Pridané: Automatický cache ikon
-- `DetaurBar.Data.GetItemTexture(itemId)` v `DetaurBar_Data.lua`
-- Kontroluje: `ItemIcons` → `DetaurBarDB.iconCache` → `GetItemInfo`
-- Ak `GetItemInfo` vráti textúru, uloží ju do `DetaurBarDB.iconCache`
-- Pri ďalšom reloadi je ikona ihneď k dispozícii
-- V UI namiesto inline `ItemIcons[itemId]` + `GetItemInfo` používa
+### Added: Automatic icon cache
+- `DetaurBar.Data.GetItemTexture(itemId)` in `DetaurBar_Data.lua`
+- Checks: `ItemIcons` → `DetaurBarDB.iconCache` → `GetItemInfo`
+- If `GetItemInfo` returns a texture, saves it to `DetaurBarDB.iconCache`
+- On next reload, icon is immediately available
+- In UI, replaces inline `ItemIcons[itemId]` + `GetItemInfo` with
   `GetItemTexture` (Price tab, Loot tab)
 
-### Opravené: AH scan nenašiel itemy na neskorších stranách
-- Problém: `QueryAuctionItems` posielala `page` parameter na zlú pozíciu
-  (4. namiesto 7.). Efekt: nikdy sa nespýtala na stránku > 0, len
-  opakovane volala page 0 s odlišným invTypeIndex filterom.
-- Oprava: správna signatúra `QueryAuctionItems(name, minLvl, maxLvl,
-  invType, class, subclass, page, usable, quality, getAll)` — `page` je
-  7. parameter.
-- Pridaná paginácia: ak sa item nenašiel na page 0 a výsledkov je 50+
-  (plná strana), skúša page 1, 2, ... až do MAX_PAGES (10).
-- Výhradne `OnUpdate` driver volá `QueryAuctionItems` (guardy:
+### Fixed: AH scan did not find items on later pages
+- Problem: `QueryAuctionItems` sent the `page` parameter at the wrong position
+  (4th instead of 7th). Effect: never queried page > 0, only
+  repeatedly called page 0 with different invTypeIndex filter.
+- Fix: correct signature `QueryAuctionItems(name, minLvl, maxLvl,
+  invType, class, subclass, page, usable, quality, getAll)` — `page` is
+  7th parameter.
+- Added pagination: if item was not found on page 0 and results are 50+
+  (full page), tries page 1, 2, ... up to MAX_PAGES (10).
+- Exclusively `OnUpdate` driver calls `QueryAuctionItems` (guards:
   `CanSendAuctionQuery()`, `AucAdvanced.Scan.IsScanning()`).
-- `OnResults` iba číta výsledky a nastavuje stavové flagy
+- `OnResults` only reads results and sets state flags
   (`scanNeedsNextPage`, `scanItemComplete`).
-- Pre 3.3.5a: `GetNumAuctionItems("list")` vracia len 1 hodnotu
-  (numOnPage), totalAuctions nie je k dispozícii.
+- For 3.3.5a: `GetNumAuctionItems("list")` returns only 1 value
+  (numOnPage), totalAuctions is not available.

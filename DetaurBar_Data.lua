@@ -228,7 +228,7 @@ function DetaurBar.Data.InitializeDB()
         DetaurBarDB.settings.lootSubTabsVisible = { ["Add"] = true, ["Delete"] = true }
     end
     if not DetaurBarDB.settings.alertSubTabsVisible then
-        DetaurBarDB.settings.alertSubTabsVisible = { ["Dung"] = true, ["Raid"] = true, ["WG"] = true, ["Random"] = true, ["Enemy"] = true, ["Buffs"] = true, ["Item"] = true }
+        DetaurBarDB.settings.alertSubTabsVisible = { ["Dung"] = true, ["Raid"] = true, ["WG"] = true, ["Random"] = true, ["Enemy"] = true, ["Buffs"] = true, ["Item"] = true, ["Arena"] = true }
     end
     if DetaurBarDB.settings.mindControlAlertEnabled == nil then
         DetaurBarDB.settings.mindControlAlertEnabled = false
@@ -243,7 +243,16 @@ function DetaurBar.Data.InitializeDB()
         DetaurBarDB.settings.buffsEnabled = false
     end
     if not DetaurBarDB.settings.buffsSpellSlots then
-        DetaurBarDB.settings.buffsSpellSlots = { nil, nil, nil, nil }
+        DetaurBarDB.settings.buffsSpellSlots = {}
+    end
+    if DetaurBarDB.settings.arenaFlashEnabled == nil then
+        DetaurBarDB.settings.arenaFlashEnabled = false
+    end
+    if not DetaurBarDB.settings.arenaFlashColor then
+        DetaurBarDB.settings.arenaFlashColor = "YELLOW"
+    end
+    if DetaurBarDB.settings.arenaFlashDuration == nil then
+        DetaurBarDB.settings.arenaFlashDuration = 0
     end
     if DetaurBarDB.settings.buffsFollowStacks == nil then
         DetaurBarDB.settings.buffsFollowStacks = false

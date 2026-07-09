@@ -79,9 +79,12 @@ function DetaurBar.Alerts.StartDungeonFlash(reason, colorKey, durationSeconds)
     if reason == "lfg" and not settings.dungeonFlashEnabled then
         return
     end
+    if reason == "arena" and not settings.arenaFlashEnabled then
+        return
+    end
 
     local now = GetTime()
-    local chosenColor = colorKey or settings.dungeonFlashColor or "YELLOW"
+    local chosenColor = colorKey or (reason == "arena" and settings.arenaFlashColor or settings.dungeonFlashColor) or "YELLOW"
     ApplyDungeonFlashColor(chosenColor)
     dungeonFlashReasons[reason or "generic"] = {
         colorKey = chosenColor,

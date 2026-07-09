@@ -157,7 +157,7 @@ local function RebuildSettingsMenuCheckboxes()
             lab:SetTextColor(1, 0.82, 0, 1)
         end
     elseif active == "Alert" then
-        local alertKeys = { "Dung", "Raid", "WG", "Random", "Enemy", "Buffs", "Item" }
+        local alertKeys = { "Dung", "Raid", "WG", "Arena", "Random", "Enemy", "Buffs", "Item" }
         for idx, key in ipairs(alertKeys) do
             local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
             cb:SetSize(20, 20)
@@ -213,15 +213,11 @@ local function CreateSettingsMenuPanel()
     subTabBar:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 0, 0)
 
     local subTabButtons = {}
-    local totalSubW = frame:GetWidth() - 28
     local gap = 1
-    local numTabs = #smSettingsSubTabNames
-    local subW = (totalSubW - (numTabs - 1) * gap) / numTabs
 
     for i, name in ipairs(smSettingsSubTabNames) do
         local st = CreateFrame("Button", nil, panel)
-        st:SetSize(subW, 24)
-        st:SetPoint("TOPLEFT", subTabBar, "TOPLEFT", (i - 1) * (subW + gap), 0)
+        st:SetHeight(24)
         st.tabName = name
         st:SetBackdrop({
             bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
@@ -242,6 +238,27 @@ local function CreateSettingsMenuPanel()
         end)
         subTabButtons[i] = st
     end
+
+    local function LayoutSettingsMenuSubTabs()
+        local totalW = subTabBar:GetWidth()
+        if totalW <= 0 then return end
+        local n = #subTabButtons
+        local w = (totalW - gap * (n - 1)) / n
+        for i, st in ipairs(subTabButtons) do
+            st:SetWidth(w)
+            st:ClearAllPoints()
+            if i == 1 then
+                st:SetPoint("TOPLEFT", subTabBar, "TOPLEFT", 0, 0)
+            else
+                st:SetPoint("TOPLEFT", subTabButtons[i-1], "TOPRIGHT", gap, 0)
+            end
+        end
+    end
+
+    subTabBar:SetScript("OnSizeChanged", LayoutSettingsMenuSubTabs)
+    LayoutSettingsMenuSubTabs()
+    DetaurBar.UI.settingsSubTabBar = subTabBar
+    subTabBar.subTabButtons = subTabButtons
     panel.subTabButtons = subTabButtons
 
     -- NOVÝ samostatný dark box pre obsah — s poriadnou medzerou od tabov (28px, ako pri Loot)
@@ -603,6 +620,12 @@ function DetaurBar.UI.UpdateContentAnchors()
     end
     if DetaurBar.UI.alertScrollFrame then
         DetaurBar.UI.alertScrollFrame:Hide()
+    end
+    if activeTab ~= "Notes" then
+        if DetaurBar.UI.notesTabContainer then DetaurBar.UI.notesTabContainer:Hide() end
+        if DetaurBar.UI.notesCatControls then DetaurBar.UI.notesCatControls:Hide() end
+        if DetaurBar.UI.notesTabLeftArrow then DetaurBar.UI.notesTabLeftArrow:Hide() end
+        if DetaurBar.UI.notesTabRightArrow then DetaurBar.UI.notesTabRightArrow:Hide() end
     end
 
     scrollFrame:ClearAllPoints()
@@ -1652,6 +1675,7 @@ function DetaurBar.UI.SelectTab(tabName)
         if DetaurBar.UI.UpdateAlertPanel then
             DetaurBar.UI.UpdateAlertPanel()
         end
+        DetaurBar.UI.UpdateAlertSubTabBar()
         DetaurBar.UI.UpdateInputPlaceholder()
         DetaurBar.UI.RefreshTasks()
         return
@@ -1697,6 +1721,7 @@ function DetaurBar.UI.SelectTab(tabName)
             DetaurBar.UI.activeLootSubTab = DetaurBar.UI.lootSubTabs[1].tabName
         end
         DetaurBar.UI.SelectLootSubTab(DetaurBar.UI.activeLootSubTab)
+        DetaurBar.UI.UpdateTabAnchors()
     else
         for _, subTab in ipairs(DetaurBar.UI.lootSubTabs) do subTab:Hide() end
         if DetaurBar.UI.deleteAllGraysCheckbox then DetaurBar.UI.deleteAllGraysCheckbox:Hide() end

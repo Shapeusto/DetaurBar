@@ -57,6 +57,7 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
 
 ### Alert
 - **Dung** — Screen flash on LFG proposal: enable/disable, flash color (Green/Yellow/Red), flash duration
+- **Arena** — Screen flash on arena match start (`ARENA_OPPONENT_UPDATE`): enable/disable, flash color (Green/Yellow/Red), flash duration
 - **Raid** — Raid roll / ready-check alerts with flash style, duration, color, sound
 - **WG** — Two configurable alerts:
   - **Registration Warning**: minutes before, flash duration, flash color, play sound, sound selection
@@ -74,7 +75,7 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
   - **Alert Mind Control**: center-screen red text when party/raid member gets Mind Controlled (4s fade)
 - **Buffs** — Cooldown & stack tracking:
   - Enable/disable tracking
-  - 4 drag-from-spellbook cooldown slots with icon display
+  - 5×2 drag-from-spellbook cooldown slots (10 slots) with icon display
   - Center-screen alert on cooldown expiry or stack change
   - Maelstrom Weapon stack tracking (Show maelstorm stack checkbox)
 - **Item** — Bag item tracking:
@@ -86,11 +87,12 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
 
 ### Settings (gear button)
 - **Loot sub-tab**: Show/hide Add and Delete sub-tabs in Loot tab
-- **Alert sub-tab**: Show/hide Dung/Raid/WG/Random/Enemy/Buffs/Item sub-tabs in Alert tab
+- **Alert sub-tab**: Show/hide Dung/Raid/WG/Arena/Random/Enemy/Buffs/Item sub-tabs in Alert tab
 - **Various sub-tab**:
   - **Autosell junk and autorepair**: auto-sells all grey items and repairs equipment on merchant open
   - **Show alerts in chat**: prints alert name to chat when any alert fires
   - **Scan auction house**: enables/disables automatic AH price scanning
+  - **Move items with ALT+RightClick**: when bank is open, ALT+RightClick an item → moves all matching items from bags to empty bank slots
 
 ### General
 - Shift-click item linking from bags, profession windows, Auction House
