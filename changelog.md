@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-07-09 — Lua 5.1 upvalue limit fix (>60 upvalues in UpdateAlertPanel)
+
+### Fixed
+- **"function has more than 60 upvalues" error** in `DetaurBar_UI_Settings.lua:1289` — Lua 5.1 limits upvalues per function to 60. `UpdateAlertPanel` reached 61 after adding `buffsDontHideCheckbox` and `buffsTimeoutEdit`. Fixed by:
+  - Moving `SetButtonGroupValue` and `SetAlertControlsVisible` from local functions to `DetaurBar.UI.*` (global lookup, not upvalue)
+  - Storing new buffs controls on `DetaurBar.UI.buffsDontHideCheckbox` / `DetaurBar.UI.buffsTimeoutEdit` instead of direct local references
+  - Result: ~57 upvalues, safely under limit
+
+## 2026-07-09 — Buffs: "Dont hide unused" with configurable timeout
+
+### Added
+- **Alert > Buffs: "Dont hide unused" checkbox** — when checked, center-screen alert icons for cooldown expiry and Maelstrom Weapon 5-stacks stay visible until the spell is used again (or MW stacks drop below 5).
+- **"Timeout (minutes)" edit box** below the checkbox — sets how many minutes the icon stays visible even with "Dont hide unused" enabled. Default: 1 minute. Overrides the permanent display with a max lifetime.
+
+## 2026-07-09 — Ignore Yell checkbox in Settings > Various
+
+### Added
+- **Settings > Various: "Ignore Yell" checkbox** — when checked, filters out all Yell messages (`CHAT_MSG_YELL`) from the chat frame using `ChatFrame_AddMessageEventFilter`. Toggleable in real-time without reload.
+
+## 2026-07-09 — Enemy monitor 0→1 transition: hit-rect fix
+
+### Fixed
+- **Enemy row bottom half unclickable after 0→1 enemy transition** — when monitor went from 0 enemies to exactly 1, the frame height stayed the same (47px), so `OnSizeChanged` never fired and the re-entrant layout correction never ran. Fixed by:
+  - **4-point anchoring**: rows now anchored by all 4 corners (`TOPLEFT/TOPRIGHT/BOTTOMLEFT/BOTTOMRIGHT`) instead of 2 corners + `SetHeight`, defining hit-rect explicitly.
+  - **`updatingMonitor` guard**: prevents re-entrant calls to `UpdateMonitor` via `OnSizeChanged` → `SetHeight` → `OnSizeChanged` → `UpdateMonitor`, ensuring layout runs exactly once regardless of whether frame height changes.
+  - **`SetHitRectInsets(0,0,0,0)`** to eliminate any hidden insets.
+
 ## 2026-07-09 — Enemy row click stability, PrintAlert fix, Dataanalysis price viewer
 
 ### Fixed

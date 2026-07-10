@@ -43,6 +43,12 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
         DetaurBar.Data.InitializeDB()
         DetaurBar.UI.Initialize()
         DetaurBar.Core.UpdateAutoLootCVar()
+        ChatFrame_AddMessageEventFilter("CHAT_MSG_YELL", function(filterTable, event, msg, author, ...)
+            if DetaurBarDB and DetaurBarDB.settings and DetaurBarDB.settings.ignoreYellEnabled then
+                return true
+            end
+            return false
+        end)
         self:UnregisterEvent("PLAYER_LOGIN")
 
     elseif event == "GET_ITEM_INFO_RECEIVED" then

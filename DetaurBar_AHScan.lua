@@ -165,9 +165,9 @@ local function CheckThresholds(itemId, minBuyout)
 end
 
 --------------------------------------------------------------------------------
--- ClearStaleThresholds — volané keď item NEBOL nájdený na AH vôbec
--- (vykúpený / mimo dosahu MAX_PAGES). Vyčistí len 'frequent' (low alert).
--- 'frequentHigh' NESMIE byť ovplyvnené, lebo "nenájdený" nie je dôkaz vysokej ceny.
+-- ClearStaleThresholds — called when item was NOT found on AH at all
+-- (bought out / beyond MAX_PAGES range). Clears only 'frequent' (low alert).
+-- 'frequentHigh' must NOT be affected, because "not found" is not proof of high price.
 --------------------------------------------------------------------------------
 
 local function ClearStaleThresholds(itemId)
@@ -179,7 +179,7 @@ local function ClearStaleThresholds(itemId)
         if iid == itemId then
             if item.frequent then
                 item.frequent = nil
-                print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " - nenájdené na AH (asi vykúpené). Odstránené z Notifications.")
+                print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " - not found on AH (probably bought out). Removed from Notifications.")
             end
         end
     end

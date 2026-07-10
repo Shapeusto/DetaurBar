@@ -1,6 +1,6 @@
 -- DetaurBar_ItemDB.lua
 -- Offline item database generated from Cache/WDB/enUS/itemcache.wdb (Warmane-specific IDs)
--- Aktualizacia: python parse_itemcache.py
+-- Update: python parse_itemcache.py
 
 -- Global namespace (extends Data module)
 DetaurBar = DetaurBar or {}

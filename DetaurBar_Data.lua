@@ -239,6 +239,9 @@ function DetaurBar.Data.InitializeDB()
     if DetaurBarDB.settings.showAlertsInChat == nil then
         DetaurBarDB.settings.showAlertsInChat = false
     end
+    if DetaurBarDB.settings.ignoreYellEnabled == nil then
+        DetaurBarDB.settings.ignoreYellEnabled = false
+    end
     if DetaurBarDB.settings.buffsEnabled == nil then
         DetaurBarDB.settings.buffsEnabled = false
     end
@@ -256,6 +259,12 @@ function DetaurBar.Data.InitializeDB()
     end
     if DetaurBarDB.settings.buffsFollowStacks == nil then
         DetaurBarDB.settings.buffsFollowStacks = false
+    end
+    if DetaurBarDB.settings.buffsDontHideUnused == nil then
+        DetaurBarDB.settings.buffsDontHideUnused = false
+    end
+    if DetaurBarDB.settings.buffsHideTimeout == nil then
+        DetaurBarDB.settings.buffsHideTimeout = 1
     end
     if DetaurBarDB.settings.itemTrackingEnabled == nil then
         DetaurBarDB.settings.itemTrackingEnabled = false

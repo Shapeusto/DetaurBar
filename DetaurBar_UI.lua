@@ -58,12 +58,12 @@ titleText:SetPoint("TOP", header, "TOP", 0, -14)
 titleText:SetText("DetaurBar") -- Updated Header Text
 titleText:SetTextColor(1.0, 0.82, 0.0, 1.0) -- Classic WoW Gold
 
--- [HEADER] Close button — o niečo väčšia skutočná Blizzard "X" ikona
+-- [HEADER] Close button — slightly larger real Blizzard "X" icon
 local closeBtn = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
 closeBtn:SetSize(30, 30)
 closeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -9, -4)
 
--- [HEADER] Settings quick-button — hneď vedľa X
+-- [HEADER] Settings quick-button — right next to X
 local settingsBtn = CreateFrame("Button", nil, frame)
 settingsBtn:SetSize(22, 22)
 settingsBtn:SetPoint("RIGHT", closeBtn, "LEFT", 5, 0)
@@ -177,6 +177,7 @@ local function RebuildSettingsMenuCheckboxes()
             { key = "autoSellRepairEnabled", label = "Autosell junk and autorepair" },
             { key = "showAlertsInChat", label = "Show alerts in chat" },
             { key = "ahScanningEnabled", label = "Scan auction house" },
+            { key = "ignoreYellEnabled", label = "Ignore Yell" },
         }
         for idx, entry in ipairs(variousKeys) do
             local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
@@ -198,7 +199,7 @@ end
 local function CreateSettingsMenuPanel()
     if DetaurBar.UI.settingsMenuPanel then return end
 
-    -- Panel je len NEVIDITEĽNÝ kontajner (žiadny vlastný vizuálny box)
+    -- Panel is an INVISIBLE container (no own visual box)
     local panel = CreateFrame("Frame", nil, frame)
     panel:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
     panel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -14, 36)
@@ -261,7 +262,7 @@ local function CreateSettingsMenuPanel()
     subTabBar.subTabButtons = subTabButtons
     panel.subTabButtons = subTabButtons
 
-    -- NOVÝ samostatný dark box pre obsah — s poriadnou medzerou od tabov (28px, ako pri Loot)
+    -- NEW separate dark box for content — with proper gap from tabs (28px, like Loot)
     local listBg = CreateFrame("Frame", nil, panel)
     listBg:SetPoint("TOPLEFT", subTabBar, "BOTTOMLEFT", -1, -2)
     listBg:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
@@ -274,7 +275,7 @@ local function CreateSettingsMenuPanel()
     listBg:SetBackdropColor(0, 0, 0, 0.4)
     listBg:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.5)
 
-    -- content je dieťa listBg, nie priamo panelu
+    -- content is child of listBg, not the panel directly
     local content = CreateFrame("Frame", nil, listBg)
     content:SetPoint("TOPLEFT", listBg, "TOPLEFT", 4, -4)
     content:SetPoint("BOTTOMRIGHT", listBg, "BOTTOMRIGHT", -4, 4)
@@ -966,7 +967,7 @@ local function CreateRowFrame(index)
                 if itemLink then
                     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                     local itemId = DetaurBar.UI.GetItemIdFromText(itemDetail.title)
-                    -- Najprv skus server (ak je item v cache klienta, ukaze plny tooltip)
+                    -- Try server first (if item is in client cache, shows full tooltip)
                     local _, serverLink, _, _, _, _, _, _, _, _, itemSellPrice = GetItemInfo(itemId or itemDetail.title)
                     if serverLink then
                         GameTooltip:SetHyperlink(serverLink)
@@ -975,7 +976,7 @@ local function CreateRowFrame(index)
                             GameTooltip:AddDoubleLine("Sell Price:", DetaurBar.UI.FormatMoney(itemSellPrice), 1.0, 0.82, 0.0, 1.0, 1.0, 1.0)
                         end
                     else
-                        -- Offline fallback: server nema item v cache
+                        -- Offline fallback: server does not have item in cache
                         local itemName = DetaurBar.UI.GetOfflineItemNameById(itemId)
                         if itemName then
                             GameTooltip:ClearLines()
@@ -1406,17 +1407,17 @@ function DetaurBar.UI.RefreshTasks()
             local itemId = DetaurBar.UI.GetItemIdFromText(item.title)
             
             if itemId then
-                -- Najprv pouzivaj OFFLINE databazu (ignoruje serverove GetItemInfo)
+                -- Use OFFLINE database first (ignore server GetItemInfo)
                 itemName = DetaurBar.UI.GetOfflineItemNameById(itemId)
                 itemLink = DetaurBar.UI.BuildOfflineItemLink(itemId)
                 
-                -- Ak offline databaza nema nazov, skus server
+                -- If offline DB has no name, try server
                 if not itemName then
                     itemName, itemLink, itemRarity, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
                     if not itemLink then
                         itemName, itemLink, itemRarity, _, _, _, _, _, _, itemTexture = GetItemInfo("item:" .. itemId)
                     end
-                    -- Ak sa pouzilo server, skus ziskat ikonku
+                    -- If server was used, try to get icon
                     if not itemTexture and GetItemIcon then
                         itemTexture = GetItemIcon(itemId)
                     end

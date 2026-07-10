@@ -1,11 +1,11 @@
 -- DetaurIDFinder.lua
--- Faza 1: Pre kazde ID v offline DB sa spyta servera na nazov -> porovná s ocakavanym
--- Faza 2: Uzivatel moze rucne zaregistrovat spravne ID ked najde item v AH/bagu
+-- Phase 1: For each ID in offline DB, ask server for name -> compare with expected
+-- Phase 2: User can manually register correct ID when finding item in AH/bag
 --
--- Prikazy:
---   /detaurid scan   - spusti skenovanie (pocka na server responses)
---   /detaurid save   - ulozi vysledky do SavedVariables + /reload
---   /detaurid reg    - registruje item z cursoru (drag item na chat frame) <- TODO
+-- Commands:
+--   /detaurid scan   - start scanning (wait for server responses)
+--   /detaurid save   - save results to SavedVariables + /reload
+--   /detaurid reg    - register item from cursor (drag item to chat frame) <- TODO
 --   /detaurid help
 
 local EXPECTED = {
@@ -102,15 +102,15 @@ local EXPECTED = {
     [39773]="Darkflame Ink",[43120]="Ink of the Sea",[43124]="Snowfall Ink",
 }
 
--- Vysledky skenu
+-- Scan results
 local scanResults = {}   -- { id, expectedName, serverName, mismatch }
-local pendingIds = {}    -- IDcka co cakaju na server odpoved
+local pendingIds = {}    -- IDs waiting for server response
 local scanDone = false
 
 local scanFrame = CreateFrame("Frame")
 scanFrame:Hide()
 
--- Registruj event na prijimanie item info zo servera
+-- Register event to receive item info from server
 scanFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 scanFrame:SetScript("OnEvent", function(self, event, itemId)
     if not pendingIds[itemId] then return end
@@ -125,7 +125,7 @@ scanFrame:SetScript("OnEvent", function(self, event, itemId)
         mismatch = (serverName ~= expectedName),
     })
 
-    -- Skontroluj ci vsetky odpovede prisli
+    -- Check if all responses arrived
     local remaining = 0
     for _ in pairs(pendingIds) do remaining = remaining + 1 end
     if remaining == 0 and scanDone then
@@ -135,24 +135,24 @@ end)
 
 function PrintScanResults()
     local wrong = 0
-    DEFAULT_CHAT_FRAME:AddMessage("|cffFFD700=== DetaurIDFinder - ID overenie ===|r")
+    DEFAULT_CHAT_FRAME:AddMessage("|cffFFD700=== DetaurIDFinder - ID verification ===|r")
     for _, r in ipairs(scanResults) do
         if r.mismatch then
             DEFAULT_CHAT_FRAME:AddMessage(
-                "|cffFF4444ZLY ID|r: " .. r.id ..
-                "  ocakavane='" .. r.expectedName ..
+                "|cffFF4444BAD ID|r: " .. r.id ..
+                "  expected='" .. r.expectedName ..
                 "'  server='" .. r.serverName .. "'"
             )
             wrong = wrong + 1
         end
     end
     DEFAULT_CHAT_FRAME:AddMessage(
-        "|cffFFD700Hotovo.|r Zlych IDciek: " .. wrong ..
-        "  z " .. #scanResults .. " skenovanych."
+        "|cffFFD700Done.|r Bad IDs: " .. wrong ..
+        "  of " .. #scanResults .. " scanned."
     )
     if wrong > 0 then
         DEFAULT_CHAT_FRAME:AddMessage(
-            "|cff00FF00Zadaj /detaurid save  potom /reload|r"
+            "|cff00FF00Type /detaurid save  then /reload|r"
         )
     end
 end
@@ -166,7 +166,7 @@ local function DoScan()
     for id, name in pairs(EXPECTED) do
         local serverName = GetItemInfo(id)
         if serverName then
-            -- Uz v cache, porovnaj hned
+            -- Already in cache, compare immediately
             table.insert(scanResults, {
                 id = id,
                 expectedName = name,
@@ -174,7 +174,7 @@ local function DoScan()
                 mismatch = (serverName ~= name),
             })
         else
-            -- Nie v cache, cakaj na server
+            -- Not in cache, wait for server
             pendingIds[id] = name
         end
         count = count + 1
@@ -185,14 +185,14 @@ local function DoScan()
     scanDone = true
 
     DEFAULT_CHAT_FRAME:AddMessage(
-        "|cffFFD700DetaurIDFinder:|r Skenujem " .. count ..
-        " IDciek... (" .. waiting .. " caka na server)"
+        "|cffFFD700DetaurIDFinder:|r Scanning " .. count ..
+        " IDs... (" .. waiting .. " waiting for server)"
     )
 
     if waiting == 0 then
         PrintScanResults()
     else
-        -- Timeout: ak server neodpovie do 10s, vypis co mame
+        -- Timeout: if server doesn't respond within 10s, print what we have
         local elapsed = 0
         scanFrame:SetScript("OnUpdate", function(self, dt)
             elapsed = elapsed + dt
@@ -209,7 +209,7 @@ local function DoScan()
                 pendingIds = {}
                 if still > 0 then
                     DEFAULT_CHAT_FRAME:AddMessage(
-                        "|cffFF8800" .. still .. " itemov nedostalo odpoved zo servera (timeout)|r"
+                        "|cffFF8800" .. still .. " items did not receive server response (timeout)|r"
                     )
                 end
                 PrintScanResults()
@@ -236,8 +236,8 @@ local function SaveScanResults()
         end
     end
     DEFAULT_CHAT_FRAME:AddMessage(
-        "|cffFFD700DetaurIDFinder:|r Ulozene " ..
-        #DetaurIDFinderDB.mismatches .. " nezhodnych IDciek. Teraz /reload."
+        "|cffFFD700DetaurIDFinder:|r Saved " ..
+        #DetaurIDFinderDB.mismatches .. " mismatched IDs. Now /reload."
     )
 end
 
@@ -260,12 +260,12 @@ SlashCmdList["DETAURID"] = function(msg)
                     )
                 else
                     DEFAULT_CHAT_FRAME:AddMessage(
-                        "[" .. id .. "] Neni v cache, skus neskor"
+                        "[" .. id .. "] Not in cache, try later"
                     )
                 end
             end
         else
-            DEFAULT_CHAT_FRAME:AddMessage("|cffFFD700Pouzitie:|r /detaurid icon <id1> <id2> ...")
+            DEFAULT_CHAT_FRAME:AddMessage("|cffFFD700Usage:|r /detaurid icon <id1> <id2> ...")
         end
     else
         DEFAULT_CHAT_FRAME:AddMessage(

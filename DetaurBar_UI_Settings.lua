@@ -95,6 +95,7 @@ local function SetButtonGroupValue(group, value)
         SetChoiceButtonStyle(button, key == value)
     end
 end
+DetaurBar.UI.SetButtonGroupValue = SetButtonGroupValue
 
 local function CreateAlertChoiceRow(parent, group, options, x, y, width, onChoose)
     local buttonWidth = math.floor((width - ((#options - 1) * 4)) / #options)
@@ -716,6 +717,7 @@ local function SetAlertControlsVisible(group, visible)
         if visible then control:Show() else control:Hide() end
     end
 end
+DetaurBar.UI.SetAlertControlsVisible = SetAlertControlsVisible
 
 local alertDungeonControls = {
     dungeonEnableCheckbox, dungeonEnableLabel,
@@ -1099,6 +1101,34 @@ DetaurBar.UI.SetSimpleTooltip(buffsStacksCheckbox, "Show maelstorm stack", "Show
 table.insert(alertBuffsControls, buffsStacksCheckbox)
 table.insert(alertBuffsControls, buffsStacksLabel)
 
+-- dont hide unused checkbox
+local buffsDontHideCheckbox, buffsDontHideLabel = CreateAlertCheck(sc, "Dont hide unused", 0, 0, function(self)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    settings.buffsDontHideUnused = self:GetChecked() and true or false
+end)
+buffsDontHideCheckbox:ClearAllPoints()
+buffsDontHideCheckbox:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -64 - (buffsRows - 1) * (slotSize + slotGap) - slotSize - 44)
+DetaurBar.UI.SetSimpleTooltip(buffsDontHideCheckbox, "Dont hide unused", "Center-screen icons stay visible until the spell is used again or timeout expires.")
+table.insert(alertBuffsControls, buffsDontHideCheckbox)
+DetaurBar.UI.buffsDontHideCheckbox = buffsDontHideCheckbox
+table.insert(alertBuffsControls, buffsDontHideLabel)
+
+-- timeout edit row
+local buffsTimeoutLabel, buffsTimeoutEdit = CreateAlertEditRow(sc, "Timeout (minutes)", 0, 0, 36, 3, function(self)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    local val = tonumber(self:GetText()) or 1
+    if val < 1 then val = 1 end
+    settings.buffsHideTimeout = val
+    self:SetText(val)
+end)
+buffsTimeoutLabel:ClearAllPoints()
+buffsTimeoutLabel:SetPoint("TOPLEFT", sc, "TOPLEFT", 10, -64 - (buffsRows - 1) * (slotSize + slotGap) - slotSize - 68)
+buffsTimeoutEdit:ClearAllPoints()
+buffsTimeoutEdit:SetPoint("LEFT", buffsTimeoutLabel, "RIGHT", 8, 0)
+table.insert(alertBuffsControls, buffsTimeoutLabel)
+table.insert(alertBuffsControls, buffsTimeoutEdit)
+DetaurBar.UI.buffsTimeoutEdit = buffsTimeoutEdit
+
 -- ============================================
 --  SETTINGS CONTROLS: Item tracking sub-tab
 -- ============================================
@@ -1260,39 +1290,39 @@ function DetaurBar.UI.UpdateAlertPanel()
     local settings = DetaurBar.UI.GetSettingsDB()
 
     dungeonEnableCheckbox:SetChecked(settings.dungeonFlashEnabled and 1 or nil)
-    SetButtonGroupValue(dungeonColorRow, settings.dungeonFlashColor or "YELLOW")
+    DetaurBar.UI.SetButtonGroupValue(dungeonColorRow, settings.dungeonFlashColor or "YELLOW")
     dungeonDurationEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.dungeonFlashDuration, 0, 0, 120)))
     DetaurBar.UI.ahIntervalEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.ahScanInterval, 10, 1, 120)))
 
     arenaEnableCheckbox:SetChecked(settings.arenaFlashEnabled and 1 or nil)
-    SetButtonGroupValue(arenaColorRow, settings.arenaFlashColor or "YELLOW")
+    DetaurBar.UI.SetButtonGroupValue(arenaColorRow, settings.arenaFlashColor or "YELLOW")
     arenaDurationEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.arenaFlashDuration, 0, 0, 120)))
 
     raidRollCheckbox:SetChecked(settings.raidRollAlertEnabled and 1 or nil)
-    SetButtonGroupValue(alertRaidRollColorButtons, settings.raidRollAlertColor or "YELLOW")
+    DetaurBar.UI.SetButtonGroupValue(alertRaidRollColorButtons, settings.raidRollAlertColor or "YELLOW")
     raidRollDurationEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.raidRollAlertDuration, 0, 0, 30)))
-    SetButtonGroupValue(alertRaidRollStyleButtons, settings.raidRollAlertStyle or "AGGRESSIVE")
+    DetaurBar.UI.SetButtonGroupValue(alertRaidRollStyleButtons, settings.raidRollAlertStyle or "AGGRESSIVE")
     raidRollSoundCheckbox:SetChecked(settings.raidRollAlertPlaySound and 1 or nil)
-    SetButtonGroupValue(alertRaidRollSoundButtons, settings.raidRollAlertSound or "RaidWarning")
+    DetaurBar.UI.SetButtonGroupValue(alertRaidRollSoundButtons, settings.raidRollAlertSound or "RaidWarning")
 
     raidReadyCheckbox:SetChecked(settings.raidReadyCheckAlertEnabled and 1 or nil)
-    SetButtonGroupValue(alertRaidReadyColorButtons, settings.raidReadyCheckAlertColor or "YELLOW")
+    DetaurBar.UI.SetButtonGroupValue(alertRaidReadyColorButtons, settings.raidReadyCheckAlertColor or "YELLOW")
     raidReadyDurationEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.raidReadyCheckAlertDuration, 0, 0, 30)))
-    SetButtonGroupValue(alertRaidReadyStyleButtons, settings.raidReadyCheckAlertStyle or "AGGRESSIVE")
+    DetaurBar.UI.SetButtonGroupValue(alertRaidReadyStyleButtons, settings.raidReadyCheckAlertStyle or "AGGRESSIVE")
     raidReadySoundCheckbox:SetChecked(settings.raidReadyCheckAlertPlaySound and 1 or nil)
-    SetButtonGroupValue(alertRaidReadySoundButtons, settings.raidReadyCheckAlertSound or "RaidWarning")
+    DetaurBar.UI.SetButtonGroupValue(alertRaidReadySoundButtons, settings.raidReadyCheckAlertSound or "RaidWarning")
 
     wgEnableCheckbox:SetChecked(settings.wgAlertsEnabled and 1 or nil)
     wgAlert1MinutesEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.wgAlert1Minutes, 15, 0, 120)))
     wgAlert1DurationEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.wgAlert1Duration, 2, 0, 30)))
-    SetButtonGroupValue(alertWGColorButtons, settings.wgAlert1Color or "YELLOW")
+    DetaurBar.UI.SetButtonGroupValue(alertWGColorButtons, settings.wgAlert1Color or "YELLOW")
     wgAlert1SoundCheckbox:SetChecked(settings.wgAlert1PlaySound and 1 or nil)
-    SetButtonGroupValue(alertWGAlert1SoundButtons, settings.wgAlert1Sound or "RaidWarning")
+    DetaurBar.UI.SetButtonGroupValue(alertWGAlert1SoundButtons, settings.wgAlert1Sound or "RaidWarning")
     wgAlert2MinutesEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.wgAlert2Minutes, 1, 0, 120)))
     wgAlert2DurationEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.wgAlert2Duration, 0, 0, 30)))
-    SetButtonGroupValue(alertWGAlert2ColorButtons, settings.wgAlert2Color or "YELLOW")
+    DetaurBar.UI.SetButtonGroupValue(alertWGAlert2ColorButtons, settings.wgAlert2Color or "YELLOW")
     wgSoundCheckbox:SetChecked(settings.wgAlert2PlaySound and 1 or nil)
-    SetButtonGroupValue(alertSoundButtons, settings.wgAlert2Sound or "RaidWarning")
+    DetaurBar.UI.SetButtonGroupValue(alertSoundButtons, settings.wgAlert2Sound or "RaidWarning")
 
     if randomEnableCheckbox then
         randomEnableCheckbox:SetChecked(settings.randomAlertsEnabled and 1 or nil)
@@ -1300,9 +1330,9 @@ function DetaurBar.UI.UpdateAlertPanel()
         if a then
             randomIntervalEdit:SetText(tostring(a.intervalMinutes or 5))
             randomDurationEdit:SetText(tostring(a.flashDuration or 3))
-            SetButtonGroupValue(alertRandomColorButtons, a.flashColor or "YELLOW")
+            DetaurBar.UI.SetButtonGroupValue(alertRandomColorButtons, a.flashColor or "YELLOW")
             randomSoundCheckbox:SetChecked(a.playSound and 1 or nil)
-            SetButtonGroupValue(alertRandomSoundButtons, a.sound or "RaidWarning")
+            DetaurBar.UI.SetButtonGroupValue(alertRandomSoundButtons, a.sound or "RaidWarning")
         end
         DetaurBar.UI.UpdateRandomAlertRows()
     end
@@ -1310,20 +1340,20 @@ function DetaurBar.UI.UpdateAlertPanel()
     enemyEnableCheckbox:SetChecked(settings.enemyEnabled and 1 or nil)
     if DetaurBar.Enemy.UpdateToggleIcon then DetaurBar.Enemy.UpdateToggleIcon() end
     enemyFlashCheckbox:SetChecked(settings.enemyFlashEnabled and 1 or nil)
-    SetButtonGroupValue(alertEnemyColorButtons, settings.enemyFlashColor or "YELLOW")
-    SetButtonGroupValue(alertEnemyStyleButtons, settings.enemyFlashStyle or "AGGRESSIVE")
+    DetaurBar.UI.SetButtonGroupValue(alertEnemyColorButtons, settings.enemyFlashColor or "YELLOW")
+    DetaurBar.UI.SetButtonGroupValue(alertEnemyStyleButtons, settings.enemyFlashStyle or "AGGRESSIVE")
     enemySoundCheckbox:SetChecked(settings.enemyPlaySound and 1 or nil)
-    SetButtonGroupValue(alertEnemySoundButtons, settings.enemySound or "RaidWarning")
+    DetaurBar.UI.SetButtonGroupValue(alertEnemySoundButtons, settings.enemySound or "RaidWarning")
     enemyMindControlCheckbox:SetChecked(settings.mindControlAlertEnabled and 1 or nil)
 
-    SetAlertControlsVisible(alertDungeonControls, DetaurBar.UI.activeAlertSubTab == "Dung")
-    SetAlertControlsVisible(alertArenaControls, DetaurBar.UI.activeAlertSubTab == "Arena")
-    SetAlertControlsVisible(alertRaidControls, DetaurBar.UI.activeAlertSubTab == "Raid")
-    SetAlertControlsVisible(alertWintergraspControls, DetaurBar.UI.activeAlertSubTab == "WG")
-    SetAlertControlsVisible(alertRandomControls, DetaurBar.UI.activeAlertSubTab == "Random")
-    SetAlertControlsVisible(alertEnemyControls, DetaurBar.UI.activeAlertSubTab == "Enemy")
-    SetAlertControlsVisible(alertBuffsControls, DetaurBar.UI.activeAlertSubTab == "Buffs")
-    SetAlertControlsVisible(alertItemControls, DetaurBar.UI.activeAlertSubTab == "Item")
+    DetaurBar.UI.SetAlertControlsVisible(alertDungeonControls, DetaurBar.UI.activeAlertSubTab == "Dung")
+    DetaurBar.UI.SetAlertControlsVisible(alertArenaControls, DetaurBar.UI.activeAlertSubTab == "Arena")
+    DetaurBar.UI.SetAlertControlsVisible(alertRaidControls, DetaurBar.UI.activeAlertSubTab == "Raid")
+    DetaurBar.UI.SetAlertControlsVisible(alertWintergraspControls, DetaurBar.UI.activeAlertSubTab == "WG")
+    DetaurBar.UI.SetAlertControlsVisible(alertRandomControls, DetaurBar.UI.activeAlertSubTab == "Random")
+    DetaurBar.UI.SetAlertControlsVisible(alertEnemyControls, DetaurBar.UI.activeAlertSubTab == "Enemy")
+    DetaurBar.UI.SetAlertControlsVisible(alertBuffsControls, DetaurBar.UI.activeAlertSubTab == "Buffs")
+    DetaurBar.UI.SetAlertControlsVisible(alertItemControls, DetaurBar.UI.activeAlertSubTab == "Item")
 
     -- Update item tracking slot icons
     if DetaurBar.UI.activeAlertSubTab == "Item" then
@@ -1381,6 +1411,8 @@ function DetaurBar.UI.UpdateAlertPanel()
         end
         buffsEnableCheckbox:SetChecked(settings.buffsEnabled and 1 or nil)
         buffsStacksCheckbox:SetChecked(settings.buffsFollowStacks and 1 or nil)
+        DetaurBar.UI.buffsDontHideCheckbox:SetChecked(settings.buffsDontHideUnused and 1 or nil)
+        DetaurBar.UI.buffsTimeoutEdit:SetText(settings.buffsHideTimeout or 1)
     end
     if DetaurBar.UI.alertScrollFrame then DetaurBar.UI.alertScrollFrame:Show() end
     if DetaurBar.UI.alertScrollChild then DetaurBar.UI.alertScrollChild:Show() end

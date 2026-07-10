@@ -38,6 +38,7 @@ You are a code assistant specialized in World of Warcraft addon development for 
 - To target by name without taint: use `SecureActionButtonTemplate` with `PreClick` setting `"type1"` and `"macrotext1"` attributes, then `/target Name` macro executes securely. Do NOT use `RunMacroText()` from insecure code. Do NOT use `TargetUnit()` from insecure code.
 - `GetCursorInfo()` — in 3.3.5a returns `"item", itemID, itemLink` where `itemID` is a **number**. Do NOT assume the second return is a string or call `.match()` on it.
 - `CreateFontString()` — returns a FontString, NOT a Frame. FontStrings do NOT have `SetScript()`. Do NOT call `SetScript` or `SetSimpleTooltip` (which calls `SetScript`) on FontStrings.
+- **Lua 5.1 upvalue limit (60)** — functions that reference many local variables from enclosing scopes hit "more than 60 upvalues" error. Fix: move references to a global table (e.g. `DetaurBar.UI.xxx`) instead of direct local references.
 
 ## File Structure
 
@@ -188,9 +189,12 @@ DetaurBarDB = {
         mindControlAlertEnabled = false,
         autoSellRepairEnabled = false,
         showAlertsInChat = false,
+        ignoreYellEnabled = false,
         buffsEnabled = false,
         buffsSpellSlots = {},  -- each slot: { id = spellId, name = "Earth Shock", icon = "Interface\\Icons\\Spell_Nature_EarthShock" }
         buffsFollowStacks = false,
+        buffsDontHideUnused = false,
+        buffsHideTimeout = 1,
         itemTrackingEnabled = false,
         itemTrackingSlots = {},   -- indexed 1..25: { itemId, name, icon }
         itemTrackingInterval = 30, -- minutes
@@ -296,3 +300,5 @@ subTab:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.9)
 ## Git rules
 - Never add `Co-Authored-By: Claude` to commit messages
 - Never push automatically — only when user explicitly asks
+- Never commit automatically — only when user explicitly asks
+- Do NOT touch git at all (no add, no commit, no push) unless user gives an explicit command to do so

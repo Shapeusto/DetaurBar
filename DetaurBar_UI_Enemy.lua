@@ -25,6 +25,7 @@ local enemyDisplay = {}
 local alertTimers = {}
 local listening = false
 local dismissed = {}
+local updatingMonitor = false
 
 local soundPaths = {
     RaidWarning = "Sound\\Interface\\RaidWarning.wav",
@@ -390,9 +391,11 @@ local function CreateMonitor()
 end
 
 function DetaurBar.Enemy.UpdateMonitor()
+    if updatingMonitor then return end
     if not monitorFrame or not monitorFrame:IsShown() then return end
     if not DetaurBar.Enemy.RebuildDisplay then return end
 
+    updatingMonitor = true
     DetaurBar.Enemy.RebuildDisplay()
 
     local rowHeight = 18
@@ -409,6 +412,7 @@ function DetaurBar.Enemy.UpdateMonitor()
             r:Hide()
         end
         monitorFrame:SetHeight(innerTop + rowHeight + spacing + bottomPad)
+        updatingMonitor = false
         return
     end
 
@@ -422,13 +426,15 @@ function DetaurBar.Enemy.UpdateMonitor()
         local row = monitorRows[i]
         if not row then break end
 
+        row:Show()
         row:ClearAllPoints()
         local yOffset = -innerTop - (i - 1) * (rowHeight + spacing)
         row:SetPoint("TOPLEFT", monitorFrame, "TOPLEFT", 14, yOffset)
         row:SetPoint("TOPRIGHT", monitorFrame, "TOPRIGHT", -16, yOffset)
-        row:SetHeight(rowHeight)
+        row:SetPoint("BOTTOMLEFT", monitorFrame, "TOPLEFT", 14, yOffset - rowHeight)
+        row:SetPoint("BOTTOMRIGHT", monitorFrame, "TOPRIGHT", -16, yOffset - rowHeight)
+        row:SetHitRectInsets(0, 0, 0, 0)
         row:Enable()
-        row:Show()
 
         row.nameText:SetText(enemy.name or "?")
         row.nameText:SetTextColor(0.9, 0.2, 0.2, 1.0)
@@ -453,6 +459,8 @@ function DetaurBar.Enemy.UpdateMonitor()
     for i = count + 1, #monitorRows do
         monitorRows[i]:Hide()
     end
+
+    updatingMonitor = false
 end
 
 function DetaurBar.Enemy.RebuildDisplay()

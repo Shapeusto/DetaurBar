@@ -43,7 +43,7 @@ end
 -- ============================================
 --  SHOW ALERT (uses next available frame)
 -- ============================================
-function DetaurBar.Buffs.ShowAlert(icon, name)
+function DetaurBar.Buffs.ShowAlert(icon, name, slotIndex, persistent)
     for _, f in ipairs(alertFrames) do
         if not f:IsShown() then
             if icon then
@@ -55,23 +55,61 @@ function DetaurBar.Buffs.ShowAlert(icon, name)
 
             f:Show()
             f:SetAlpha(1.0)
+            f.slotIndex = slotIndex
 
             if f.animFrame then
                 f.animFrame:Hide()
                 f.animFrame:SetScript("OnUpdate", nil)
             end
-            local elapsed = 0
-            f.animFrame = CreateFrame("Frame")
-            f.animFrame:SetScript("OnUpdate", function(self, e)
-                elapsed = elapsed + (e or 0)
-                if elapsed < 1.0 then
-                elseif elapsed < 1.5 then
-                    f:SetAlpha(math.max(0, 1 - (elapsed - 1.0) / 0.5))
+
+            if persistent then
+                local timeout = (DetaurBarDB and DetaurBarDB.settings and DetaurBarDB.settings.buffsHideTimeout or 1) * 60
+                if f.animFrame then
+                    f.animFrame:SetScript("OnUpdate", nil)
                 else
-                    f:Hide()
-                    self:SetScript("OnUpdate", nil)
+                    f.animFrame = CreateFrame("Frame")
                 end
-            end)
+                local elapsed = 0
+                f.animFrame:SetScript("OnUpdate", function(self, e)
+                    elapsed = elapsed + (e or 0)
+                    if elapsed < timeout then
+                    else
+                        f:Hide()
+                        f.slotIndex = nil
+                        self:SetScript("OnUpdate", nil)
+                    end
+                end)
+            else
+                local elapsed = 0
+                f.animFrame = CreateFrame("Frame")
+                f.animFrame:SetScript("OnUpdate", function(self, e)
+                    elapsed = elapsed + (e or 0)
+                    if elapsed < 1.0 then
+                    elseif elapsed < 1.5 then
+                        f:SetAlpha(math.max(0, 1 - (elapsed - 1.0) / 0.5))
+                    else
+                        f:Hide()
+                        f.slotIndex = nil
+                        self:SetScript("OnUpdate", nil)
+                    end
+                end)
+            end
+            return
+        end
+    end
+end
+
+function DetaurBar.Buffs.HideAlertForSlot(slotIndex)
+    if not slotIndex then return end
+    for _, f in ipairs(alertFrames) do
+        if f:IsShown() and f.slotIndex == slotIndex then
+            f:Hide()
+            f.slotIndex = nil
+            if f.animFrame then
+                f.animFrame:Hide()
+                f.animFrame:SetScript("OnUpdate", nil)
+                f.animFrame = nil
+            end
             return
         end
     end
@@ -126,6 +164,10 @@ updateFrame:SetScript("OnUpdate", function(self, elapsed)
             local prev = prevCooldownState[i] or 0
             if duration and duration > 0 then
                 if duration > 1.5 then
+                    -- Spell was just cast (was ready, now on cooldown) — hide persistent alert
+                    if settings.buffsDontHideUnused and prev == 0 then
+                        DetaurBar.Buffs.HideAlertForSlot(i)
+                    end
                     prevCooldownState[i] = start + duration
                 end
             elseif prev > 0 and duration == 0 then
@@ -140,7 +182,8 @@ updateFrame:SetScript("OnUpdate", function(self, elapsed)
                 end
                 if not icon then icon = data.icon end
                 if not name then name = data.name end
-                DetaurBar.Buffs.ShowAlert(icon, name or ("ID: " .. data.id))
+                local persistent = settings.buffsDontHideUnused
+                DetaurBar.Buffs.ShowAlert(icon, name or ("ID: " .. data.id), i, persistent)
                 prevCooldownState[i] = 0
             end
         end
@@ -166,8 +209,12 @@ updateFrame:SetScript("OnUpdate", function(self, elapsed)
 
         if mwCount >= 5 and not DetaurBar.Buffs.mwAlerted then
             DetaurBar.Buffs.mwAlerted = true
-            DetaurBar.Buffs.ShowAlert(mwIcon, (mwName or "Maelstrom Weapon") .. " x" .. mwCount)
+            local persistent = settings.buffsDontHideUnused
+            DetaurBar.Buffs.ShowAlert(mwIcon, (mwName or "Maelstrom Weapon") .. " x" .. mwCount, "mw", persistent)
         elseif mwCount < 5 then
+            if settings.buffsDontHideUnused then
+                DetaurBar.Buffs.HideAlertForSlot("mw")
+            end
             DetaurBar.Buffs.mwAlerted = false
         end
     end

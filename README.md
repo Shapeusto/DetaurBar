@@ -78,6 +78,8 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
   - 5×2 drag-from-spellbook cooldown slots (10 slots) with icon display
   - Center-screen alert on cooldown expiry or stack change
   - Maelstrom Weapon stack tracking (Show maelstorm stack checkbox)
+  - **Dont hide unused** checkbox — keeps alert icons visible until spell is used again (or timeout expires)
+  - **Timeout (minutes)** — configurable max lifetime for persistent icons (default 1 min)
 - **Item** — Bag item tracking:
   - Enable/disable tracking
   - 5×5 drag-from-bags grid (25 item slots)
@@ -92,6 +94,7 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
   - **Autosell junk and autorepair**: auto-sells all grey items and repairs equipment on merchant open
   - **Show alerts in chat**: prints alert name to chat when any alert fires
   - **Scan auction house**: enables/disables automatic AH price scanning
+  - **Ignore Yell**: filters out all Yell messages from chat frames
 
 ### Price History Viewer (standalone)
 - `Dataanalysis/` folder contains an offline HTML/JS tool to browse price history from SavedVariables
