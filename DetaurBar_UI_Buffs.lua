@@ -65,6 +65,7 @@ function DetaurBar.Buffs.ShowAlert(icon, name, slotIndex, persistent)
             if persistent then
                 local timeout = (DetaurBarDB and DetaurBarDB.settings and DetaurBarDB.settings.buffsHideTimeout or 1) * 60
                 if f.animFrame then
+                    f.animFrame:Show()
                     f.animFrame:SetScript("OnUpdate", nil)
                 else
                     f.animFrame = CreateFrame("Frame")
@@ -119,6 +120,7 @@ end
 --  COOLDOWN TRACKING
 -- ============================================
 local prevCooldownState = {} -- keyed by SLOT INDEX (1-10)
+local prevItemCooldownState = {} -- keyed by item CD slot index (1-4)
 
 function DetaurBar.Buffs.OnSlotChanged()
     local slots = DetaurBarDB and DetaurBarDB.settings and DetaurBarDB.settings.buffsSpellSlots or {}
@@ -188,9 +190,38 @@ updateFrame:SetScript("OnUpdate", function(self, elapsed)
             end
         end
     end
-    end
 
-    -- Stacks check (Maelstrom Weapon only)
+    -- Item cooldowns (potion, etc.)
+    local itemCDSlots = settings.buffsItemCooldownSlots or {}
+    for i = 1, 4 do
+        local data = itemCDSlots[i]
+        if data and data.itemId then
+            local start, duration = GetItemCooldown(data.itemId)
+            start = start or 0
+            duration = duration or 0
+            local prev = prevItemCooldownState[i] or 0
+            if start > 0 and duration > 0 then
+                if duration > 1.5 then
+                    if settings.buffsDontHideUnused and prev == 0 then
+                        DetaurBar.Buffs.HideAlertForSlot("itemcd_" .. i)
+                    end
+                    prevItemCooldownState[i] = start + duration
+                end
+            elseif prev > 0 and start == 0 and duration == 0 then
+                local icon = data.icon
+                if not icon and data.itemId then
+                    local _, _, _, _, _, _, _, _, _, ico = GetItemInfo(data.itemId)
+                    icon = ico
+                end
+                local persistent = settings.buffsDontHideUnused
+                DetaurBar.Buffs.ShowAlert(icon, data.name or ("ID: " .. data.itemId), "itemcd_" .. i, persistent)
+                prevItemCooldownState[i] = 0
+            end
+        end
+    end
+end
+
+-- Stacks check (Maelstrom Weapon only)
     if settings.buffsFollowStacks then
         if DetaurBar.Buffs.mwAlerted == nil then DetaurBar.Buffs.mwAlerted = false end
 

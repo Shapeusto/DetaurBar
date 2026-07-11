@@ -266,6 +266,9 @@ function DetaurBar.Data.InitializeDB()
     if DetaurBarDB.settings.buffsHideTimeout == nil then
         DetaurBarDB.settings.buffsHideTimeout = 1
     end
+    if not DetaurBarDB.settings.buffsItemCooldownSlots then
+        DetaurBarDB.settings.buffsItemCooldownSlots = {}
+    end
     if DetaurBarDB.settings.itemTrackingEnabled == nil then
         DetaurBarDB.settings.itemTrackingEnabled = false
     end

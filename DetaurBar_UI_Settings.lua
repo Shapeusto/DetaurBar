@@ -1129,6 +1129,90 @@ table.insert(alertBuffsControls, buffsTimeoutLabel)
 table.insert(alertBuffsControls, buffsTimeoutEdit)
 DetaurBar.UI.buffsTimeoutEdit = buffsTimeoutEdit
 
+-- item cooldown divider
+local buffsItemDivider = CreateSectionDivider(sc)
+buffsItemDivider:SetPoint("TOPLEFT", sc, "TOPLEFT", 10, -218)
+buffsItemDivider:SetPoint("RIGHT", sc, "RIGHT", -10)
+table.insert(alertBuffsControls, buffsItemDivider)
+
+-- item cooldown label
+local buffsItemLabel = sc:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+buffsItemLabel:SetPoint("TOPLEFT", sc, "TOPLEFT", 10, -234)
+buffsItemLabel:SetText("Item Cooldowns")
+buffsItemLabel:SetTextColor(0.6, 0.6, 0.6)
+table.insert(alertBuffsControls, buffsItemLabel)
+
+-- item cooldown slots (1x4)
+local buffsItemSlotSize = 28
+local buffsItemGap = 4
+local buffsItemCols = 4
+local buffsItemRows = 1
+local buffsItemSlots = {}
+for col = 1, buffsItemCols do
+    local idx = col
+    local slot = CreateFrame("Button", nil, sc)
+    slot:SetSize(buffsItemSlotSize, buffsItemSlotSize)
+    slot:SetPoint("TOPLEFT", sc, "TOPLEFT", 10 + (col - 1) * (buffsItemSlotSize + buffsItemGap), -252)
+    slot:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 12, edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    slot:SetBackdropColor(0, 0, 0, 0.8)
+    slot:SetBackdropBorderColor(0.4, 0.4, 0.4, 1.0)
+
+    local icon = slot:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints(slot)
+    icon:Hide()
+
+    local closeX = CreateFrame("Button", nil, slot)
+    closeX:SetSize(12, 12)
+    closeX:SetPoint("TOPRIGHT", slot, "TOPRIGHT", 2, -2)
+    closeX:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+    closeX:SetHighlightTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Highlight")
+    closeX:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
+    closeX:Hide()
+    closeX:SetScript("OnClick", function()
+        DetaurBar.Data.InitializeDB()
+        if DetaurBarDB.settings.buffsItemCooldownSlots then
+            DetaurBarDB.settings.buffsItemCooldownSlots[idx] = nil
+        end
+        DetaurBar.UI.UpdateAlertPanel()
+    end)
+
+    slot:EnableMouse(true)
+    slot:RegisterForDrag("LeftButton")
+    slot:SetScript("OnReceiveDrag", function()
+        local infoType, itemId, itemLink = GetCursorInfo()
+        if infoType == "item" and itemId and type(itemId) == "number" then
+            DetaurBar.Data.InitializeDB()
+            if not DetaurBarDB.settings.buffsItemCooldownSlots then DetaurBarDB.settings.buffsItemCooldownSlots = {} end
+            local name, _, _, _, _, _, _, _, _, icon = GetItemInfo(itemId)
+            DetaurBarDB.settings.buffsItemCooldownSlots[idx] = { itemId = itemId, name = name or ("ID: " .. itemId), icon = icon }
+            ClearCursor()
+            DetaurBar.UI.UpdateAlertPanel()
+        end
+    end)
+    slot:SetScript("OnEnter", function(self)
+        local data = DetaurBarDB.settings.buffsItemCooldownSlots and DetaurBarDB.settings.buffsItemCooldownSlots[idx]
+        if data then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:ClearLines()
+            GameTooltip:AddLine(data.name or ("Item ID: " .. data.itemId), 1.0, 1.0, 1.0)
+            GameTooltip:Show()
+        end
+    end)
+    slot:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    slot.icon = icon
+    slot.closeX = closeX
+
+    buffsItemSlots[idx] = slot
+    DetaurBar.UI.buffsItemCooldownSlots = buffsItemSlots
+    table.insert(alertBuffsControls, slot)
+end
+
 -- ============================================
 --  SETTINGS CONTROLS: Item tracking sub-tab
 -- ============================================
@@ -1397,6 +1481,31 @@ function DetaurBar.UI.UpdateAlertPanel()
                     _, _, icon = GetSpellInfo(data.id)
                 end
                 if not icon then icon = data.icon end
+                if icon then
+                    slot.icon:SetTexture(icon)
+                    slot.icon:Show()
+                else
+                    slot.icon:Hide()
+                end
+                slot.closeX:Show()
+            else
+                slot.icon:Hide()
+                slot.closeX:Hide()
+            end
+        end
+        -- Update item cooldown slot icons
+        local itemCDSettings = settings.buffsItemCooldownSlots or {}
+        for i, slot in ipairs(DetaurBar.UI.buffsItemCooldownSlots or {}) do
+            local data = itemCDSettings[i]
+            if data and data.itemId then
+                local icon = data.icon
+                if not icon and data.itemId then
+                    _, _, _, _, _, _, _, _, _, icon = GetItemInfo(data.itemId)
+                    if icon then
+                        data.icon = icon
+                        itemCDSettings[i].icon = icon
+                    end
+                end
                 if icon then
                     slot.icon:SetTexture(icon)
                     slot.icon:Show()

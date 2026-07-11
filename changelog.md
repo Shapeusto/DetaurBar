@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-09 — Item cooldown tracking in Alert > Buffs
+
+### Added
+- **Buffs > Item Cooldowns** — 1×4 drag-from-bags slots for potions/flasks/elixirs below the timeout row. Uses `GetItemCooldown(itemId)` to track shared potion/category cooldowns. Shows center-screen alert when cooldown expires, with the same "Dont hide unused" and timeout behavior as spell cooldowns. Data stored in `DetaurBarDB.settings.buffsItemCooldownSlots`.
+
+## 2026-07-09 — Buffs persistent timeout: OnUpdate not firing on hidden frame
+
+### Fixed
+- **Persistent alert timeout not working** (`DetaurBar_UI_Buffs.lua:61`) — `ShowAlert` called `f.animFrame:Hide()` before setting up the timeout OnUpdate. When `f.animFrame` was reused from a previous call (persistent branch), it stayed hidden, and WoW 3.3.5a does not fire `OnUpdate` on hidden frames. The timeout ticker never ran, so the icon stayed indefinitely. Non-persistent (normal fade) was unaffected because it creates a new Frame with `CreateFrame` (which defaults to shown). Fixed by adding `f.animFrame:Show()` before setting the new OnUpdate on the reused frame.
+
 ## 2026-07-09 — Lua 5.1 upvalue limit fix (>60 upvalues in UpdateAlertPanel)
 
 ### Fixed

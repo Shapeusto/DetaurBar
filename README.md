@@ -80,6 +80,7 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
   - Maelstrom Weapon stack tracking (Show maelstorm stack checkbox)
   - **Dont hide unused** checkbox — keeps alert icons visible until spell is used again (or timeout expires)
   - **Timeout (minutes)** — configurable max lifetime for persistent icons (default 1 min)
+  - **Item Cooldowns** — 1×4 drag-from-bags slots for potions/flasks/elixirs, shows center-screen alert when cooldown expires
 - **Item** — Bag item tracking:
   - Enable/disable tracking
   - 5×5 drag-from-bags grid (25 item slots)
