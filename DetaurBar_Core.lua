@@ -52,7 +52,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
         self:UnregisterEvent("PLAYER_LOGIN")
 
     elseif event == "GET_ITEM_INFO_RECEIVED" then
-        if DetaurBarFrame and DetaurBarFrame:IsShown() then
+        if DetaurBarFrame then
             DetaurBar.UI.RefreshTasks()
         end
 

@@ -1306,12 +1306,13 @@ function DetaurBar.UI.RefreshTasks()
                     row.titleText:SetPoint("RIGHT", row.deleteBtn, "LEFT", -8, 0)
                     if itemId then
                         GetItemInfo(itemId)
+                        GetItemInfo("item:" .. itemId)
                         local offlineLink = DetaurBar.UI.BuildOfflineItemLink(itemId)
                         if offlineLink then
                             row.titleText:SetText(offlineLink .. "  |cffffd700" .. priceText .. "|r")
                             row.titleText:SetTextColor(1, 1, 1, 1)
                         else
-                            row.titleText:SetText("Loading [ID: " .. itemId .. "]...  |cffffd700" .. priceText .. "|r")
+                            row.titleText:SetText(item.title:gsub("^item:", "") .. "  |cffffd700" .. priceText .. "|r")
                             row.titleText:SetTextColor(0.6, 0.6, 0.6, 1)
                         end
                     else
@@ -1373,12 +1374,13 @@ function DetaurBar.UI.RefreshTasks()
                     row.titleText:SetPoint("RIGHT", rightAnchor, "LEFT", rightOffset, 0)
                     if itemId then
                         GetItemInfo(itemId)
+                        GetItemInfo("item:" .. itemId)
                         local offlineLink = DetaurBar.UI.BuildOfflineItemLink(itemId)
                         if offlineLink then
                             row.titleText:SetText(offlineLink .. thresholdText .. thresholdHighText)
                             row.titleText:SetTextColor(1, 1, 1, 1)
                         else
-                            row.titleText:SetText("Loading [ID: " .. itemId .. "]..." .. thresholdText .. thresholdHighText)
+                            row.titleText:SetText(item.title:gsub("^item:", "") .. thresholdText .. thresholdHighText)
                             row.titleText:SetTextColor(0.6, 0.6, 0.6, 1)
                         end
                     else

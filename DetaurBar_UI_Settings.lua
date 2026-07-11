@@ -1131,13 +1131,13 @@ DetaurBar.UI.buffsTimeoutEdit = buffsTimeoutEdit
 
 -- item cooldown divider
 local buffsItemDivider = CreateSectionDivider(sc)
-buffsItemDivider:SetPoint("TOPLEFT", sc, "TOPLEFT", 10, -218)
+buffsItemDivider:SetPoint("TOPLEFT", sc, "TOPLEFT", 10, -236)
 buffsItemDivider:SetPoint("RIGHT", sc, "RIGHT", -10)
 table.insert(alertBuffsControls, buffsItemDivider)
 
 -- item cooldown label
 local buffsItemLabel = sc:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-buffsItemLabel:SetPoint("TOPLEFT", sc, "TOPLEFT", 10, -234)
+buffsItemLabel:SetPoint("TOPLEFT", sc, "TOPLEFT", 10, -252)
 buffsItemLabel:SetText("Item Cooldowns")
 buffsItemLabel:SetTextColor(0.6, 0.6, 0.6)
 table.insert(alertBuffsControls, buffsItemLabel)
@@ -1152,7 +1152,7 @@ for col = 1, buffsItemCols do
     local idx = col
     local slot = CreateFrame("Button", nil, sc)
     slot:SetSize(buffsItemSlotSize, buffsItemSlotSize)
-    slot:SetPoint("TOPLEFT", sc, "TOPLEFT", 10 + (col - 1) * (buffsItemSlotSize + buffsItemGap), -252)
+    slot:SetPoint("TOPLEFT", sc, "TOPLEFT", 10 + (col - 1) * (buffsItemSlotSize + buffsItemGap), -270)
     slot:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
