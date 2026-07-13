@@ -23,6 +23,8 @@ eventFrame:RegisterEvent("BAG_UPDATE")
 eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 eventFrame:RegisterEvent("MERCHANT_SHOW")
 eventFrame:RegisterEvent("ARENA_OPPONENT_UPDATE")
+eventFrame:RegisterEvent("READY_CHECK")
+eventFrame:RegisterEvent("START_LOOT_ROLL")
 local arenaFlashShown = false
 
 local function GetSettingsTable()
@@ -115,7 +117,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
         DetaurBar.Core.OnBagUpdate()
 
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        local timestamp, eventType, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool = ...
+        local eventType, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags, spellId, spellName, spellSchool = ...
+        
+        -- Debuff tracking (enemy buffs on hostile targets)
+        if DetaurBar.Debuffs and DetaurBar.Debuffs.OnCombatLogEvent then
+            DetaurBar.Debuffs.OnCombatLogEvent(eventType, sourceFlags, destFlags, spellId, spellName)
+        end
+        
+        -- Mind Control detection
         if eventType == "SPELL_AURA_APPLIED" and spellName and spellName:find("Mind Control") then
             local settings = GetSettingsTable()
             if settings.mindControlAlertEnabled and destName and destName ~= UnitName("player") then
@@ -138,6 +147,28 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
                     end
                 end
             end
+        end
+
+    elseif event == "READY_CHECK" then
+        local settings = GetSettingsTable()
+        if settings.raidReadyCheckAlertEnabled then
+            local dur = (settings.raidReadyCheckAlertDuration and settings.raidReadyCheckAlertDuration > 0) and settings.raidReadyCheckAlertDuration or nil
+            DetaurBar.Alerts.DoFlashWithStyle(settings.raidReadyCheckAlertColor or "YELLOW", settings.raidReadyCheckAlertStyle or "AGGRESSIVE", dur)
+            if settings.raidReadyCheckAlertPlaySound then
+                PlaySoundFile("Sound\\Interface\\" .. (settings.raidReadyCheckAlertSound or "RaidWarning") .. ".wav")
+            end
+            DetaurBar.Core.PrintAlert("Ready Check Alert")
+        end
+
+    elseif event == "START_LOOT_ROLL" then
+        local settings = GetSettingsTable()
+        if settings.raidRollAlertEnabled then
+            local dur = (settings.raidRollAlertDuration and settings.raidRollAlertDuration > 0) and settings.raidRollAlertDuration or nil
+            DetaurBar.Alerts.DoFlashWithStyle(settings.raidRollAlertColor or "YELLOW", settings.raidRollAlertStyle or "AGGRESSIVE", dur)
+            if settings.raidRollAlertPlaySound then
+                PlaySoundFile("Sound\\Interface\\" .. (settings.raidRollAlertSound or "RaidWarning") .. ".wav")
+            end
+            DetaurBar.Core.PrintAlert("Roll Alert")
         end
 
     elseif event == "MERCHANT_SHOW" then
@@ -371,6 +402,16 @@ SlashCmdList["DETAURDEBUG"] = function(msg)
         .. " wg2=" .. tostring(settings.wgAlert2Minutes) .. "m/"
         .. tostring(settings.wgAlert2PlaySound)
         .. "/" .. tostring(settings.wgAlert2Sound))
+    print("|cffffff00Debuffs:|r enabled=" .. tostring(settings.debuffsEnabled))
+    local slots = settings.debuffsSlots or {}
+    local count = 0
+    for _ in pairs(slots) do count = count + 1 end
+    print("  tracked spells: " .. count)
+    for idx, data in pairs(slots) do
+        if data then
+            print("  [" .. idx .. "] " .. (data.name or "?") .. " (ID:" .. (data.spellId or "?") .. ")")
+        end
+    end
 end
 
 SLASH_DETAURMIGRATE1 = "/detaurmigrate"

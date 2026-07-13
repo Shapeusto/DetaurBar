@@ -30,6 +30,11 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
   - Shows item icon, name, and current price in gold
   - No graph, no time filters — clean compact list
   - Remove (X) clears threshold and removes from list
+- **Order** sub-tab — Reorder tracked items:
+  - Up (↑) and down (↓) arrow buttons on each row
+  - Click up = move item higher in the list; click down = move item lower
+  - No delete, no thresholds, no graph — clean reorder-only view
+  - Order is shared with Chart (same data source)
 - **Chart** sub-tab — Full item tracking with threshold management:
   - Click any item row to expand/collapse its price history graph
   - **Threshold row** above time filters:
@@ -87,10 +92,15 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
   - Configurable alert interval (minutes) and threshold (count)
   - Periodic bag scan via OnUpdate timer
   - Chat alert when item count drops to or below threshold
+- **Debuffs** — Enemy debuff tracking:
+  - Enable/disable tracking
+  - 5×5 drag-from-spellbook grid (25 slots)
+  - Center-screen icon pool (10 frames) when tracked debuff is applied by/on hostile units
+  - Stack counting with auto-hide on removal
 
 ### Settings (gear button)
 - **Loot sub-tab**: Show/hide Add and Delete sub-tabs in Loot tab
-- **Alert sub-tab**: Show/hide Dung/Raid/WG/Arena/Random/Enemy/Buffs/Item sub-tabs in Alert tab
+- **Alert sub-tab**: Show/hide Dung/Raid/WG/Arena/Random/Enemy/Buffs/Debuffs/Item sub-tabs in Alert tab
 - **Various sub-tab**:
   - **Autosell junk and autorepair**: auto-sells all grey items and repairs equipment on merchant open
   - **Show alerts in chat**: prints alert name to chat when any alert fires

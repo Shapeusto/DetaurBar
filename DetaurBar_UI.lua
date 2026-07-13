@@ -103,7 +103,7 @@ end)
 DetaurBar.UI.settingsMenuPanel = nil
 DetaurBar.UI.settingsMenuPanelVisible = false
 DetaurBar.UI.settingsMenuActiveSubTab = "Loot"
-local smSettingsSubTabNames = { "Loot", "Alert", "Various" }
+local smSettingsSubTabNames = { "Loot", "Alert", "Price", "Various" }
 
 local function RebuildSettingsMenuCheckboxes()
     local panel = DetaurBar.UI.settingsMenuPanel
@@ -135,6 +135,8 @@ local function RebuildSettingsMenuCheckboxes()
         DetaurBar.Data.InitializeDB()
         if tabType == "loot" then
             DetaurBarDB.settings.lootSubTabsVisible[key] = self:GetChecked() and true or false
+        elseif tabType == "price" then
+            DetaurBarDB.settings.priceSubTabsVisible[key] = self:GetChecked() and true or false
         else
             DetaurBarDB.settings.alertSubTabsVisible[key] = self:GetChecked() and true or false
         end
@@ -157,7 +159,7 @@ local function RebuildSettingsMenuCheckboxes()
             lab:SetTextColor(1, 0.82, 0, 1)
         end
     elseif active == "Alert" then
-        local alertKeys = { "Dung", "Raid", "WG", "Arena", "Random", "Enemy", "Buffs", "Item" }
+        local alertKeys = { "Dung", "Raid", "WG", "Arena", "Random", "Enemy", "Buffs", "Debuffs", "Item" }
         for idx, key in ipairs(alertKeys) do
             local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
             cb:SetSize(20, 20)
@@ -166,6 +168,22 @@ local function RebuildSettingsMenuCheckboxes()
             local keyCopy = key
             cb:SetScript("OnClick", function(self)
                 OnCheckChanged("alert", keyCopy, self)
+            end)
+            local lab = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            lab:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+            lab:SetText(key)
+            lab:SetTextColor(1, 0.82, 0, 1)
+        end
+    elseif active == "Price" then
+        local priceKeys = { "Notifications", "Chart", "Order" }
+        for idx, key in ipairs(priceKeys) do
+            local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
+            cb:SetSize(20, 20)
+            cb:SetPoint("TOPLEFT", panel.content, "TOPLEFT", 8, -8 - (idx - 1) * 30)
+            cb:SetChecked(settings.priceSubTabsVisible and settings.priceSubTabsVisible[key] ~= false)
+            local keyCopy = key
+            cb:SetScript("OnClick", function(self)
+                OnCheckChanged("price", keyCopy, self)
             end)
             local lab = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
             lab:SetPoint("LEFT", cb, "RIGHT", 4, 0)
@@ -543,14 +561,23 @@ function DetaurBar.UI.UpdateTabAnchors()
         end
     end
 
-    local priceItemSubTabWidth = (totalWidth - subTabGap) / 2
-    for i, subTab in ipairs(DetaurBar.UI.priceItemSubTabs) do
-        subTab:SetWidth(priceItemSubTabWidth)
-        subTab:ClearAllPoints()
-        if i == 1 then
-            subTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
-        else
-            subTab:SetPoint("LEFT", DetaurBar.UI.priceItemSubTabs[i-1], "RIGHT", subTabGap, 0)
+    local visiblePrice = {}
+    local settings = DetaurBar.UI.GetSettingsDB()
+    for _, subTab in ipairs(DetaurBar.UI.priceItemSubTabs) do
+        if settings.priceSubTabsVisible and settings.priceSubTabsVisible[subTab.tabName] ~= false then
+            table.insert(visiblePrice, subTab)
+        end
+    end
+    if #visiblePrice > 0 then
+        local priceItemSubTabWidth = (totalWidth - subTabGap * (#visiblePrice - 1)) / #visiblePrice
+        for i, subTab in ipairs(visiblePrice) do
+            subTab:SetWidth(priceItemSubTabWidth)
+            subTab:ClearAllPoints()
+            if i == 1 then
+                subTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
+            else
+                subTab:SetPoint("LEFT", visiblePrice[i-1], "RIGHT", subTabGap, 0)
+            end
         end
     end
 
@@ -647,12 +674,19 @@ function DetaurBar.UI.UpdateContentAnchors()
             if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Show() end
             if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Show() end
             if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
-        else
+        elseif DetaurBar.UI.activePriceItemSubTab == "Notifications" then
             scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 50)
             if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
             if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
             if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
             if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Show() end
+        else
+            -- Order subtab: no input box, no AH interval row
+            scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 26)
+            if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
+            if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
+            if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
+            if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
         end
     elseif activeTab == "Notes" then
         scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 84)
@@ -853,10 +887,16 @@ local function CreateRowFrame(index)
     deleteBtn:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
     row.deleteBtn = deleteBtn
     
-    -- Swap Button (Arrow button next to delete button)
+    -- Down Button (for Price Order sub-tab reordering)
+    local downBtn = CreateFrame("Button", nil, row)
+    downBtn:SetSize(21, 21)
+    downBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.downBtn = downBtn
+    
+    -- Swap Button (Up arrow for Price Order sub-tab)
     local swapBtn = CreateFrame("Button", nil, row)
-    swapBtn:SetSize(14, 14)
-    swapBtn:SetPoint("RIGHT", deleteBtn, "LEFT", -4, 0)
+    swapBtn:SetSize(21, 21)
+    swapBtn:SetPoint("RIGHT", downBtn, "LEFT", -2, 0)
     row.swapBtn = swapBtn
     
     -- Copy/Duplicate Button (next to delete button, identical positioning as swapBtn since they are mutually exclusive)
@@ -897,7 +937,7 @@ local function CreateRowFrame(index)
                     end
                 end
             else
-                if row.itemCategory == "price" then
+                if row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab ~= "Order" then
                     if DetaurBar.UI.expandedPriceItemId == self.itemId then
                         DetaurBar.UI.expandedPriceItemId = nil
                     else
@@ -1061,6 +1101,18 @@ local function CreateRowFrame(index)
                 DetaurBar.Data.AddItem("price", item.title)
                 DetaurBar.UI.RefreshTasks()
             end
+        elseif row.itemId and row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab == "Order" then
+            local category = "price"
+            local items = DetaurBar.Data.GetItems(category)
+            if not items then return end
+            local idx
+            for i, v in ipairs(items) do
+                if v.id == row.itemId then idx = i; break end
+            end
+            if idx and idx > 1 then
+                items[idx], items[idx-1] = items[idx-1], items[idx]
+                DetaurBar.UI.RefreshTasks()
+            end
         elseif row.itemId and row.itemCategory == "price" then
             DetaurBar.UI.SelectPriceItemSubTab("Chart")
             DetaurBar.UI.SetSelectedPriceItem(row.itemId)
@@ -1071,7 +1123,9 @@ local function CreateRowFrame(index)
     swapBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:ClearLines()
-        if row.itemCategory == "price" then
+        if row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab == "Order" then
+            GameTooltip:AddLine("Move Up", 1.0, 1.0, 1.0)
+        elseif row.itemCategory == "price" then
             GameTooltip:AddLine("Set Price Threshold", 1.0, 1.0, 1.0)
             GameTooltip:AddLine("Click to set target price for alerts.", 0.5, 0.5, 0.5)
         else
@@ -1082,6 +1136,32 @@ local function CreateRowFrame(index)
     end)
     
     swapBtn:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
+    
+    -- Down button (Price Order reorder)
+    downBtn:SetScript("OnClick", function(self)
+        if row.itemId and row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab == "Order" then
+            local category = "price"
+            local items = DetaurBar.Data.GetItems(category)
+            if not items then return end
+            local idx
+            for i, v in ipairs(items) do
+                if v.id == row.itemId then idx = i; break end
+            end
+            if idx and idx < #items then
+                items[idx], items[idx+1] = items[idx+1], items[idx]
+                DetaurBar.UI.RefreshTasks()
+            end
+        end
+    end)
+    downBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:ClearLines()
+        GameTooltip:AddLine("Move Down", 1.0, 1.0, 1.0)
+        GameTooltip:Show()
+    end)
+    downBtn:SetScript("OnLeave", function(self)
         GameTooltip:Hide()
     end)
     
@@ -1214,6 +1294,7 @@ function DetaurBar.UI.RefreshTasks()
             row.swapBtn:Hide()
             row.copyBtn:Hide()
             row.deleteBtn:Hide()
+            row.downBtn:Hide()
             row:SetHeight(22)
             row.titleText:SetPoint("LEFT", row, "LEFT", 10, 0)
             row.titleText:SetPoint("RIGHT", row, "RIGHT", -10, 0)
@@ -1241,10 +1322,11 @@ function DetaurBar.UI.RefreshTasks()
             row.titleText:SetFont("Fonts\\FRIZQT___CYR.ttf", 11, "OUTLINE")
             row.checkbox:Hide()
             row.copyBtn:Hide()
-            row.deleteBtn:Show()
+            row.downBtn:Hide()
 
                 -- Notifications subtab: simple display with current price
             if DetaurBar.UI.activePriceItemSubTab == "Notifications" then
+                row.deleteBtn:Show()
                 row.swapBtn:Hide()
                 
                 local itemName, itemTexture, itemRarity
@@ -1262,13 +1344,11 @@ function DetaurBar.UI.RefreshTasks()
                             if sr then itemRarity = sr end
                         end
                     end
-                    -- Fallback: try offline texture when name/GetItemInfo failed (item known in ItemIcons but not in name DB)
                     if not itemTexture then
                         itemTexture = DetaurBar.Data.GetItemTexture(itemId)
                     end
                 end
                 
-                -- Get current price from history (latest)
                 local priceText = "0g"
                 local priceCopper = 0
                 if itemId then
@@ -1320,8 +1400,73 @@ function DetaurBar.UI.RefreshTasks()
                         row.titleText:SetTextColor(1, 1, 1, 1)
                     end
                 end
+
+            elseif DetaurBar.UI.activePriceItemSubTab == "Order" then
+                -- Order subtab: up/down arrows, no delete, no thresholds, no graph
+                row.deleteBtn:Hide()
+                row.swapBtn:Show()
+                row.downBtn:Show()
+                row.swapBtn:SetNormalTexture("Interface\\Buttons\\UI-ScrollBar-ScrollUpButton-Up")
+                row.swapBtn:SetPushedTexture("Interface\\Buttons\\UI-ScrollBar-ScrollUpButton-Down")
+                row.swapBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+                row.downBtn:SetNormalTexture("Interface\\Buttons\\UI-ScrollBar-ScrollDownButton-Up")
+                row.downBtn:SetPushedTexture("Interface\\Buttons\\UI-ScrollBar-ScrollDownButton-Down")
+                row.downBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+
+                local itemName, itemTexture, itemRarity
+                local itemId = DetaurBar.UI.GetItemIdFromText(item.title)
+                if itemId then
+                    itemName = DetaurBar.UI.GetOfflineItemNameById(itemId)
+                    if not itemName then
+                        itemName, _, itemRarity, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
+                    else
+                        itemRarity = 1
+                        itemTexture = DetaurBar.Data.GetItemTexture(itemId)
+                        if not itemTexture then
+                            local _, _, sr, _, _, _, _, _, _, st = GetItemInfo(itemId)
+                            itemTexture = st
+                            if sr then itemRarity = sr end
+                        end
+                    end
+                    if not itemTexture then
+                        itemTexture = DetaurBar.Data.GetItemTexture(itemId)
+                    end
+                end
+
+                if itemName and itemTexture then
+                    row.itemIcon:SetTexture(itemTexture)
+                    row.itemIcon:Show()
+                    textWidth = width - 120
+                    row.titleText:SetPoint("LEFT", row.itemIcon, "RIGHT", 8, 0)
+                    row.titleText:SetPoint("RIGHT", row.downBtn, "LEFT", -8, 0)
+                    row.titleText:SetText(itemName)
+                    local r, g, b = GetItemQualityColor(itemRarity or 1)
+                    row.titleText:SetTextColor(r, g, b, 1.0)
+                else
+                    row.itemIcon:Hide()
+                    textWidth = width - 60
+                    row.titleText:SetPoint("LEFT", row, "LEFT", 8, 0)
+                    row.titleText:SetPoint("RIGHT", row.downBtn, "LEFT", -8, 0)
+                    if itemId then
+                        GetItemInfo(itemId)
+                        GetItemInfo("item:" .. itemId)
+                        local offlineLink = DetaurBar.UI.BuildOfflineItemLink(itemId)
+                        if offlineLink then
+                            row.titleText:SetText(offlineLink)
+                            row.titleText:SetTextColor(1, 1, 1, 1)
+                        else
+                            row.titleText:SetText(item.title:gsub("^item:", ""))
+                            row.titleText:SetTextColor(0.6, 0.6, 0.6, 1)
+                        end
+                    else
+                        row.titleText:SetText(item.title)
+                        row.titleText:SetTextColor(1, 1, 1, 1)
+                    end
+                end
+
             else
                 -- Chart subtab: no swap button, click row to select for threshold
+                row.deleteBtn:Show()
                 row.swapBtn:Hide()
 
                 local itemName, itemTexture, itemRarity
@@ -1606,7 +1751,7 @@ function DetaurBar.UI.UpdateInputPlaceholder()
             placeholderText:SetText("Auto-delete item (Delete)...")
         end
     elseif activeTab == "Price" then
-        if DetaurBar.UI.activePriceItemSubTab == "Chart" then
+        if DetaurBar.UI.activePriceItemSubTab == "Chart" or DetaurBar.UI.activePriceItemSubTab == "Order" then
             placeholderText:SetText("Enter item to track...")
         else
             placeholderText:SetText("Notifications (auto-populated)")
@@ -1735,11 +1880,27 @@ function DetaurBar.UI.SelectTab(tabName)
         if DetaurBar.UI.alertPanel then DetaurBar.UI.alertPanel:Hide() end
         if scrollFrame then scrollFrame:Show() end
         if listBackground then listBackground:Show() end
-        for _, subTab in ipairs(DetaurBar.UI.priceItemSubTabs) do subTab:Show() end
-        if not DetaurBar.UI.activePriceItemSubTab then DetaurBar.UI.activePriceItemSubTab = "Notifications" end
+        local settings = DetaurBar.UI.GetSettingsDB()
+        local firstVisible
+        for _, subTab in ipairs(DetaurBar.UI.priceItemSubTabs) do
+            if settings.priceSubTabsVisible and settings.priceSubTabsVisible[subTab.tabName] ~= false then
+                subTab:Show()
+                if not firstVisible then firstVisible = subTab.tabName end
+            else
+                subTab:Hide()
+            end
+        end
+        if DetaurBar.UI.activePriceItemSubTab and settings.priceSubTabsVisible and settings.priceSubTabsVisible[DetaurBar.UI.activePriceItemSubTab] ~= false then
+            -- keep current
+        elseif firstVisible then
+            DetaurBar.UI.activePriceItemSubTab = firstVisible
+        elseif DetaurBar.UI.priceItemSubTabs[1] then
+            DetaurBar.UI.activePriceItemSubTab = DetaurBar.UI.priceItemSubTabs[1].tabName
+        end
         DetaurBar.UI.SelectPriceItemSubTab(DetaurBar.UI.activePriceItemSubTab)
         DetaurBar.UI.UpdatePriceSubTabVisuals()
         DetaurBar.UI.LayoutPriceSubTabs()
+        DetaurBar.UI.UpdateTabAnchors()
     else
         for _, subTab in ipairs(DetaurBar.UI.priceItemSubTabs) do subTab:Hide() end
         if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end

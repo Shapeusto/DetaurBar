@@ -250,7 +250,7 @@ DetaurBar.UI.alertScrollChild:SetHeight(390)
 -- ============================================
 --  SETTINGS SUB-TABS: Dungeon / Wintergrasp / Random
 -- ============================================
-local alertSubTabNames = { "Dung", "Raid", "WG", "Arena", "Random", "Enemy", "Buffs", "Item" }
+local alertSubTabNames = { "Dung", "Raid", "WG", "Arena", "Random", "Enemy", "Buffs", "Debuffs", "Item" }
 for i, name in ipairs(alertSubTabNames) do
     local subTab = CreateFrame("Button", "DetaurBarSettingsSubTab_" .. name, alertSubTabScrollChild)
     subTab:SetHeight(24)
@@ -1341,6 +1341,139 @@ table.insert(alertItemControls, itemThresholdLabel)
 table.insert(alertItemControls, itemThresholdEdit)
 
 -- ============================================
+--  SETTINGS CONTROLS: Debuffs sub-tab
+-- ============================================
+local alertDebuffsControls = {}
+
+local debuffsEnableCheckbox, debuffsEnableLabel = CreateAlertCheck(sc, "Enable debuff tracking", 8, -8, function(self)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    settings.debuffsEnabled = self:GetChecked() and true or false
+    if not settings.debuffsEnabled and DetaurBar.Debuffs and DetaurBar.Debuffs.ResetActiveAuras then
+        DetaurBar.Debuffs.ResetActiveAuras()
+    end
+end)
+DetaurBar.UI.SetSimpleTooltip(debuffsEnableCheckbox, "Enable debuff tracking", "Track enemy buffs/debuffs and show icons in the upper center of the screen.")
+table.insert(alertDebuffsControls, debuffsEnableCheckbox)
+table.insert(alertDebuffsControls, debuffsEnableLabel)
+
+-- Input box for spell ID
+local debuffsInputLabel = CreateAlertLabel(sc, "Spell ID (press Enter to add)", 8, -40)
+debuffsInputLabel:SetFontObject("GameFontNormalSmall")
+debuffsInputLabel:SetTextColor(0.6, 0.6, 0.6, 1.0)
+table.insert(alertDebuffsControls, debuffsInputLabel)
+
+local debuffsInputEdit = CreateFrame("EditBox", nil, DetaurBar.UI.alertScrollChild, "InputBoxTemplate")
+debuffsInputEdit:SetSize(80, 20)
+debuffsInputEdit:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -60)
+debuffsInputEdit:SetAutoFocus(false)
+debuffsInputEdit:SetScript("OnEnterPressed", function(self)
+    local text = self:GetText()
+    if not text or text == "" then return end
+    local spellId = tonumber(text)
+    if not spellId then
+        print("|cffff0000[DetaurBar] Invalid spell ID: " .. text)
+        return
+    end
+    local name, _, icon = GetSpellInfo(spellId)
+    if not name then
+        print("|cffff0000[DetaurBar] Spell ID " .. spellId .. " not found in cache. Try again later.")
+        return
+    end
+    DetaurBar.Data.InitializeDB()
+    if not DetaurBarDB.settings.debuffsSlots then DetaurBarDB.settings.debuffsSlots = {} end
+    -- Check if already tracked
+    for _, data in pairs(DetaurBarDB.settings.debuffsSlots) do
+        if data and data.spellId == spellId then
+            print("|cffffff00[DetaurBar] Spell " .. name .. " (ID: " .. spellId .. ") is already tracked.")
+            self:SetText("")
+            return
+        end
+    end
+    -- Find first empty slot (1-25)
+    local slotIdx = nil
+    for i = 1, 25 do
+        if not DetaurBarDB.settings.debuffsSlots[i] then
+            slotIdx = i
+            break
+        end
+    end
+    if not slotIdx then
+        print("|cffff0000[DetaurBar] All 25 debuff slots are full.")
+        return
+    end
+    DetaurBarDB.settings.debuffsSlots[slotIdx] = { spellId = spellId, name = name, icon = icon }
+    self:SetText("")
+    DetaurBar.UI.UpdateAlertPanel()
+end)
+debuffsInputEdit:SetScript("OnEditFocusLost", function(self)
+    self:SetText("")
+end)
+table.insert(alertDebuffsControls, debuffsInputEdit)
+
+-- 5x5 grid of slots
+local debuffsSlots = {}
+local slotGap = 8
+local slotSize = 36
+local COLS = 5
+local ROWS = 5
+for row = 1, ROWS do
+    for col = 1, COLS do
+        local idx = (row - 1) * COLS + col
+        local slot = CreateFrame("Button", nil, sc)
+        slot:SetSize(slotSize, slotSize)
+        slot:SetPoint("TOPLEFT", sc, "TOPLEFT", 8 + (col - 1) * (slotSize + slotGap), -88 - (row - 1) * (slotSize + slotGap))
+        slot:SetBackdrop({
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 12, edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        })
+        slot:SetBackdropColor(0, 0, 0, 0.8)
+        slot:SetBackdropBorderColor(0.4, 0.4, 0.4, 1.0)
+
+        local icon = slot:CreateTexture(nil, "ARTWORK")
+        icon:SetAllPoints(slot)
+        icon:Hide()
+
+        local closeX = CreateFrame("Button", nil, slot)
+        closeX:SetSize(12, 12)
+        closeX:SetPoint("TOPRIGHT", slot, "TOPRIGHT", 2, -2)
+        closeX:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+        closeX:SetHighlightTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Highlight")
+        closeX:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
+        closeX:Hide()
+        closeX:SetScript("OnClick", function()
+            DetaurBar.Data.InitializeDB()
+            if DetaurBarDB.settings.debuffsSlots then
+                DetaurBarDB.settings.debuffsSlots[idx] = nil
+            end
+            if DetaurBar.Debuffs and DetaurBar.Debuffs.HideIcon then
+                DetaurBar.Debuffs.HideIcon(idx)
+            end
+            DetaurBar.UI.UpdateAlertPanel()
+        end)
+
+        slot:EnableMouse(true)
+        slot:SetScript("OnEnter", function(self)
+            local data = DetaurBarDB.settings.debuffsSlots and DetaurBarDB.settings.debuffsSlots[idx]
+            if data then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:ClearLines()
+                GameTooltip:AddLine(data.name or ("Spell ID: " .. data.spellId), 1.0, 1.0, 1.0)
+                GameTooltip:Show()
+            end
+        end)
+        slot:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+        slot.icon = icon
+        slot.closeX = closeX
+
+        debuffsSlots[idx] = slot
+        table.insert(alertDebuffsControls, slot)
+    end
+end
+
+-- ============================================
 --  SELECT SETTINGS SUB-TAB
 -- ============================================
 function DetaurBar.UI.SelectAlertSubTab(subTabName)
@@ -1360,6 +1493,7 @@ function DetaurBar.UI.SelectAlertSubTab(subTabName)
     SetAlertControlsVisible(alertEnemyControls, subTabName == "Enemy")
     SetAlertControlsVisible(alertBuffsControls, subTabName == "Buffs")
     SetAlertControlsVisible(alertItemControls, subTabName == "Item")
+    SetAlertControlsVisible(alertDebuffsControls, subTabName == "Debuffs")
 
     if DetaurBar.UI.UpdateContentAnchors then
         DetaurBar.UI.UpdateContentAnchors()
@@ -1438,6 +1572,7 @@ function DetaurBar.UI.UpdateAlertPanel()
     DetaurBar.UI.SetAlertControlsVisible(alertEnemyControls, DetaurBar.UI.activeAlertSubTab == "Enemy")
     DetaurBar.UI.SetAlertControlsVisible(alertBuffsControls, DetaurBar.UI.activeAlertSubTab == "Buffs")
     DetaurBar.UI.SetAlertControlsVisible(alertItemControls, DetaurBar.UI.activeAlertSubTab == "Item")
+    DetaurBar.UI.SetAlertControlsVisible(alertDebuffsControls, DetaurBar.UI.activeAlertSubTab == "Debuffs")
 
     -- Update item tracking slot icons
     if DetaurBar.UI.activeAlertSubTab == "Item" then
@@ -1459,6 +1594,31 @@ function DetaurBar.UI.UpdateAlertPanel()
                     else
                         slot.icon:Hide()
                     end
+                end
+                slot.closeX:Show()
+            else
+                slot.icon:Hide()
+                slot.closeX:Hide()
+            end
+        end
+    end
+
+    -- Update debuffs slot icons
+    if DetaurBar.UI.activeAlertSubTab == "Debuffs" then
+        debuffsEnableCheckbox:SetChecked(settings.debuffsEnabled and 1 or nil)
+        for i, slot in ipairs(debuffsSlots) do
+            local data = settings.debuffsSlots and settings.debuffsSlots[i]
+            if data and data.spellId then
+                local name, _, icon = GetSpellInfo(data.spellId)
+                if icon then
+                    slot.icon:SetTexture(icon)
+                    slot.icon:Show()
+                    if not data.icon then data.icon = icon end
+                elseif data.icon then
+                    slot.icon:SetTexture(data.icon)
+                    slot.icon:Show()
+                else
+                    slot.icon:Hide()
                 end
                 slot.closeX:Show()
             else

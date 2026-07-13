@@ -39,6 +39,7 @@ You are a code assistant specialized in World of Warcraft addon development for 
 - `GetCursorInfo()` — in 3.3.5a returns `"item", itemID, itemLink` where `itemID` is a **number**. Do NOT assume the second return is a string or call `.match()` on it.
 - `CreateFontString()` — returns a FontString, NOT a Frame. FontStrings do NOT have `SetScript()`. Do NOT call `SetScript` or `SetSimpleTooltip` (which calls `SetScript`) on FontStrings.
 - **Lua 5.1 upvalue limit (60)** — functions that reference many local variables from enclosing scopes hit "more than 60 upvalues" error. Fix: move references to a global table (e.g. `DetaurBar.UI.xxx`) instead of direct local references.
+- `COMBAT_LOG_EVENT_UNFILTERED` in 3.3.5a — does NOT have `timestamp` or `hideCaster` parameters. The order is: `eventType(string), sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags, spellId, spellName, [spellSchool]`. The Enemy module (`DetaurBar_UI_Enemy.lua:191`) uses the correct pattern.
 
 ## File Structure
 
@@ -50,9 +51,10 @@ You are a code assistant specialized in World of Warcraft addon development for 
 | `DetaurBar_UI_Todo.lua` | Todo sub-tabs (Day/Week/Month) + SelectTodoSubTab |
 | `DetaurBar_UI_Notes.lua` | Notes sub-tabs (General/War/Guild) + drag-to-move + SelectNotesSubTab |
 | `DetaurBar_UI_Loot.lua` | Loot sub-tabs (Add/Delete) + deleteAllGraysCheckbox + SelectLootSubTab |
-| `DetaurBar_UI_Price.lua` | Price item sub-tabs, graph panel, threshold row, AH interval, price sub-tabs, all price functions |
+| `DetaurBar_UI_Price.lua` | Price item sub-tabs (Notifications/Order/Chart), graph panel, threshold row, AH interval, price sub-tabs, all price functions |
 | `DetaurBar_UI_Settings.lua` | Alert panel (Dung/Raid/WG/Random/Enemy/Buffs/Item sub-tabs, flash alerts, flash frames) |
 | `DetaurBar_UI_Buffs.lua` | Buffs tracking: cooldown expiry alerts, stacking buff change alerts, center-screen icon display |
+| `DetaurBar_UI_Debuffs.lua` | Debuffs tracking: COMBAT_LOG_EVENT_UNFILTERED hook, center-screen icon pool (10 slots, y=200), stack counting, hostile-only filter |
 | `DetaurBar_UI_Enemy.lua` | Enemy detection engine, draggable monitor window, smooth/aggressive flash alerts, right-click dismiss |
 | `DetaurBar_UI_Graph.lua` | Price graph drawing (DrawPriceGraph, ClearGraphObjects, DrawGfLine) |
 | `DetaurBar_Data.lua` | SavedVariable helpers, 21,000+ item offline database, random alert CRUD functions |
@@ -68,11 +70,12 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 
 ### Settings Menu (gear button panel)
 - Gear button (settings icon) next to close (X) opens a **panel** inside the main frame (same as other tab panels)
-- Panel has 3 sub-tabs: **Loot**, **Alert**, **Various**
+- Panel has 4 sub-tabs: **Loot**, **Alert**, **Price**, **Various**
 - **Settings > Loot**: 2 checkboxes (Add, Delete) — default both checked, unchecking hides the corresponding sub-tab from the Loot tab
-- **Settings > Alert**: 8 checkboxes (Dung, Raid, WG, Arena, Random, Enemy, Buffs, Item) — default all checked, unchecking hides the corresponding sub-tab from the Settings/Alert tab
+- **Settings > Alert**: 9 checkboxes (Dung, Raid, WG, Arena, Random, Enemy, Buffs, Debuffs, Item) — default all checked, unchecking hides the corresponding sub-tab from the Settings/Alert tab
+- **Settings > Price**: 3 checkboxes (Notifications, Chart, Order) — default all checked, unchecking hides the corresponding sub-tab from the Price tab
 - **Settings > Various**: 3 checkboxes (Autosell junk and autorepair, Show alerts in chat, Scan auction house) — persistent v `DetaurBarDB.settings.*`
-- State stored in `DetaurBarDB.settings.lootSubTabsVisible` and `DetaurBarDB.settings.alertSubTabsVisible`
+- State stored in `DetaurBarDB.settings.lootSubTabsVisible`, `DetaurBarDB.settings.priceSubTabsVisible`, and `DetaurBarDB.settings.alertSubTabsVisible`
 - Toggle via gear button; closes on tab switch
 
 ### Todo tab
@@ -97,12 +100,17 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - SavedVariable: `DetaurBarDB.price` (list of tracked items)
 - SavedVariable: `DetaurBarDB.priceHistory[itemId][timestampStr] = copperPerItem`
 - Category string: `"price"`
-- **Two sub-tabs: Low price / All**
-- **Low price sub-tab**: Auto-populated alert list (items below threshold)
+- **Three sub-tabs: Notifications / Chart / Order**
+- **Notifications sub-tab**: Auto-populated alert list (items below threshold)
   - Shows item icon, name, current price in gold
   - No graph, no time filters — clean compact list
   - Delete (X) removes from Low price AND clears threshold
-- **All sub-tab**: Full tracking with threshold management
+- **Order sub-tab**: Reorder tracked items with up/down arrow buttons
+  - Shows full item list with no delete, no thresholds, no graph
+  - Each row has up (↑) and down (↓) arrows to reorder
+  - Click up = move item up in the list; click down = move item down
+  - Order is shared with Chart (same data source)
+- **Chart sub-tab**: Full tracking with threshold management
   - Split layout: scrollable item list, threshold row, time filters, graph panel (120px)
   - **Threshold row** (above time filters): selected item icon + name + 4-digit gold input + gold icon + OK (✓) / Clear (X)
   - Click item row = expand/collapse price graph + auto-selects item in threshold row
@@ -112,7 +120,7 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - AH auto-scan: every N minutes when AH opened (page 0 only), configurable in Price > Notifications
 
 ### Alert tab
-- 8 sub-tabs: **Dung**, **Raid**, **WG**, **Arena**, **Random**, **Enemy**, **Buffs**, **Item** (visibility controlled by Settings Menu > Alert)
+- 9 sub-tabs: **Dung**, **Raid**, **WG**, **Arena**, **Random**, **Enemy**, **Buffs**, **Debuffs**, **Item** (visibility controlled by Settings Menu > Alert)
 - SavedVariable: `DetaurBarDB.settings`
 - **Dung sub-tab**: Enable screen flash on LFG proposal, flash duration, flash color (Green/Yellow/Red)
 - **Arena sub-tab**: Enable screen flash on arena match start (`ARENA_OPPONENT_UPDATE`), flash duration, flash color (Green/Yellow/Red)
@@ -121,6 +129,7 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - **Random sub-tab**: Enable random alerts, list of named alerts (each with interval, flash duration, flash color, play sound, select sound), Add/Delete buttons, click to select active alert
 - **Enemy sub-tab**: Enable enemy detection, screen flash (enable/disable), flash color (Green/Yellow/Red), flash style (Smooth/Aggressive), play sound (enable/disable), select sound (Raid/Ready), **Alert Mind Control** checkbox (center-screen text when party/raid member gets Mind Controlled)
 - **Buffs sub-tab**: Enable buff/cooldown tracking, 5×2 drag-from-spellbook cooldown slots (10 slots, icon + close X), Follow Stacks checkbox, center-screen icon display on cooldown expiry or stack change, "Dont hide unused" checkbox + timeout, 1×4 drag-from-bags item cooldown slots (potion/flask/elixir)
+- **Debuffs sub-tab**: Enable enemy debuff tracking, 5×5 drag-from-spellbook grid (25 slots), center-screen icon pool (10 frames, DIALOG strata, y=200), stack counting, hostile-only filter via COMBAT_LOG_EVENT_UNFILTERED
 - **Item sub-tab**: Enable item tracking, 5×5 drag-from-bags grid (25 item slots), alert interval (minutes), alert threshold (count), periodic bag scan via OnUpdate timer, chat alert when count ≤ threshold
 
 ### Enemy tab
@@ -162,6 +171,7 @@ DetaurBarDB = {
         dungeonFlashDuration = 0,
         ahScanInterval = 10,
         lootSubTabsVisible = { Add = true, Delete = true },
+        priceSubTabsVisible = { Notifications = true, Chart = true, Order = true },
         alertSubTabsVisible = { Dung = true, Raid = true, WG = true, Arena = true, Random = true, Enemy = true, Buffs = true, Item = true },
         wgAlertsEnabled = true,
         wgAlert1Minutes = 15,
@@ -200,6 +210,8 @@ DetaurBarDB = {
         itemTrackingSlots = {},   -- indexed 1..25: { itemId, name, icon }
         itemTrackingInterval = 30, -- minutes
         itemTrackingThreshold = 0, -- count
+        debuffsEnabled = false,
+        debuffsSlots = {},   -- indexed 1..25: { spellId, name, icon }
     },
 }
 ```

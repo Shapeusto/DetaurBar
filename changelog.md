@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-07-13 — Price Order sub-tab
+
+### Added
+- **Order sub-tab** in Price: reorder tracked items with up/down arrow buttons
+  - Each row has up (↑) and down (↓) arrows to move items in the list
+  - No delete, no thresholds, no graph — clean reorder-only view
+  - Order changes are shared with Chart (same data source in `DetaurBarDB.price["Horde"]`)
+  - Order is now the third (last) sub-tab, after Chart
+
+### Fixed
+- Up/down arrow buttons: increased from 14x14 to 18x18, repositioned to the rightmost edge of each row
+- Order sub-tab no longer shows leftover UI elements (AH interval row, input box, add button) from Notifications
+- Layout anchoring for Order: separate handling from Notifications in `UpdateContentAnchors`
+- `UpdateContentAnchors` price sub-tab width now uses `#priceItemSubTabs` instead of hardcoded `/2`
+- Swap button tooltip shows "Move Up" in Order mode instead of "Set Price Threshold"
+- **Settings > Price** sub-tab: 3 checkboxes (Notifications, Chart, Order) to show/hide Price sub-tabs, same pattern as Settings > Loot
+
+## 2026-07-12 — Debuffs sub-tab (Alert > Debuffs), CLE parameter fix
+
+### Added
+- **Debuffs sub-tab** in Alert: 5×5 drag-from-spellbook grid (25 slots), Enable Debuffs Tracking checkbox
+- **Center-screen icon pool** (10 frames, DIALOG strata, y=200) — shows icon when a tracked enemy debuff is applied, hides on removal
+- **Stack counting** — multiple applications increment counter, icon hides only when all stacks are gone
+- **Hostile-only filter** — only shows icons for spells cast by or on hostile units (bit.band with COMBATLOG_OBJECT_REACTION_HOSTILE)
+- Settings > Alert: **Debuffs** checkbox to show/hide the sub-tab
+
+### Fixed
+- **COMBAT_LOG_EVENT_UNFILTERED parameter order** in `DetaurBar_Core.lua:120` — in patch 3.3.5a, CLE has NO `timestamp` or `hideCaster` parameters. The old destructuring had 2 extra variables that shifted all subsequent values (eventType → sourceGUID, sourceFlags → destName, spellId/spellName → nil). Fixed to match the working Enemy module pattern: `local eventType, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags, spellId, spellName, spellSchool = ...`
+
 ## 2026-07-09 — Item cooldown tracking in Alert > Buffs
 
 ### Added

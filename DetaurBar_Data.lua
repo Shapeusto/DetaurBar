@@ -227,8 +227,11 @@ function DetaurBar.Data.InitializeDB()
     if not DetaurBarDB.settings.lootSubTabsVisible then
         DetaurBarDB.settings.lootSubTabsVisible = { ["Add"] = true, ["Delete"] = true }
     end
+    if not DetaurBarDB.settings.priceSubTabsVisible then
+        DetaurBarDB.settings.priceSubTabsVisible = { ["Notifications"] = true, ["Chart"] = true, ["Order"] = true }
+    end
     if not DetaurBarDB.settings.alertSubTabsVisible then
-        DetaurBarDB.settings.alertSubTabsVisible = { ["Dung"] = true, ["Raid"] = true, ["WG"] = true, ["Random"] = true, ["Enemy"] = true, ["Buffs"] = true, ["Item"] = true, ["Arena"] = true }
+        DetaurBarDB.settings.alertSubTabsVisible = { ["Dung"] = true, ["Raid"] = true, ["WG"] = true, ["Random"] = true, ["Enemy"] = true, ["Buffs"] = true, ["Debuffs"] = true, ["Item"] = true, ["Arena"] = true }
     end
     if DetaurBarDB.settings.mindControlAlertEnabled == nil then
         DetaurBarDB.settings.mindControlAlertEnabled = false
@@ -280,6 +283,12 @@ function DetaurBar.Data.InitializeDB()
     end
     if DetaurBarDB.settings.itemTrackingThreshold == nil then
         DetaurBarDB.settings.itemTrackingThreshold = 0
+    end
+    if DetaurBarDB.settings.debuffsEnabled == nil then
+        DetaurBarDB.settings.debuffsEnabled = false
+    end
+    if not DetaurBarDB.settings.debuffsSlots then
+        DetaurBarDB.settings.debuffsSlots = {}
     end
     if not DetaurBarDB.minimapAngle then
         DetaurBarDB.minimapAngle = 45
@@ -527,6 +536,8 @@ function DetaurBar.Data.IsSubTabVisible(tabType, subTabName)
     local settings = DetaurBar.Data.GetSettings()
     if tabType == "loot" then
         return settings.lootSubTabsVisible and settings.lootSubTabsVisible[subTabName] ~= false
+    elseif tabType == "price" then
+        return settings.priceSubTabsVisible and settings.priceSubTabsVisible[subTabName] ~= false
     elseif tabType == "alert" then
         return settings.alertSubTabsVisible and settings.alertSubTabsVisible[subTabName] ~= false
     end

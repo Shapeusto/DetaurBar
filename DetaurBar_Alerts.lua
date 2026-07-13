@@ -46,6 +46,114 @@ local wintergraspFlashColors = {
     RED = { 1.0, 0.0, 0.0 },
 }
 
+-- [FLASH VARIANT] Smooth border flash (visible → fade out)
+local smoothRaidFrame = CreateFrame("Frame", "DetaurBarRaidSmoothFlash", UIParent)
+smoothRaidFrame:SetAllPoints(UIParent)
+smoothRaidFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+smoothRaidFrame:EnableMouse(false)
+smoothRaidFrame:Hide()
+local smoothRaidElapsed = 0
+local smoothRaidBorders = {}
+for _, edge in ipairs({"TOP", "BOTTOM", "LEFT", "RIGHT"}) do
+    local t = smoothRaidFrame:CreateTexture(nil, "BACKGROUND")
+    t:SetTexture("Interface\\ChatFrame\\ChatFrameBackground")
+    if edge == "TOP" or edge == "BOTTOM" then
+        t:SetPoint("LEFT", smoothRaidFrame, "LEFT", 0, 0)
+        t:SetPoint("RIGHT", smoothRaidFrame, "RIGHT", 0, 0)
+        if edge == "TOP" then
+            t:SetPoint("TOPLEFT", smoothRaidFrame, "TOPLEFT", 0, 0)
+            t:SetPoint("TOPRIGHT", smoothRaidFrame, "TOPRIGHT", 0, 0)
+            t:SetHeight(48)
+        else
+            t:SetPoint("BOTTOMLEFT", smoothRaidFrame, "BOTTOMLEFT", 0, 0)
+            t:SetPoint("BOTTOMRIGHT", smoothRaidFrame, "BOTTOMRIGHT", 0, 0)
+            t:SetHeight(48)
+        end
+    else
+        t:SetPoint("TOPLEFT", smoothRaidFrame, "TOPLEFT", 0, 48)
+        t:SetPoint("BOTTOMLEFT", smoothRaidFrame, "BOTTOMLEFT", 0, 48)
+        if edge == "LEFT" then
+            t:SetPoint("LEFT", smoothRaidFrame, "LEFT", 0, 0)
+            t:SetWidth(48)
+        else
+            t:SetPoint("RIGHT", smoothRaidFrame, "RIGHT", 0, 0)
+            t:SetWidth(48)
+        end
+    end
+    smoothRaidBorders[edge] = t
+end
+smoothRaidFrame:SetScript("OnUpdate", function(self, elapsed)
+    smoothRaidElapsed = smoothRaidElapsed + elapsed
+    if smoothRaidElapsed >= 1.5 then
+        smoothRaidFrame:Hide()
+        self:SetScript("OnUpdate", nil)
+        return
+    end
+    local alpha = 0.7 * (1 - smoothRaidElapsed / 1.5)
+    for _, t in pairs(smoothRaidBorders) do
+        t:SetAlpha(alpha)
+    end
+end)
+
+-- [FLASH VARIANT] Aggressive fullscreen flash for Raid (reuses dungeonFlashFrame)
+
+function DetaurBar.Alerts.DoFlashWithStyle(colorKey, style, durationSeconds)
+    if style == "SMOOTH" then
+        local r, g, b = GetFlashColorRGB(colorKey)
+        for _, t in pairs(smoothRaidBorders) do
+            t:SetVertexColor(r, g, b, 1.0)
+            t:SetAlpha(0.7)
+        end
+        smoothRaidElapsed = 0
+        smoothRaidFrame:SetScript("OnUpdate", nil)
+        if smoothRaidFrame._timer then
+            smoothRaidFrame._timer:Hide()
+            smoothRaidFrame._timer:SetScript("OnUpdate", nil)
+        end
+        if durationSeconds and durationSeconds > 0 then
+            -- Fixed duration: show for N seconds then hide
+            local timer = CreateFrame("Frame")
+            local elapsed = 0
+            timer:SetScript("OnUpdate", function(self, e)
+                elapsed = elapsed + e
+                if elapsed >= durationSeconds then
+                    smoothRaidFrame:Hide()
+                    self:SetScript("OnUpdate", nil)
+                end
+            end)
+            smoothRaidFrame._timer = timer
+        else
+            -- Default: 1.5s fade
+            smoothRaidFrame:SetScript("OnUpdate", function(self, elapsed)
+                smoothRaidElapsed = smoothRaidElapsed + elapsed
+                if smoothRaidElapsed >= 1.5 then
+                    smoothRaidFrame:Hide()
+                    self:SetScript("OnUpdate", nil)
+                    return
+                end
+                local alpha = 0.7 * (1 - smoothRaidElapsed / 1.5)
+                for _, t in pairs(smoothRaidBorders) do
+                    t:SetAlpha(alpha)
+                end
+            end)
+        end
+        smoothRaidFrame:Show()
+    else
+        -- Aggressive: pulse for duration, or 1.5s default
+        local dur = durationSeconds or 1.5
+        DetaurBar.Alerts.StartDungeonFlash("raid", colorKey, dur)
+    end
+end
+
+function DetaurBar.Alerts.StopRaidFlash()
+    smoothRaidFrame:Hide()
+    if smoothRaidFrame._timer then
+        smoothRaidFrame._timer:Hide()
+        smoothRaidFrame._timer:SetScript("OnUpdate", nil)
+    end
+    DetaurBar.Alerts.StopDungeonFlash("raid")
+end
+
 local function GetSettingsTable()
     if DetaurBar.Data and DetaurBar.Data.GetSettings then
         return DetaurBar.Data.GetSettings()

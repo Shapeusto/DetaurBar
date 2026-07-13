@@ -2,7 +2,7 @@
 -- Price tab: price item sub-tabs, graph panel, sub-tab bar, threshold row, AH interval, price sub-tabs
 
 DetaurBar.UI.priceItemSubTabs = {}
-DetaurBar.UI.priceItemSubTabNames = { "Notifications", "Chart" }
+DetaurBar.UI.priceItemSubTabNames = { "Notifications", "Chart", "Order" }
 DetaurBar.UI.activePriceItemSubTab = "Notifications"
 DetaurBar.UI.expandedPriceItemId = nil
 DetaurBar.UI.selectedPriceItemId = nil
@@ -20,7 +20,7 @@ local function SetPriceItemSubTabStyle(subTab)
     end
 end
 
--- [SUB-TABS/PRICE] Create 2 sub-tabs: Notifications, Chart
+-- [SUB-TABS/PRICE] Create 3 sub-tabs: Notifications, Chart, Order
 for i, name in ipairs(DetaurBar.UI.priceItemSubTabNames) do
     local subTab = CreateFrame("Button", "DetaurBarPriceItemSubTab_" .. name, DetaurBar.UI.frame)
     subTab:SetHeight(24)
@@ -321,6 +321,12 @@ function DetaurBar.UI.SelectPriceItemSubTab(subTabName)
     DetaurBar.UI.UpdateInputPlaceholder()
 
     if subTabName == "Notifications" then
+        DetaurBar.UI.priceGraphPanel:Hide()
+        DetaurBar.UI.priceSubTabBar:Hide()
+        if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
+        DetaurBar.UI.editBox:Hide()
+        DetaurBar.UI.addButton:Hide()
+    elseif subTabName == "Order" then
         DetaurBar.UI.priceGraphPanel:Hide()
         DetaurBar.UI.priceSubTabBar:Hide()
         if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
