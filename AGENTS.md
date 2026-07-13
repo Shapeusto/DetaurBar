@@ -127,9 +127,9 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - **Raid sub-tab**: Raid roll/ready-check alerts with flash style, duration, color, sound
 - **WG sub-tab**: Wintergrasp alerts, Registration Warning (minutes, flash duration, flash color, play sound, select sound), Battle Start Warning (minutes, flash duration, flash color, play sound, select sound)
 - **Random sub-tab**: Enable random alerts, list of named alerts (each with interval, flash duration, flash color, play sound, select sound), Add/Delete buttons, click to select active alert
-- **Enemy sub-tab**: Enable enemy detection, screen flash (enable/disable), flash color (Green/Yellow/Red), flash style (Smooth/Aggressive), play sound (enable/disable), select sound (Raid/Ready), **Alert Mind Control** checkbox (center-screen text when party/raid member gets Mind Controlled)
+- **Enemy sub-tab**: Enable enemy detection, **Show cast** checkbox (monitor window shows cast/nearby activity), screen flash (enable/disable), flash color (Green/Yellow/Red), flash style (Smooth/Aggressive), play sound (enable/disable), select sound (Raid/Ready), **Alert Mind Control** checkbox (center-screen text when party/raid member gets Mind Controlled)
 - **Buffs sub-tab**: Enable buff/cooldown tracking, 5×2 drag-from-spellbook cooldown slots (10 slots, icon + close X), Follow Stacks checkbox, center-screen icon display on cooldown expiry or stack change, "Dont hide unused" checkbox + timeout, 1×4 drag-from-bags item cooldown slots (potion/flask/elixir)
-- **Debuffs sub-tab**: Enable enemy debuff tracking, 5×5 drag-from-spellbook grid (25 slots), center-screen icon pool (10 frames, DIALOG strata, y=200), stack counting, hostile-only filter via COMBAT_LOG_EVENT_UNFILTERED
+- **Debuffs sub-tab**: Enable enemy debuff tracking, Show Everything checkbox (unchecked = only current target), 5×5 drag-from-spellbook grid (25 slots), center-screen icon pool (10 frames, DIALOG strata, y=200), stack counting, hostile-only filter via COMBAT_LOG_EVENT_UNFILTERED
 - **Item sub-tab**: Enable item tracking, 5×5 drag-from-bags grid (25 item slots), alert interval (minutes), alert threshold (count), periodic bag scan via OnUpdate timer, chat alert when count ≤ threshold
 
 ### Enemy tab
@@ -191,6 +191,7 @@ DetaurBarDB = {
         },
         randomActiveAlertId = nil,
         enemyEnabled = false,
+        enemyShowCast = true,
         enemyFlashEnabled = false,
         enemyFlashColor = "YELLOW",
         enemyFlashStyle = "AGGRESSIVE",
@@ -211,6 +212,7 @@ DetaurBarDB = {
         itemTrackingInterval = 30, -- minutes
         itemTrackingThreshold = 0, -- count
         debuffsEnabled = false,
+        debuffsShowEverything = true,
         debuffsSlots = {},   -- indexed 1..25: { spellId, name, icon }
     },
 }

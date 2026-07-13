@@ -173,6 +173,9 @@ function DetaurBar.Data.InitializeDB()
     if DetaurBarDB.settings.enemyEnabled == nil then
         DetaurBarDB.settings.enemyEnabled = false
     end
+    if DetaurBarDB.settings.enemyShowCast == nil then
+        DetaurBarDB.settings.enemyShowCast = true
+    end
     if DetaurBarDB.settings.enemyFlashEnabled == nil then
         DetaurBarDB.settings.enemyFlashEnabled = false
     end
@@ -286,6 +289,9 @@ function DetaurBar.Data.InitializeDB()
     end
     if DetaurBarDB.settings.debuffsEnabled == nil then
         DetaurBarDB.settings.debuffsEnabled = false
+    end
+    if DetaurBarDB.settings.debuffsShowEverything == nil then
+        DetaurBarDB.settings.debuffsShowEverything = true
     end
     if not DetaurBarDB.settings.debuffsSlots then
         DetaurBarDB.settings.debuffsSlots = {}

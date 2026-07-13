@@ -1,21 +1,27 @@
 # Changelog
 
-## 2026-07-13 — Price Order sub-tab
+## 2026-07-13 — Debuffs "Show Everything", Enemy "Show cast", Price Order sub-tab
 
 ### Added
-- **Order sub-tab** in Price: reorder tracked items with up/down arrow buttons
-  - Each row has up (↑) and down (↓) arrows to move items in the list
+- **Price > Order sub-tab**: reorder tracked items with up/down arrow buttons
+  - Up (↑) and down (↓) arrows on each row to move items in the list
   - No delete, no thresholds, no graph — clean reorder-only view
-  - Order changes are shared with Chart (same data source in `DetaurBarDB.price["Horde"]`)
-  - Order is now the third (last) sub-tab, after Chart
+  - Order changes are shared with Chart (same data source)
+  - Order is the third (last) sub-tab, after Chart
+- **Settings > Price** sub-tab: 3 checkboxes (Notifications, Chart, Order) — show/hide Price sub-tabs, same pattern as Settings > Loot
+  - Price sub-tab widths adapt to visible count on tab switch (like Loot)
+- **Alert > Debuffs > Show Everything** checkbox: unchecked = only show debuffs from current target (filters out irrelevant nearby units)
+- **Alert > Enemy > Show cast** checkbox: unchecked = hide casting/activity text in the enemy monitor window
 
 ### Fixed
-- Up/down arrow buttons: increased from 14x14 to 18x18, repositioned to the rightmost edge of each row
-- Order sub-tab no longer shows leftover UI elements (AH interval row, input box, add button) from Notifications
-- Layout anchoring for Order: separate handling from Notifications in `UpdateContentAnchors`
-- `UpdateContentAnchors` price sub-tab width now uses `#priceItemSubTabs` instead of hardcoded `/2`
+- Up/down arrow buttons: 21×21 (was 14×14), repositioned to rightmost edge of each row
+- Order sub-tab no longer shows leftover UI elements (AH interval row, input box, add button)
+- Layout anchoring for Order: separate `elseif` branch in `UpdateContentAnchors`
+- Price sub-tab width uses `#visiblePrice` instead of hardcoded `/2`
 - Swap button tooltip shows "Move Up" in Order mode instead of "Set Price Threshold"
-- **Settings > Price** sub-tab: 3 checkboxes (Notifications, Chart, Order) to show/hide Price sub-tabs, same pattern as Settings > Loot
+- `DetaurBar.UI.UpdateTabAnchors()` now called in Price tab block (was only in Loot)
+- `AddOrUpdateEnemy` checks `enemyShowCast` before storing activity — off = no activity saved
+- `DetaurBar.Enemy.ClearActivities()` helper clears all stored activities when toggling Show cast off
 
 ## 2026-07-12 — Debuffs sub-tab (Alert > Debuffs), CLE parameter fix
 

@@ -54,7 +54,7 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
 - **Draggable monitor window** with ornate WoW dialog frame (toggle via right-click minimap icon)
 - Eye icon toggle on monitor (center-right) — synced with Alert > Enemy > Enable checkbox
 - Resizable width (200–500px) with bottom-right grip
-- Each row shows: enemy name (red), level + 4-char class abbrev, current activity
+- Each row shows: enemy name (red), level + 4-char class abbrev, current activity (configurable via Show cast checkbox)
 - **Left-click** row → targets the enemy
 - **Right-click** row → dismisses enemy from list (session-only)
 - Enemies auto-fade after 120s of inactivity
@@ -73,6 +73,7 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
   - Click to select which alert is active
 - **Enemy** — Enemy detection configuration:
   - Enable/disable detection
+  - **Show cast**: show/hide casting activity in the monitor window
   - Screen flash on new enemy (on/off)
   - Flash color (Green/Yellow/Red)
   - Flash style (Smooth = border fade / Aggressive = fullscreen pulse)
@@ -94,6 +95,7 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
   - Chat alert when item count drops to or below threshold
 - **Debuffs** — Enemy debuff tracking:
   - Enable/disable tracking
+  - **Show Everything**: unchecked = only show debuffs from your current target
   - 5×5 drag-from-spellbook grid (25 slots)
   - Center-screen icon pool (10 frames) when tracked debuff is applied by/on hostile units
   - Stack counting with auto-hide on removal
@@ -101,6 +103,7 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
 ### Settings (gear button)
 - **Loot sub-tab**: Show/hide Add and Delete sub-tabs in Loot tab
 - **Alert sub-tab**: Show/hide Dung/Raid/WG/Arena/Random/Enemy/Buffs/Debuffs/Item sub-tabs in Alert tab
+- **Price sub-tab**: Show/hide Notifications/Chart/Order sub-tabs in Price tab
 - **Various sub-tab**:
   - **Autosell junk and autorepair**: auto-sells all grey items and repairs equipment on merchant open
   - **Show alerts in chat**: prints alert name to chat when any alert fires

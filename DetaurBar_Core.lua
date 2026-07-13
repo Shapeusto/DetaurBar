@@ -121,7 +121,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
         
         -- Debuff tracking (enemy buffs on hostile targets)
         if DetaurBar.Debuffs and DetaurBar.Debuffs.OnCombatLogEvent then
-            DetaurBar.Debuffs.OnCombatLogEvent(eventType, sourceFlags, destFlags, spellId, spellName)
+            DetaurBar.Debuffs.OnCombatLogEvent(eventType, sourceFlags, destFlags, spellId, spellName, sourceGUID, destGUID)
         end
         
         -- Mind Control detection

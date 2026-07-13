@@ -916,47 +916,61 @@ end)
 DetaurBar.UI.enemyEnableCheckbox = enemyEnableCheckbox
 DetaurBar.UI.SetSimpleTooltip(enemyEnableCheckbox, "Enable Enemy Detection", "Detect nearby hostile players via combat events.")
 
-local enemySectionLabel = CreateAlertLabel(sc, "Alert on Detection", 8, -40)
+local enemyShowCastCheckbox, enemyShowCastLabel = CreateAlertCheck(sc, "Show cast", 8, -30, function(self)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    settings.enemyShowCast = self:GetChecked() and true or false
+    if not settings.enemyShowCast and DetaurBar.Enemy.ClearActivities then
+        DetaurBar.Enemy.ClearActivities()
+    end
+    if DetaurBar.Enemy.UpdateMonitor then DetaurBar.Enemy.UpdateMonitor() end
+end)
+DetaurBar.UI.SetSimpleTooltip(enemyShowCastCheckbox, "Show cast", "Show what the enemy is casting in the monitor window.")
 
-local enemyFlashCheckbox, enemyFlashLabel = CreateAlertCheck(sc, "Screen Flash", 8, -68, function(self)
+local enemyShowCastDivider = CreateSectionDivider(sc)
+enemyShowCastDivider:SetPoint("TOPLEFT", sc, "TOPLEFT", 10, -54)
+enemyShowCastDivider:SetPoint("TOPRIGHT", sc, "TOPRIGHT", -10, -54)
+
+local enemySectionLabel = CreateAlertLabel(sc, "Alert on Detection", 8, -66)
+
+local enemyFlashCheckbox, enemyFlashLabel = CreateAlertCheck(sc, "Screen Flash", 8, -94, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.enemyFlashEnabled = self:GetChecked() and true or false
 end)
 DetaurBar.UI.SetSimpleTooltip(enemyFlashCheckbox, "Screen Flash", "Flash the screen when a new enemy is detected.")
 
-local enemyColorLabel = CreateAlertLabel(sc, "Flash Color", 8, -96)
+local enemyColorLabel = CreateAlertLabel(sc, "Flash Color", 8, -122)
 local alertEnemyColorButtons = {}
 CreateAlertChoiceRow(sc, alertEnemyColorButtons, {
     { key = "GREEN", label = "Green", tooltip = "Use a green flash." },
     { key = "YELLOW", label = "Yellow", tooltip = "Use a yellow flash." },
     { key = "RED", label = "Red", tooltip = "Use a red flash." },
-}, 8, -112, 162, function(value)
+}, 8, -138, 162, function(value)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.enemyFlashColor = value
 end)
 
-local enemyStyleLabel = CreateAlertLabel(sc, "Flash Style", 8, -140)
+local enemyStyleLabel = CreateAlertLabel(sc, "Flash Style", 8, -166)
 local alertEnemyStyleButtons = {}
 CreateAlertChoiceRow(sc, alertEnemyStyleButtons, {
     { key = "SMOOTH", label = "Smooth", tooltip = "Subtle border-edge flash." },
     { key = "AGGRESSIVE", label = "Aggressive", tooltip = "Full-screen pulsing flash." },
-}, 8, -156, 162, function(value)
+}, 8, -182, 162, function(value)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.enemyFlashStyle = value
 end)
 
-local enemySoundCheckbox, enemySoundLabel = CreateAlertCheck(sc, "Play Sound", 8, -185, function(self)
+local enemySoundCheckbox, enemySoundLabel = CreateAlertCheck(sc, "Play Sound", 8, -211, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.enemyPlaySound = self:GetChecked() and true or false
 end)
 DetaurBar.UI.SetSimpleTooltip(enemySoundCheckbox, "Play Sound", "Play a sound when a new enemy is detected.")
 
-local enemySoundChoiceLabel = CreateAlertLabel(sc, "Select Sound", 8, -211)
+local enemySoundChoiceLabel = CreateAlertLabel(sc, "Select Sound", 8, -237)
 local alertEnemySoundButtons = {}
 CreateAlertChoiceRow(sc, alertEnemySoundButtons, {
     { key = "RaidWarning", label = "Raid", tooltip = "Play the Raid Warning sound." },
     { key = "ReadyCheck", label = "Ready", tooltip = "Play the Ready Check sound." },
-}, 8, -227, 162, function(value)
+}, 8, -253, 162, function(value)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.enemySound = value
 end)
@@ -971,10 +985,12 @@ local enemyMindControlCheckbox, enemyMindControlLabel = CreateAlertCheck(sc, "Al
     settings.mindControlAlertEnabled = self:GetChecked() and true or false
 end)
 enemyMindControlCheckbox:ClearAllPoints()
-enemyMindControlCheckbox:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -275)
+enemyMindControlCheckbox:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -300)
 
 local alertEnemyControls = {
     enemyEnableCheckbox, enemyEnableLabel,
+    enemyShowCastCheckbox, enemyShowCastLabel,
+    enemyShowCastDivider,
     enemySectionLabel,
     enemyFlashCheckbox, enemyFlashLabel,
     enemyColorLabel,
@@ -1356,15 +1372,23 @@ DetaurBar.UI.SetSimpleTooltip(debuffsEnableCheckbox, "Enable debuff tracking", "
 table.insert(alertDebuffsControls, debuffsEnableCheckbox)
 table.insert(alertDebuffsControls, debuffsEnableLabel)
 
+DetaurBar.UI.debuffsShowAllCheckbox, DetaurBar.UI.debuffsShowAllLabel = CreateAlertCheck(sc, "Show everything", 8, -30, function(self)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    settings.debuffsShowEverything = self:GetChecked() and true or false
+end)
+DetaurBar.UI.SetSimpleTooltip(DetaurBar.UI.debuffsShowAllCheckbox, "Show everything", "When unchecked, only shows debuffs from your current target.")
+table.insert(alertDebuffsControls, DetaurBar.UI.debuffsShowAllCheckbox)
+table.insert(alertDebuffsControls, DetaurBar.UI.debuffsShowAllLabel)
+
 -- Input box for spell ID
-local debuffsInputLabel = CreateAlertLabel(sc, "Spell ID (press Enter to add)", 8, -40)
+local debuffsInputLabel = CreateAlertLabel(sc, "Spell ID (press Enter to add)", 8, -62)
 debuffsInputLabel:SetFontObject("GameFontNormalSmall")
 debuffsInputLabel:SetTextColor(0.6, 0.6, 0.6, 1.0)
 table.insert(alertDebuffsControls, debuffsInputLabel)
 
 local debuffsInputEdit = CreateFrame("EditBox", nil, DetaurBar.UI.alertScrollChild, "InputBoxTemplate")
 debuffsInputEdit:SetSize(80, 20)
-debuffsInputEdit:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -60)
+debuffsInputEdit:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -82)
 debuffsInputEdit:SetAutoFocus(false)
 debuffsInputEdit:SetScript("OnEnterPressed", function(self)
     local text = self:GetText()
@@ -1421,7 +1445,7 @@ for row = 1, ROWS do
         local idx = (row - 1) * COLS + col
         local slot = CreateFrame("Button", nil, sc)
         slot:SetSize(slotSize, slotSize)
-        slot:SetPoint("TOPLEFT", sc, "TOPLEFT", 8 + (col - 1) * (slotSize + slotGap), -88 - (row - 1) * (slotSize + slotGap))
+        slot:SetPoint("TOPLEFT", sc, "TOPLEFT", 8 + (col - 1) * (slotSize + slotGap), -110 - (row - 1) * (slotSize + slotGap))
         slot:SetBackdrop({
             bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
             edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -1606,6 +1630,7 @@ function DetaurBar.UI.UpdateAlertPanel()
     -- Update debuffs slot icons
     if DetaurBar.UI.activeAlertSubTab == "Debuffs" then
         debuffsEnableCheckbox:SetChecked(settings.debuffsEnabled and 1 or nil)
+        DetaurBar.UI.debuffsShowAllCheckbox:SetChecked(settings.debuffsShowEverything ~= false and 1 or nil)
         for i, slot in ipairs(debuffsSlots) do
             local data = settings.debuffsSlots and settings.debuffsSlots[i]
             if data and data.spellId then

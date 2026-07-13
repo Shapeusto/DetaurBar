@@ -184,7 +184,10 @@ local function AddOrUpdateEnemy(name, level, class, spellName, activityText)
     if level and level > 0 then enemy.level = level end
     if class then enemy.class = class end
     enemy.last = now
-    enemy.activity = activityText or spellName or "Detected"
+    local showCastSetting = DetaurBarDB and DetaurBarDB.settings and DetaurBarDB.settings.enemyShowCast ~= false
+    if showCastSetting then
+        enemy.activity = activityText or spellName or "Detected"
+    end
 end
 
 -- Combat log parsing
@@ -395,6 +398,8 @@ function DetaurBar.Enemy.UpdateMonitor()
     if not monitorFrame or not monitorFrame:IsShown() then return end
     if not DetaurBar.Enemy.RebuildDisplay then return end
 
+    local showCast = DetaurBarDB and DetaurBarDB.settings and DetaurBarDB.settings.enemyShowCast ~= false
+
     updatingMonitor = true
     DetaurBar.Enemy.RebuildDisplay()
 
@@ -452,7 +457,14 @@ function DetaurBar.Enemy.UpdateMonitor()
         row.infoText:SetText(lvl)
         row.infoText:SetTextColor(0.75, 0.75, 0.75, 1.0)
 
-        row.activityText:SetText("[" .. (enemy.activity or "Detected") .. "]")
+        if showCast then
+            row.activityText:SetText("[" .. (enemy.activity or "Detected") .. "]")
+            row.activityText:Show()
+        else
+            row.activityText:SetText("")
+            row.activityText:Hide()
+            enemy.activity = nil
+        end
         row.activityText:SetTextColor(0.5, 0.5, 0.7, 1.0)
     end
 
@@ -477,6 +489,12 @@ function DetaurBar.Enemy.RebuildDisplay()
         end
     end
     table.sort(enemyDisplay, function(a, b) return a.last > b.last end)
+end
+
+function DetaurBar.Enemy.ClearActivities()
+    for _, e in pairs(enemies) do
+        e.activity = nil
+    end
 end
 
 function DetaurBar.Enemy.ShowMonitor()
