@@ -986,6 +986,7 @@ local enemyMindControlCheckbox, enemyMindControlLabel = CreateAlertCheck(sc, "Al
 end)
 enemyMindControlCheckbox:ClearAllPoints()
 enemyMindControlCheckbox:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -300)
+DetaurBar.UI.SetSimpleTooltip(enemyMindControlCheckbox, "Alert Mind Control", "Show a center-screen text alert when a party or raid member gets Mind Controlled.")
 
 local alertEnemyControls = {
     enemyEnableCheckbox, enemyEnableLabel,
@@ -1364,8 +1365,8 @@ local alertDebuffsControls = {}
 local debuffsEnableCheckbox, debuffsEnableLabel = CreateAlertCheck(sc, "Enable debuff tracking", 8, -8, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.debuffsEnabled = self:GetChecked() and true or false
-    if not settings.debuffsEnabled and DetaurBar.Debuffs and DetaurBar.Debuffs.ResetActiveAuras then
-        DetaurBar.Debuffs.ResetActiveAuras()
+    if DetaurBar.Debuffs and DetaurBar.Debuffs.SetActive then
+        DetaurBar.Debuffs.SetActive(settings.debuffsEnabled)
     end
 end)
 DetaurBar.UI.SetSimpleTooltip(debuffsEnableCheckbox, "Enable debuff tracking", "Track enemy buffs/debuffs and show icons in the upper center of the screen.")
@@ -1740,7 +1741,7 @@ function DetaurBar.UI.UpdateAlertScroll()
     elseif DetaurBar.UI.activeAlertSubTab == "Random" then
         contentHeight = 380
     elseif DetaurBar.UI.activeAlertSubTab == "Enemy" then
-        contentHeight = 300
+        contentHeight = 340
     elseif DetaurBar.UI.activeAlertSubTab == "Buffs" then
         contentHeight = 220
     elseif DetaurBar.UI.activeAlertSubTab == "Item" then

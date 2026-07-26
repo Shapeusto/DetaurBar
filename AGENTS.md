@@ -40,6 +40,7 @@ You are a code assistant specialized in World of Warcraft addon development for 
 - `CreateFontString()` — returns a FontString, NOT a Frame. FontStrings do NOT have `SetScript()`. Do NOT call `SetScript` or `SetSimpleTooltip` (which calls `SetScript`) on FontStrings.
 - **Lua 5.1 upvalue limit (60)** — functions that reference many local variables from enclosing scopes hit "more than 60 upvalues" error. Fix: move references to a global table (e.g. `DetaurBar.UI.xxx`) instead of direct local references.
 - `COMBAT_LOG_EVENT_UNFILTERED` in 3.3.5a — does NOT have `timestamp` or `hideCaster` parameters. The order is: `eventType(string), sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags, spellId, spellName, [spellSchool]`. The Enemy module (`DetaurBar_UI_Enemy.lua:191`) uses the correct pattern.
+- **Backdrop `insets` shrink the bgFile, not the frame** — when a frame has `SetBackdrop({ insets = { right = 3 } })`, the bgFile texture only fills the area 3px inside the frame's right edge. The frame's own positioning and hit-rect are unaffected. If you anchor another element relative to the frame's right edge, the visible dark area will be 3px narrower than the frame. Always adjust anchor offsets to compensate when the backdrop bgFile must visually cover a neighboring element (e.g., `listBackground` x-offset must be `24` instead of `20` to cover scrollbar when `insets.right = 3`).
 
 ## File Structure
 
@@ -51,7 +52,7 @@ You are a code assistant specialized in World of Warcraft addon development for 
 | `DetaurBar_UI_Todo.lua` | Todo sub-tabs (Day/Week/Month) + SelectTodoSubTab |
 | `DetaurBar_UI_Notes.lua` | Notes sub-tabs (General/War/Guild) + drag-to-move + SelectNotesSubTab |
 | `DetaurBar_UI_Loot.lua` | Loot sub-tabs (Add/Delete) + deleteAllGraysCheckbox + SelectLootSubTab |
-| `DetaurBar_UI_Price.lua` | Price item sub-tabs (Notifications/Order/Chart), graph panel, threshold row, AH interval, price sub-tabs, all price functions |
+| `DetaurBar_UI_Price.lua` | Price item sub-tabs (News/Order/Chart/Bank), graph panel, threshold row, AH interval, price sub-tabs, bank grid/scan, all price functions |
 | `DetaurBar_UI_Settings.lua` | Alert panel (Dung/Raid/WG/Random/Enemy/Buffs/Item sub-tabs, flash alerts, flash frames) |
 | `DetaurBar_UI_Buffs.lua` | Buffs tracking: cooldown expiry alerts, stacking buff change alerts, center-screen icon display |
 | `DetaurBar_UI_Debuffs.lua` | Debuffs tracking: COMBAT_LOG_EVENT_UNFILTERED hook, center-screen icon pool (10 slots, y=200), stack counting, hostile-only filter |
@@ -73,7 +74,7 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - Panel has 4 sub-tabs: **Loot**, **Alert**, **Price**, **Various**
 - **Settings > Loot**: 2 checkboxes (Add, Delete) — default both checked, unchecking hides the corresponding sub-tab from the Loot tab
 - **Settings > Alert**: 9 checkboxes (Dung, Raid, WG, Arena, Random, Enemy, Buffs, Debuffs, Item) — default all checked, unchecking hides the corresponding sub-tab from the Settings/Alert tab
-- **Settings > Price**: 3 checkboxes (Notifications, Chart, Order) — default all checked, unchecking hides the corresponding sub-tab from the Price tab
+- **Settings > Price**: 3 checkboxes (News, Chart, Bank) — default all checked, unchecking hides the corresponding sub-tab from the Price tab
 - **Settings > Various**: 3 checkboxes (Autosell junk and autorepair, Show alerts in chat, Scan auction house) — persistent v `DetaurBarDB.settings.*`
 - State stored in `DetaurBarDB.settings.lootSubTabsVisible`, `DetaurBarDB.settings.priceSubTabsVisible`, and `DetaurBarDB.settings.alertSubTabsVisible`
 - Toggle via gear button; closes on tab switch
@@ -100,24 +101,27 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - SavedVariable: `DetaurBarDB.price` (list of tracked items)
 - SavedVariable: `DetaurBarDB.priceHistory[itemId][timestampStr] = copperPerItem`
 - Category string: `"price"`
-- **Three sub-tabs: Notifications / Chart / Order**
-- **Notifications sub-tab**: Auto-populated alert list (items below threshold)
+- **Three sub-tabs: News / Chart / Bank**
+- **News sub-tab**: Auto-populated alert list (items below threshold)
   - Shows item icon, name, current price in gold
   - No graph, no time filters — clean compact list
   - Delete (X) removes from Low price AND clears threshold
-- **Order sub-tab**: Reorder tracked items with up/down arrow buttons
-  - Shows full item list with no delete, no thresholds, no graph
-  - Each row has up (↑) and down (↓) arrows to reorder
-  - Click up = move item up in the list; click down = move item down
-  - Order is shared with Chart (same data source)
-- **Chart sub-tab**: Full tracking with threshold management
+- **Chart sub-tab**: Full tracking with threshold management, order mode toggle (up/down arrow reordering in Chart itself)
   - Split layout: scrollable item list, threshold row, time filters, graph panel (120px)
   - **Threshold row** (above time filters): selected item icon + name + 4-digit gold input + gold icon + OK (✓) / Clear (X)
   - Click item row = expand/collapse price graph + auto-selects item in threshold row
   - Items with thresholds show `[Xg]` next to name
   - Sub-tab bar: **Daily**, **Weekly**, **Monthly**, **Yearly**
   - Graph: dot-stepping lines, 3 X/Y axis labels
-- AH auto-scan: every N minutes when AH opened (page 0 only), configurable in Price > Notifications
+- **Bank sub-tab**: Scans bags, personal bank, and guild bank for items with count ≥ threshold
+  - Threshold input box (numeric) at top — changing threshold instantly refilters
+  - 6×6 item grid (36 slots) with icons and counts, sorted by count descending
+  - Auto-scan on login, bank open, guild bank open
+  - Persistent cache (`DetaurBarDB.bankCache`) stores per-source counts (personal/bank/guildbank)
+  - 3 source checkboxes (Personal, Bank, Guildbank) arranged vertically below the grid — filter which sources contribute to display
+  - Horizontal divider between grid and checkboxes
+  - Works with Bagnon addon
+- AH auto-scan: every N minutes when AH opened (page 0 only), configurable in Price > News
 
 ### Alert tab
 - 9 sub-tabs: **Dung**, **Raid**, **WG**, **Arena**, **Random**, **Enemy**, **Buffs**, **Debuffs**, **Item** (visibility controlled by Settings Menu > Alert)
@@ -156,6 +160,7 @@ DetaurBarDB = {
     notes = { general = {}, war = {}, guild = {} },
     loot = {},
     sell = {},          -- legacy, may still have data
+    bankCache = { [itemId] = { personal = count, bank = count, guildbank = count } },   -- Price > Bank scan cache (per-source counts)
     price = {},         -- list of tracked items (same format as buy)
     priceHistory = {
         [itemId] = {
@@ -170,9 +175,14 @@ DetaurBarDB = {
         dungeonFlashColor = "YELLOW",
         dungeonFlashDuration = 0,
         ahScanInterval = 10,
+        bankThreshold = 30,
+        bankSources = { Personal = true, Bank = true, Guildbank = true },
+        chartGraphVisible = true,
+        chartThresholdVisible = true,
+        chartOrderMode = false,
         lootSubTabsVisible = { Add = true, Delete = true },
-        priceSubTabsVisible = { Notifications = true, Chart = true, Order = true },
-        alertSubTabsVisible = { Dung = true, Raid = true, WG = true, Arena = true, Random = true, Enemy = true, Buffs = true, Item = true },
+        priceSubTabsVisible = { News = true, Chart = true, Bank = true },
+        alertSubTabsVisible = { Dung = true, Raid = true, WG = true, Arena = true, Random = true, Enemy = true, Buffs = true, Debuffs = true, Item = true },
         wgAlertsEnabled = true,
         wgAlert1Minutes = 15,
         wgAlert1Duration = 2,

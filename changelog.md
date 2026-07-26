@@ -1,5 +1,68 @@
 # Changelog
 
+## 2026-07-26 — Scrollbar overhang fix (listBackground backdrop inset), Chart toolbar
+
+### Added
+- **Price > Chart toolbar**: three toggle icon buttons (Graph, Threshold, Order mode) below the price sub-tab bar, visible only in Chart sub-tab
+- **Graph toggle** (book icon): show/hide the price history graph section and time-filter sub-tab bar
+- **Threshold toggle** (coin icon): show/hide the price threshold row
+- **Order mode toggle** (arrow icon): switch between threshold mode and reorder mode (up/down arrows) within Chart sub-tab, replicating Order sub-tab functionality
+- Visual ON/OFF state on toggle buttons (gold border = ON, dark border = OFF)
+- Toolbar hidden when settings panel is open or non-Price tab is active
+- Settings: `chartGraphVisible`, `chartThresholdVisible`, `chartOrderMode` saved in `DetaurBarDB.settings`
+
+### Changed
+- Chart sub-tab rows respect `chartOrderMode`: up/down arrows replace delete button when order mode is active
+- `swapBtn`/`downBtn` click handlers and tooltips work in Chart sub-tab when `chartOrderMode` is true
+
+### Fixed
+- **Chart toolbar icons**: icon textures changed from `SetAllPoints(btn)` (22×22) to `SetSize(16, 16)` centered — no longer protrude past button border
+- **Chart toolbar order toggle**: replaced broken texture `INV_Misc_Arrow_01` (does not exist in 3.3.5a) with `UI-ScrollBar-ScrollUpButton-Up`
+
+### Removed
+- **Price > Order sub-tab**: fully removed — no longer needed since order mode is accessible via Chart toolbar toggle (order mode toggle button)
+- Removed "Order" from `priceItemSubTabNames`, `priceKeys` (Settings > Price checkboxes), and `priceSubTabsVisible` defaults
+- Removed all Order sub-tab dead code: `SelectPriceItemSubTab` Order branch, `UpdateContentAnchors` Order branch, `RefreshTasks` Order rendering block, row OnClick/swap/down btn Order conditions, placeholder text check
+
+### Fixed
+- **Chart toolbar**: replaced semi-transparent texture backdrop with proper frame backdrop (solid dark + border) so icons don't visually overlap with item list
+- **Chart layout**: scroll frame now positioned below toolbar (TOPLEFT at -120 instead of -88) — no overlap with item rows
+- **Chart layout**: `priceThresholdRow` re-anchored to frame bottom when graph is hidden, preventing gaps
+- **Chart layout**: scroll frame bottom extends dynamically — when both graph and threshold are hidden, scroll fills full width below toolbar to near frame bottom
+- **Scrollbar overhang when threshold toggle OFF**: `listBackground` backdrop uses `insets = { right = 3 }`, so the dark bgFile ends 3px before the frame's right edge. Anchor offset `20` only covered scrollbar to its midpoint. Changed `listBackground` BOTTOMRIGHT x-offset from `20` to `24` so the dark area extends 1px past the scrollbar's right edge, eliminating the visible overhang.
+
+## 2026-07-26 — Bank scan fixes
+
+### Fixed
+- **Bank scan**: opening guild bank no longer clears bank counts (only sources being rescanned are cleared)
+- **Bank scan**: opening bank no longer clears guild bank counts
+- **Bank scan**: old combined-format migration now sets all per-source counts to 0 (next scan populates them correctly) instead of copying the old combined count to all sources
+- Alert > Enemy: Alert Mind Control checkbox was outside the scroll area (contentHeight 300 → 340)
+
+### Added
+- Alert > Enemy: **Alert Mind Control** checkbox now has a tooltip explaining functionality
+
+## 2026-07-25 — Price > Bank sub-tab
+
+### Added
+- **Price > Bank sub-tab**: scans bags, personal bank, and guild bank for items with count ≥ threshold
+- **Persistent cache** (`DetaurBarDB.bankCache`): stores all found items and counts, survives reload
+- **6×6 grid** (36 slots) showing item icons + count, sorted by count descending
+- **Threshold input** (numeric EditBox) — items filtered by threshold on display; changing threshold instantly refilters (no data loss)
+- **Auto-scan** on login (`PLAYER_LOGIN`), bank open (`BANKFRAME_OPENED`), guild bank open (`GUILDBANKFRAME_OPENED`)
+- Guild bank scan works with **Bagnon** addon (no `GuildBankFrame` dependency)
+- Settings > Price: **Bank** checkbox to show/hide the sub-tab
+- **3 source checkboxes** (Personal, Bank, Guildbank) below the grid with horizontal divider — filter which sources contribute to display
+- Per-source cache: counts stored separately per source (`DetaurBarDB.bankCache[itemId] = { personal, bank, guildbank }`)
+- Old cache format auto-migrated on access
+
+### Changed
+- Cache stores all scanned items regardless of threshold; threshold applied only at display time via `BuildBankDisplayList()`
+- Cache format changed from `{ [itemId] = count }` to `{ [itemId] = { personal, bank, guildbank } }`
+
+### Fixed
+- `ScanBankItems` now pre-clears ALL source counts (personal, bank, guildbank) before merging fresh scan data — only items actually found in the current scan retain their counts. Fixes stale data: "Personal" showing guild-bank-only items, "Bank" showing stale guild bank data, etc.
+
 ## 2026-07-13 — Debuffs "Show Everything", Enemy "Show cast", Price Order sub-tab
 
 ### Added
@@ -8,7 +71,7 @@
   - No delete, no thresholds, no graph — clean reorder-only view
   - Order changes are shared with Chart (same data source)
   - Order is the third (last) sub-tab, after Chart
-- **Settings > Price** sub-tab: 3 checkboxes (Notifications, Chart, Order) — show/hide Price sub-tabs, same pattern as Settings > Loot
+- **Settings > Price** sub-tab: 3 checkboxes (News, Chart, Order) — show/hide Price sub-tabs, same pattern as Settings > Loot
   - Price sub-tab widths adapt to visible count on tab switch (like Loot)
 - **Alert > Debuffs > Show Everything** checkbox: unchecked = only show debuffs from current target (filters out irrelevant nearby units)
 - **Alert > Enemy > Show cast** checkbox: unchecked = hide casting/activity text in the enemy monitor window

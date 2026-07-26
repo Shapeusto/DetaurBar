@@ -137,12 +137,12 @@ local function CheckThresholds(itemId, minBuyout)
                 if minBuyout <= t then
                     if not item.frequent then
                         item.frequent = true
-                        print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " dropped below " .. item.threshold .. "g threshold! Added to Notifications.")
+                        print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " dropped below " .. item.threshold .. "g threshold! Added to News.")
                     end
                 else
                     if item.frequent then
                         item.frequent = nil
-                        print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " rose above " .. item.threshold .. "g threshold! Removed from Notifications.")
+                        print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " rose above " .. item.threshold .. "g threshold! Removed from News.")
                     end
                 end
             end
@@ -151,12 +151,12 @@ local function CheckThresholds(itemId, minBuyout)
                 if minBuyout >= th then
                     if not item.frequentHigh then
                         item.frequentHigh = true
-                        print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " rose above " .. item.thresholdHigh .. "g threshold! Added to Notifications.")
+                        print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " rose above " .. item.thresholdHigh .. "g threshold! Added to News.")
                     end
                 else
                     if item.frequentHigh then
                         item.frequentHigh = nil
-                        print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " dropped below " .. item.thresholdHigh .. "g threshold! Removed from Notifications.")
+                        print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " dropped below " .. item.thresholdHigh .. "g threshold! Removed from News.")
                     end
                 end
             end
@@ -179,7 +179,7 @@ local function ClearStaleThresholds(itemId)
         if iid == itemId then
             if item.frequent then
                 item.frequent = nil
-                print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " - not found on AH (probably bought out). Removed from Notifications.")
+                print("|cffffff00DetaurBar:|r " .. (item.title or "Item") .. " - not found on AH (probably bought out). Removed from News.")
             end
         end
     end

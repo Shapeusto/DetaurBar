@@ -119,6 +119,21 @@ function DetaurBar.Data.InitializeDB()
     if DetaurBarDB.settings.dungeonFlashDuration == nil then
         DetaurBarDB.settings.dungeonFlashDuration = 0
     end
+    if not DetaurBarDB.settings.bankThreshold then
+        DetaurBarDB.settings.bankThreshold = 30
+    end
+    if not DetaurBarDB.settings.bankSources then
+        DetaurBarDB.settings.bankSources = { Personal = true, Bank = true, Guildbank = true }
+    end
+    if DetaurBarDB.settings.chartGraphVisible == nil then
+        DetaurBarDB.settings.chartGraphVisible = true
+    end
+    if DetaurBarDB.settings.chartThresholdVisible == nil then
+        DetaurBarDB.settings.chartThresholdVisible = true
+    end
+    if DetaurBarDB.settings.chartOrderMode == nil then
+        DetaurBarDB.settings.chartOrderMode = false
+    end
     if not DetaurBarDB.settings.ahScanInterval then
         DetaurBarDB.settings.ahScanInterval = 10
     end
@@ -231,7 +246,7 @@ function DetaurBar.Data.InitializeDB()
         DetaurBarDB.settings.lootSubTabsVisible = { ["Add"] = true, ["Delete"] = true }
     end
     if not DetaurBarDB.settings.priceSubTabsVisible then
-        DetaurBarDB.settings.priceSubTabsVisible = { ["Notifications"] = true, ["Chart"] = true, ["Order"] = true }
+        DetaurBarDB.settings.priceSubTabsVisible = { ["News"] = true, ["Chart"] = true, ["Bank"] = true }
     end
     if not DetaurBarDB.settings.alertSubTabsVisible then
         DetaurBarDB.settings.alertSubTabsVisible = { ["Dung"] = true, ["Raid"] = true, ["WG"] = true, ["Random"] = true, ["Enemy"] = true, ["Buffs"] = true, ["Debuffs"] = true, ["Item"] = true, ["Arena"] = true }

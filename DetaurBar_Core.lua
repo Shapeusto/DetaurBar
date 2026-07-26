@@ -25,6 +25,8 @@ eventFrame:RegisterEvent("MERCHANT_SHOW")
 eventFrame:RegisterEvent("ARENA_OPPONENT_UPDATE")
 eventFrame:RegisterEvent("READY_CHECK")
 eventFrame:RegisterEvent("START_LOOT_ROLL")
+eventFrame:RegisterEvent("BANKFRAME_OPENED")
+eventFrame:RegisterEvent("GUILDBANKFRAME_OPENED")
 local arenaFlashShown = false
 
 local function GetSettingsTable()
@@ -51,6 +53,9 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
             end
             return false
         end)
+        if DetaurBar.UI and DetaurBar.UI.ScanBankItems then
+            DetaurBar.UI.ScanBankItems(true)
+        end
         self:UnregisterEvent("PLAYER_LOGIN")
 
     elseif event == "GET_ITEM_INFO_RECEIVED" then
@@ -175,6 +180,16 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
         local settings = GetSettingsTable()
         if settings.autoSellRepairEnabled then
             DetaurBar.Core.AutoSellAndRepair()
+        end
+
+    elseif event == "BANKFRAME_OPENED" then
+        if DetaurBar.UI and DetaurBar.UI.ScanBankItems then
+            DetaurBar.UI.ScanBankItems()
+        end
+
+    elseif event == "GUILDBANKFRAME_OPENED" then
+        if DetaurBar.UI and DetaurBar.UI.ScanBankItems then
+            DetaurBar.UI.ScanBankItems()
         end
 
     end
@@ -402,11 +417,18 @@ SlashCmdList["DETAURDEBUG"] = function(msg)
         .. " wg2=" .. tostring(settings.wgAlert2Minutes) .. "m/"
         .. tostring(settings.wgAlert2PlaySound)
         .. "/" .. tostring(settings.wgAlert2Sound))
-    print("|cffffff00Debuffs:|r enabled=" .. tostring(settings.debuffsEnabled))
+    print("|cffffff00Debuffs:|r enabled=" .. tostring(settings.debuffsEnabled)
+        .. " showEverything=" .. tostring(settings.debuffsShowEverything))
     local slots = settings.debuffsSlots or {}
     local count = 0
     for _ in pairs(slots) do count = count + 1 end
     print("  tracked spells: " .. count)
+    local active = DetaurBar.Debuffs and DetaurBar.Debuffs.GetActiveAuras and DetaurBar.Debuffs.GetActiveAuras()
+    if active then
+        local ac = 0
+        for _ in pairs(active) do ac = ac + 1 end
+        print("  active auras: " .. ac)
+    end
     for idx, data in pairs(slots) do
         if data then
             print("  [" .. idx .. "] " .. (data.name or "?") .. " (ID:" .. (data.spellId or "?") .. ")")
