@@ -356,6 +356,13 @@ local function CreateMonitor()
     monitorEmptyText:SetText("No Enemies Detected")
     monitorEmptyText:SetTextColor(0.5, 0.5, 0.5, 1.0)
 
+    monitorWGText = monitorFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    monitorWGText:SetPoint("TOPLEFT", monitorFrame, "TOPLEFT", 18, 15)
+    monitorWGText:SetPoint("TOPRIGHT", monitorFrame, "TOPRIGHT", -40, 15)
+    monitorWGText:SetJustifyH("LEFT")
+    monitorWGText:SetTextColor(1.0, 0.82, 0.0, 1.0)
+    monitorWGText:Hide()
+
     -- Pre-create all row buttons with SecureActionButtonTemplate
     -- SetAttribute is called only inside PreClick (secure context) to avoid taint.
     for i = 1, MAX_ENEMIES do
@@ -398,6 +405,23 @@ function DetaurBar.Enemy.UpdateMonitor()
     if not monitorFrame or not monitorFrame:IsShown() then return end
     if not DetaurBar.Enemy.RebuildDisplay then return end
 
+    -- Wintergrasp countdown timer at the top of the monitor
+    local settings = DetaurBarDB and DetaurBarDB.settings
+    if settings and settings.wgShowTimeOnEnemyTracker and DetaurBar.Alerts and DetaurBar.Alerts.GetWintergraspRemainingSeconds then
+        local remaining = DetaurBar.Alerts.GetWintergraspRemainingSeconds()
+        if remaining then
+            local mins = math.floor(remaining / 60)
+            local secs = remaining % 60
+            monitorWGText:SetText("Wintergrasp: " .. mins .. "m " .. ("%02d"):format(secs) .. "s")
+            monitorWGText:Show()
+        else
+            monitorWGText:SetText("Wintergrasp: unknown")
+            monitorWGText:Show()
+        end
+    else
+        monitorWGText:Hide()
+    end
+
     local showCast = DetaurBarDB and DetaurBarDB.settings and DetaurBarDB.settings.enemyShowCast ~= false
 
     updatingMonitor = true
@@ -407,6 +431,7 @@ function DetaurBar.Enemy.UpdateMonitor()
     local spacing = 1
     local count = math.min(#enemyDisplay, MAX_ENEMIES)
     local innerTop = 14
+    if monitorWGText:IsShown() then innerTop = 14 end
     local bottomPad = 14
 
     if #enemyDisplay == 0 then

@@ -107,6 +107,9 @@ function DetaurBar.Data.InitializeDB()
     if not DetaurBarDB.priceHistory then
         DetaurBarDB.priceHistory = {}
     end
+    if not DetaurBarDB.priceLists then
+        DetaurBarDB.priceLists = { ["Default"] = true }
+    end
     if not DetaurBarDB.settings then
         DetaurBarDB.settings = {}
     end
@@ -140,8 +143,14 @@ function DetaurBar.Data.InitializeDB()
     if DetaurBarDB.settings.ahScanningEnabled == nil then
         DetaurBarDB.settings.ahScanningEnabled = true
     end
+    if not DetaurBarDB.settings.scanEnabledLists then
+        DetaurBarDB.settings.scanEnabledLists = { ["Default"] = true }
+    end
     if DetaurBarDB.settings.wgAlertsEnabled == nil then
         DetaurBarDB.settings.wgAlertsEnabled = false
+    end
+    if DetaurBarDB.settings.wgShowTimeOnEnemyTracker == nil then
+        DetaurBarDB.settings.wgShowTimeOnEnemyTracker = false
     end
     if not DetaurBarDB.settings.wgAlert1Minutes then
         DetaurBarDB.settings.wgAlert1Minutes = 15
@@ -246,7 +255,7 @@ function DetaurBar.Data.InitializeDB()
         DetaurBarDB.settings.lootSubTabsVisible = { ["Add"] = true, ["Delete"] = true }
     end
     if not DetaurBarDB.settings.priceSubTabsVisible then
-        DetaurBarDB.settings.priceSubTabsVisible = { ["News"] = true, ["Chart"] = true, ["Bank"] = true }
+        DetaurBarDB.settings.priceSubTabsVisible = { ["News"] = true, ["Chart"] = true, ["Bank"] = true, ["List"] = true }
     end
     if not DetaurBarDB.settings.alertSubTabsVisible then
         DetaurBarDB.settings.alertSubTabsVisible = { ["Dung"] = true, ["Raid"] = true, ["WG"] = true, ["Random"] = true, ["Enemy"] = true, ["Buffs"] = true, ["Debuffs"] = true, ["Item"] = true, ["Arena"] = true }

@@ -41,6 +41,8 @@ You are a code assistant specialized in World of Warcraft addon development for 
 - **Lua 5.1 upvalue limit (60)** — functions that reference many local variables from enclosing scopes hit "more than 60 upvalues" error. Fix: move references to a global table (e.g. `DetaurBar.UI.xxx`) instead of direct local references.
 - `COMBAT_LOG_EVENT_UNFILTERED` in 3.3.5a — does NOT have `timestamp` or `hideCaster` parameters. The order is: `eventType(string), sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags, spellId, spellName, [spellSchool]`. The Enemy module (`DetaurBar_UI_Enemy.lua:191`) uses the correct pattern.
 - **Backdrop `insets` shrink the bgFile, not the frame** — when a frame has `SetBackdrop({ insets = { right = 3 } })`, the bgFile texture only fills the area 3px inside the frame's right edge. The frame's own positioning and hit-rect are unaffected. If you anchor another element relative to the frame's right edge, the visible dark area will be 3px narrower than the frame. Always adjust anchor offsets to compensate when the backdrop bgFile must visually cover a neighboring element (e.g., `listBackground` x-offset must be `24` instead of `20` to cover scrollbar when `insets.right = 3`).
+- `GetWorldPVPAreaInfo(id)` — does **not exist** in 3.3.5a.
+- `GetWorldStateValue(id)` — does **not exist** in 3.3.5a. World state system is not exposed via Lua API. Wintergrasp faction control cannot be queried programmatically.
 
 ## File Structure
 
@@ -74,7 +76,7 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - Panel has 4 sub-tabs: **Loot**, **Alert**, **Price**, **Various**
 - **Settings > Loot**: 2 checkboxes (Add, Delete) — default both checked, unchecking hides the corresponding sub-tab from the Loot tab
 - **Settings > Alert**: 9 checkboxes (Dung, Raid, WG, Arena, Random, Enemy, Buffs, Debuffs, Item) — default all checked, unchecking hides the corresponding sub-tab from the Settings/Alert tab
-- **Settings > Price**: 3 checkboxes (News, Chart, Bank) — default all checked, unchecking hides the corresponding sub-tab from the Price tab
+- **Settings > Price**: 4 checkboxes (News, Chart, Bank, List) — default all checked, unchecking hides the corresponding sub-tab from the Price tab
 - **Settings > Various**: 3 checkboxes (Autosell junk and autorepair, Show alerts in chat, Scan auction house) — persistent v `DetaurBarDB.settings.*`
 - State stored in `DetaurBarDB.settings.lootSubTabsVisible`, `DetaurBarDB.settings.priceSubTabsVisible`, and `DetaurBarDB.settings.alertSubTabsVisible`
 - Toggle via gear button; closes on tab switch
@@ -101,7 +103,7 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - SavedVariable: `DetaurBarDB.price` (list of tracked items)
 - SavedVariable: `DetaurBarDB.priceHistory[itemId][timestampStr] = copperPerItem`
 - Category string: `"price"`
-- **Three sub-tabs: News / Chart / Bank**
+- **Four sub-tabs: News / Chart / Bank / List**
 - **News sub-tab**: Auto-populated alert list (items below threshold)
   - Shows item icon, name, current price in gold
   - No graph, no time filters — clean compact list
@@ -113,6 +115,9 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
   - Items with thresholds show `[Xg]` next to name
   - Sub-tab bar: **Daily**, **Weekly**, **Monthly**, **Yearly**
   - Graph: dot-stepping lines, 3 X/Y axis labels
+  - **Toolbar icons** (left side): Graph toggle, Threshold toggle, Order mode toggle, Scan filter toggle (4th icon)
+  - **Scan filter toggle**: opens checkbox panel below toolbar — one checkbox per list. Checked lists are included in AH scanning. Panel closes on sub-tab switch and hides the item list while open.
+  - **List selector dropdown** (right side of toolbar): filter items by list. "Default" shows only items without a list assignment.
 - **Bank sub-tab**: Scans bags, personal bank, and guild bank for items with count ≥ threshold
   - Threshold input box (numeric) at top — changing threshold instantly refilters
   - 6×6 item grid (36 slots) with icons and counts, sorted by count descending
@@ -121,6 +126,9 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
   - 3 source checkboxes (Personal, Bank, Guildbank) arranged vertically below the grid — filter which sources contribute to display
   - Horizontal divider between grid and checkboxes
   - Works with Bagnon addon
+- **List sub-tab**: Create and manage custom item lists (dropdown selector + add/delete). Items added while a specific list is selected get tagged with `list = "ListName"` and only appear in that list (hidden from Default).
+  - Delete button shows confirmation dialog (YES/NO) before removing a list
+  - DB structure: `DetaurBarDB.priceLists = { ["Default"] = true, ["Gems"] = true, ... }`
 - AH auto-scan: every N minutes when AH opened (page 0 only), configurable in Price > News
 
 ### Alert tab
@@ -129,7 +137,7 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - **Dung sub-tab**: Enable screen flash on LFG proposal, flash duration, flash color (Green/Yellow/Red)
 - **Arena sub-tab**: Enable screen flash on arena match start (`ARENA_OPPONENT_UPDATE`), flash duration, flash color (Green/Yellow/Red)
 - **Raid sub-tab**: Raid roll/ready-check alerts with flash style, duration, color, sound
-- **WG sub-tab**: Wintergrasp alerts, Registration Warning (minutes, flash duration, flash color, play sound, select sound), Battle Start Warning (minutes, flash duration, flash color, play sound, select sound)
+- **WG sub-tab**: Wintergrasp alerts, **Show time in enemy tracker** checkbox (displays WG countdown at top of enemy monitor), Registration Warning (minutes, flash duration, flash color, play sound, select sound), Battle Start Warning (minutes, flash duration, flash color, play sound, select sound)
 - **Random sub-tab**: Enable random alerts, list of named alerts (each with interval, flash duration, flash color, play sound, select sound), Add/Delete buttons, click to select active alert
 - **Enemy sub-tab**: Enable enemy detection, **Show cast** checkbox (monitor window shows cast/nearby activity), screen flash (enable/disable), flash color (Green/Yellow/Red), flash style (Smooth/Aggressive), play sound (enable/disable), select sound (Raid/Ready), **Alert Mind Control** checkbox (center-screen text when party/raid member gets Mind Controlled)
 - **Buffs sub-tab**: Enable buff/cooldown tracking, 5×2 drag-from-spellbook cooldown slots (10 slots, icon + close X), Follow Stacks checkbox, center-screen icon display on cooldown expiry or stack change, "Dont hide unused" checkbox + timeout, 1×4 drag-from-bags item cooldown slots (potion/flask/elixir)
@@ -146,6 +154,7 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - Left-click row = targets the enemy via SecureActionButtonTemplate macro
 - Right-click row = dismisses enemy from the list (session-only)
 - Eye icon toggle (center-right of monitor) synced bidirectionally with Alert > Enemy > Enable checkbox
+- WG countdown shown at the top when Alert > WG > Show time in enemy tracker is enabled (gold text, updates every 1s)
 - Enemies fade after 120s of inactivity
 - Max 10 enemies shown
 - **Aggressive flash**: fullscreen pulsing (pulsating 0.18–1.0 alpha over 2.6s)
@@ -171,19 +180,19 @@ DetaurBarDB = {
     framePosition = { point, relativePoint, xOfs, yOfs },
     lastResetDay = number,
     settings = {
+        chartGraphVisible = true,
+        chartThresholdVisible = true,
+        chartOrderMode = false,
         dungeonFlashEnabled = false,
         dungeonFlashColor = "YELLOW",
         dungeonFlashDuration = 0,
         ahScanInterval = 10,
-        bankThreshold = 30,
-        bankSources = { Personal = true, Bank = true, Guildbank = true },
-        chartGraphVisible = true,
-        chartThresholdVisible = true,
-        chartOrderMode = false,
+        scanEnabledLists = { ["Default"] = true },
         lootSubTabsVisible = { Add = true, Delete = true },
-        priceSubTabsVisible = { News = true, Chart = true, Bank = true },
+        priceSubTabsVisible = { News = true, Chart = true, Bank = true, List = true },
         alertSubTabsVisible = { Dung = true, Raid = true, WG = true, Arena = true, Random = true, Enemy = true, Buffs = true, Debuffs = true, Item = true },
         wgAlertsEnabled = true,
+        wgShowTimeOnEnemyTracker = false,
         wgAlert1Minutes = 15,
         wgAlert1Duration = 2,
         wgAlert1Color = "YELLOW",
@@ -245,6 +254,7 @@ Each item in a list is:
 - Ignores 0-result events (Auctioneer interference)
 - Shows progress bar anchored below AH frame during scan
 - After scan: calls `DetaurBar.UI.RefreshTasks()` to update graph
+- List filtering: only items whose list is in `DetaurBarDB.settings.scanEnabledLists` are scanned. "Default" checkbox controls items without a list. Unchecked lists are skipped.
 
 ## Price Graph (DetaurBar_UI_Graph.lua)
 

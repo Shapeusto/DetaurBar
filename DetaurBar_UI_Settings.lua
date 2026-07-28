@@ -546,51 +546,57 @@ end)
 -- ============================================
 --  SETTINGS CONTROLS: Wintergrasp sub-tab
 -- ============================================
-local wgEnableCheckbox, wgEnableLabel = CreateAlertCheck(sc, "Enable Wintergrasp Alerts", 8, -8, function(self)
+local wgShowTimeCheckbox, wgShowTimeLabel = CreateAlertCheck(sc, "Show time in enemy tracker", 8, -8, function(self)
+    local settings = DetaurBar.UI.GetSettingsDB()
+    settings.wgShowTimeOnEnemyTracker = self:GetChecked() and true or false
+end)
+DetaurBar.UI.SetSimpleTooltip(wgShowTimeCheckbox, "Show time in enemy tracker", "Display the Wintergrasp countdown at the top of the enemy monitor window.")
+
+local wgEnableCheckbox, wgEnableLabel = CreateAlertCheck(sc, "Enable Wintergrasp Alerts", 8, -32, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.wgAlertsEnabled = self:GetChecked() and true or false
 end)
 DetaurBar.UI.SetSimpleTooltip(wgEnableCheckbox, "Enable Wintergrasp Alerts", "Run background Wintergrasp countdown checks and fire warnings when the threshold is reached.")
 
-local wgSectionLabel = CreateAlertLabel(sc, "Registration Warning", 8, -40)
+local wgSectionLabel = CreateAlertLabel(sc, "Registration Warning", 8, -64)
 
-local wgAlert1MinutesLabel, wgAlert1MinutesEdit = CreateAlertEditRow(sc, "Minutes before start", 8, -68, 36, 3, function(self)
+local wgAlert1MinutesLabel, wgAlert1MinutesEdit = CreateAlertEditRow(sc, "Minutes before start", 8, -92, 36, 3, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.wgAlert1Minutes = DetaurBar.UI.ClampNumber(self:GetText(), 15, 0, 120)
     self:SetText(tostring(settings.wgAlert1Minutes))
 end)
 DetaurBar.UI.SetSimpleTooltip(wgAlert1MinutesEdit, "Registration Warning", "Minutes before battle start to flash the screen.")
 
-local wgAlert1DurationLabel, wgAlert1DurationEdit = CreateAlertEditRow(sc, "Flash duration", 8, -96, 36, 3, function(self)
+local wgAlert1DurationLabel, wgAlert1DurationEdit = CreateAlertEditRow(sc, "Flash duration", 8, -120, 36, 3, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.wgAlert1Duration = DetaurBar.UI.ClampNumber(self:GetText(), 2, 0, 30)
     self:SetText(tostring(settings.wgAlert1Duration))
 end)
 DetaurBar.UI.SetSimpleTooltip(wgAlert1DurationEdit, "Flash Duration", "How long the Wintergrasp registration warning should flash.")
 
-local wgAlert1ColorLabel = CreateAlertLabel(sc, "Flash Color", 8, -124)
+local wgAlert1ColorLabel = CreateAlertLabel(sc, "Flash Color", 8, -148)
 
 local alertWGColorButtons = {}
 CreateAlertChoiceRow(sc, alertWGColorButtons, {
     { key = "GREEN", label = "Green", tooltip = "Use a green Wintergrasp flash." },
     { key = "YELLOW", label = "Yellow", tooltip = "Use a yellow Wintergrasp flash." },
     { key = "RED", label = "Red", tooltip = "Use a red Wintergrasp flash." },
-}, 8, -140, 162, function(value)
+}, 8, -164, 162, function(value)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.wgAlert1Color = value
 end)
 
-local wgAlert1SoundCheckbox, wgAlert1SoundLabel = CreateAlertCheck(sc, "Play Sound", 8, -168, function(self)
+local wgAlert1SoundCheckbox, wgAlert1SoundLabel = CreateAlertCheck(sc, "Play Sound", 8, -192, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.wgAlert1PlaySound = self:GetChecked() and true or false
 end)
 DetaurBar.UI.SetSimpleTooltip(wgAlert1SoundCheckbox, "Play Sound Alert", "Play a sound when the Registration Warning threshold is reached.")
 
-local wgAlert1SoundChoiceLabel = CreateAlertLabel(sc, "Select Sound", 8, -194)
+local wgAlert1SoundChoiceLabel = CreateAlertLabel(sc, "Select Sound", 8, -218)
 CreateAlertChoiceRow(sc, alertWGAlert1SoundButtons, {
     { key = "RaidWarning", label = "Raid", tooltip = "Play the Raid Warning sound." },
     { key = "ReadyCheck", label = "Ready", tooltip = "Play the Ready Check sound." },
-}, 8, -210, 162, function(value)
+}, 8, -234, 162, function(value)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.wgAlert1Sound = value
 end)
@@ -601,45 +607,45 @@ wgDivider:SetPoint("TOP", alertWGAlert1SoundButtons.ReadyCheck, "BOTTOM", 0, -10
 wgDivider:SetPoint("LEFT", sc, "LEFT", 10)
 wgDivider:SetPoint("RIGHT", sc, "RIGHT", -10)
 
-local wgStartLabel = CreateAlertLabel(sc, "Battle Start Warning", 8, -262)
+local wgStartLabel = CreateAlertLabel(sc, "Battle Start Warning", 8, -286)
 
-local wgAlert2MinutesLabel, wgAlert2MinutesEdit = CreateAlertEditRow(sc, "Minutes before start", 8, -290, 36, 3, function(self)
+local wgAlert2MinutesLabel, wgAlert2MinutesEdit = CreateAlertEditRow(sc, "Minutes before start", 8, -314, 36, 3, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.wgAlert2Minutes = DetaurBar.UI.ClampNumber(self:GetText(), 1, 0, 120)
     self:SetText(tostring(settings.wgAlert2Minutes))
 end)
 DetaurBar.UI.SetSimpleTooltip(wgAlert2MinutesEdit, "Battle Start Warning", "Minutes before battle start to play the selected sound.")
 
-local wgAlert2DurationLabel, wgAlert2DurationEdit = CreateAlertEditRow(sc, "Flash duration", 8, -318, 36, 3, function(self)
+local wgAlert2DurationLabel, wgAlert2DurationEdit = CreateAlertEditRow(sc, "Flash duration", 8, -342, 36, 3, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.wgAlert2Duration = DetaurBar.UI.ClampNumber(self:GetText(), 0, 0, 30)
     self:SetText(tostring(settings.wgAlert2Duration))
 end)
 DetaurBar.UI.SetSimpleTooltip(wgAlert2DurationEdit, "Flash Duration", "How long the Battle Start Warning should flash. Set 0 for no flash.")
 
-local wgAlert2ColorLabel = CreateAlertLabel(sc, "Flash Color", 8, -346)
+local wgAlert2ColorLabel = CreateAlertLabel(sc, "Flash Color", 8, -370)
 CreateAlertChoiceRow(sc, alertWGAlert2ColorButtons, {
     { key = "GREEN", label = "Green", tooltip = "Use a green flash." },
     { key = "YELLOW", label = "Yellow", tooltip = "Use a yellow flash." },
     { key = "RED", label = "Red", tooltip = "Use a red flash." },
-}, 8, -362, 162, function(value)
+}, 8, -386, 162, function(value)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.wgAlert2Color = value
 end)
 
-local wgSoundCheckbox, wgSoundLabel = CreateAlertCheck(sc, "Play Sound", 8, -390, function(self)
+local wgSoundCheckbox, wgSoundLabel = CreateAlertCheck(sc, "Play Sound", 8, -414, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.wgAlert2PlaySound = self:GetChecked() and true or false
 end)
 DetaurBar.UI.SetSimpleTooltip(wgSoundCheckbox, "Play Sound Alert", "Play a sound when the Wintergrasp start threshold is reached.")
 
-local wgSoundChoiceLabel = CreateAlertLabel(sc, "Select Sound", 8, -416)
+local wgSoundChoiceLabel = CreateAlertLabel(sc, "Select Sound", 8, -440)
 
 local alertSoundButtons = {}
 CreateAlertChoiceRow(sc, alertSoundButtons, {
     { key = "RaidWarning", label = "Raid", tooltip = "Play the Raid Warning sound." },
     { key = "ReadyCheck", label = "Ready", tooltip = "Play the Ready Check sound." },
-}, 8, -432, 162, function(value)
+}, 8, -456, 162, function(value)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.wgAlert2Sound = value
 end)
@@ -719,21 +725,21 @@ local function SetAlertControlsVisible(group, visible)
 end
 DetaurBar.UI.SetAlertControlsVisible = SetAlertControlsVisible
 
-local alertDungeonControls = {
+DetaurBar.UI.alertDungeonControls = {
     dungeonEnableCheckbox, dungeonEnableLabel,
     dungeonColorLabel,
     dungeonDurationLabel, dungeonDurationEdit,
     dungeonColorRow.GREEN, dungeonColorRow.YELLOW, dungeonColorRow.RED,
 }
 
-local alertArenaControls = {
+DetaurBar.UI.alertArenaControls = {
     arenaEnableCheckbox, arenaEnableLabel,
     arenaColorLabel,
     arenaDurationLabel, arenaDurationEdit,
     arenaColorRow.GREEN, arenaColorRow.YELLOW, arenaColorRow.RED,
 }
 
-local alertRaidControls = {
+DetaurBar.UI.alertRaidControls = {
     raidRollCheckbox, raidRollLabel,
     raidRollColorLabel,
     alertRaidRollColorButtons.GREEN, alertRaidRollColorButtons.YELLOW, alertRaidRollColorButtons.RED,
@@ -755,7 +761,8 @@ local alertRaidControls = {
     alertRaidReadySoundButtons.RaidWarning, alertRaidReadySoundButtons.ReadyCheck,
 }
 
-local alertWintergraspControls = {
+DetaurBar.UI.alertWintergraspControls = {
+    wgShowTimeCheckbox, wgShowTimeLabel,
     wgEnableCheckbox, wgEnableLabel,
     wgSectionLabel,
     wgAlert1MinutesLabel, wgAlert1MinutesEdit,
@@ -889,7 +896,7 @@ randomDeleteButton:SetScript("OnClick", function()
     end
 end)
 
-local alertRandomControls = {
+DetaurBar.UI.alertRandomControls = {
     randomEnableCheckbox, randomEnableLabel,
     randomIntervalLabel, randomIntervalEdit,
     randomDurationLabel, randomDurationEdit,
@@ -988,7 +995,7 @@ enemyMindControlCheckbox:ClearAllPoints()
 enemyMindControlCheckbox:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -300)
 DetaurBar.UI.SetSimpleTooltip(enemyMindControlCheckbox, "Alert Mind Control", "Show a center-screen text alert when a party or raid member gets Mind Controlled.")
 
-local alertEnemyControls = {
+DetaurBar.UI.alertEnemyControls = {
     enemyEnableCheckbox, enemyEnableLabel,
     enemyShowCastCheckbox, enemyShowCastLabel,
     enemyShowCastDivider,
@@ -1008,21 +1015,21 @@ local alertEnemyControls = {
 -- ============================================
 --  SETTINGS CONTROLS: Buffs sub-tab
 -- ============================================
-local alertBuffsControls = {}
+DetaurBar.UI.alertBuffsControls = {}
 
 local buffsEnableCheckbox, buffsEnableLabel = CreateAlertCheck(sc, "Enable Cooldown Tracking", 8, -8, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.buffsEnabled = self:GetChecked() and true or false
 end)
 DetaurBar.UI.SetSimpleTooltip(buffsEnableCheckbox, "Enable Buff/Cooldown Tracking", "Show center-screen icons when cooldowns expire or stacking buffs change.")
-table.insert(alertBuffsControls, buffsEnableCheckbox)
-table.insert(alertBuffsControls, buffsEnableLabel)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsEnableCheckbox)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsEnableLabel)
 
 -- Section: Cooldowns
 local buffsCooldownLabel = CreateAlertLabel(sc, "Cooldown Slots (drag spells from spellbook)", 8, -40)
 buffsCooldownLabel:SetFontObject("GameFontNormalSmall")
 buffsCooldownLabel:SetTextColor(0.6, 0.6, 0.6, 1.0)
-table.insert(alertBuffsControls, buffsCooldownLabel)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsCooldownLabel)
 
 local buffsSpellSlots = {}
 local slotGap = 8
@@ -1096,7 +1103,7 @@ for row = 1, buffsRows do
         slot.closeX = closeX
 
         buffsSpellSlots[i] = slot
-        table.insert(alertBuffsControls, slot)
+        table.insert(DetaurBar.UI.alertBuffsControls, slot)
     end
 end
 
@@ -1105,7 +1112,7 @@ local buffsDivider = CreateSectionDivider(sc)
 buffsDivider:SetPoint("TOP", buffsSpellSlots[buffsCols * (buffsRows - 1) + 1], "BOTTOM", 0, -12)
 buffsDivider:SetPoint("LEFT", sc, "LEFT", 10)
 buffsDivider:SetPoint("RIGHT", sc, "RIGHT", -10)
-table.insert(alertBuffsControls, buffsDivider)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsDivider)
 
 -- Show maelstorm stack checkbox
 local buffsStacksCheckbox, buffsStacksLabel = CreateAlertCheck(sc, "Show maelstorm stack", 0, 0, function(self)
@@ -1115,8 +1122,8 @@ end)
 buffsStacksCheckbox:ClearAllPoints()
 buffsStacksCheckbox:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -64 - (buffsRows - 1) * (slotSize + slotGap) - slotSize - 20)
 DetaurBar.UI.SetSimpleTooltip(buffsStacksCheckbox, "Show maelstorm stack", "Show icon center-screen when Maelstrom Weapon reaches 5 stacks.")
-table.insert(alertBuffsControls, buffsStacksCheckbox)
-table.insert(alertBuffsControls, buffsStacksLabel)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsStacksCheckbox)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsStacksLabel)
 
 -- dont hide unused checkbox
 local buffsDontHideCheckbox, buffsDontHideLabel = CreateAlertCheck(sc, "Dont hide unused", 0, 0, function(self)
@@ -1126,9 +1133,9 @@ end)
 buffsDontHideCheckbox:ClearAllPoints()
 buffsDontHideCheckbox:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -64 - (buffsRows - 1) * (slotSize + slotGap) - slotSize - 44)
 DetaurBar.UI.SetSimpleTooltip(buffsDontHideCheckbox, "Dont hide unused", "Center-screen icons stay visible until the spell is used again or timeout expires.")
-table.insert(alertBuffsControls, buffsDontHideCheckbox)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsDontHideCheckbox)
 DetaurBar.UI.buffsDontHideCheckbox = buffsDontHideCheckbox
-table.insert(alertBuffsControls, buffsDontHideLabel)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsDontHideLabel)
 
 -- timeout edit row
 local buffsTimeoutLabel, buffsTimeoutEdit = CreateAlertEditRow(sc, "Timeout (minutes)", 0, 0, 36, 3, function(self)
@@ -1142,22 +1149,22 @@ buffsTimeoutLabel:ClearAllPoints()
 buffsTimeoutLabel:SetPoint("TOPLEFT", sc, "TOPLEFT", 10, -64 - (buffsRows - 1) * (slotSize + slotGap) - slotSize - 68)
 buffsTimeoutEdit:ClearAllPoints()
 buffsTimeoutEdit:SetPoint("LEFT", buffsTimeoutLabel, "RIGHT", 8, 0)
-table.insert(alertBuffsControls, buffsTimeoutLabel)
-table.insert(alertBuffsControls, buffsTimeoutEdit)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsTimeoutLabel)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsTimeoutEdit)
 DetaurBar.UI.buffsTimeoutEdit = buffsTimeoutEdit
 
 -- item cooldown divider
 local buffsItemDivider = CreateSectionDivider(sc)
 buffsItemDivider:SetPoint("TOPLEFT", sc, "TOPLEFT", 10, -236)
 buffsItemDivider:SetPoint("RIGHT", sc, "RIGHT", -10)
-table.insert(alertBuffsControls, buffsItemDivider)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsItemDivider)
 
 -- item cooldown label
 local buffsItemLabel = sc:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 buffsItemLabel:SetPoint("TOPLEFT", sc, "TOPLEFT", 10, -252)
 buffsItemLabel:SetText("Item Cooldowns")
 buffsItemLabel:SetTextColor(0.6, 0.6, 0.6)
-table.insert(alertBuffsControls, buffsItemLabel)
+table.insert(DetaurBar.UI.alertBuffsControls, buffsItemLabel)
 
 -- item cooldown slots (1x4)
 local buffsItemSlotSize = 28
@@ -1227,26 +1234,26 @@ for col = 1, buffsItemCols do
 
     buffsItemSlots[idx] = slot
     DetaurBar.UI.buffsItemCooldownSlots = buffsItemSlots
-    table.insert(alertBuffsControls, slot)
+    table.insert(DetaurBar.UI.alertBuffsControls, slot)
 end
 
 -- ============================================
 --  SETTINGS CONTROLS: Item tracking sub-tab
 -- ============================================
-local alertItemControls = {}
+DetaurBar.UI.alertItemControls = {}
 
 local itemTrackingEnableCheckbox, itemTrackingEnableLabel = CreateAlertCheck(sc, "Enable Item Tracking", 8, -8, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.itemTrackingEnabled = self:GetChecked() and true or false
 end)
 DetaurBar.UI.SetSimpleTooltip(itemTrackingEnableCheckbox, "Enable Item Tracking", "Track item quantities in bags and get chat alerts when low.")
-table.insert(alertItemControls, itemTrackingEnableCheckbox)
-table.insert(alertItemControls, itemTrackingEnableLabel)
+table.insert(DetaurBar.UI.alertItemControls, itemTrackingEnableCheckbox)
+table.insert(DetaurBar.UI.alertItemControls, itemTrackingEnableLabel)
 
 local itemSlotsLabel = CreateAlertLabel(sc, "Item Slots (drag items from bags)", 8, -40)
 itemSlotsLabel:SetFontObject("GameFontNormalSmall")
 itemSlotsLabel:SetTextColor(0.6, 0.6, 0.6, 1.0)
-table.insert(alertItemControls, itemSlotsLabel)
+table.insert(DetaurBar.UI.alertItemControls, itemSlotsLabel)
 
 local itemTrackSlots = {}
 local slotGap = 8
@@ -1314,7 +1321,7 @@ for row = 1, ROWS do
         slot.closeX = closeX
 
         itemTrackSlots[idx] = slot
-        table.insert(alertItemControls, slot)
+        table.insert(DetaurBar.UI.alertItemControls, slot)
     end
 end
 
@@ -1323,7 +1330,7 @@ local itemDivider = CreateSectionDivider(sc)
 itemDivider:SetPoint("TOP", itemTrackSlots[COLS * (ROWS - 1) + 1], "BOTTOM", 0, -12)
 itemDivider:SetPoint("LEFT", sc, "LEFT", 10)
 itemDivider:SetPoint("RIGHT", sc, "RIGHT", -10)
-table.insert(alertItemControls, itemDivider)
+table.insert(DetaurBar.UI.alertItemControls, itemDivider)
 
 -- Interval edit (below divider)
 local itemIntervalLabel, itemIntervalEdit = CreateAlertEditRow(sc, "Alert interval (minutes)", 8, -4, 50, 4, function(self)
@@ -1336,8 +1343,8 @@ itemIntervalLabel:ClearAllPoints()
 itemIntervalLabel:SetPoint("TOPLEFT", itemDivider, "BOTTOMLEFT", 10, -12)
 itemIntervalEdit:ClearAllPoints()
 itemIntervalEdit:SetPoint("LEFT", itemIntervalLabel, "RIGHT", 8, 0)
-table.insert(alertItemControls, itemIntervalLabel)
-table.insert(alertItemControls, itemIntervalEdit)
+table.insert(DetaurBar.UI.alertItemControls, itemIntervalLabel)
+table.insert(DetaurBar.UI.alertItemControls, itemIntervalEdit)
 
 -- Threshold edit (below interval)
 local itemThresholdLabel, itemThresholdEdit = CreateAlertEditRow(sc, "Alert threshold (count)", 8, -28, 50, 4, function(self)
@@ -1354,13 +1361,13 @@ itemThresholdLabel:ClearAllPoints()
 itemThresholdLabel:SetPoint("TOPLEFT", itemIntervalLabel, "BOTTOMLEFT", 0, -8)
 itemThresholdEdit:ClearAllPoints()
 itemThresholdEdit:SetPoint("LEFT", itemThresholdLabel, "RIGHT", 8, 0)
-table.insert(alertItemControls, itemThresholdLabel)
-table.insert(alertItemControls, itemThresholdEdit)
+table.insert(DetaurBar.UI.alertItemControls, itemThresholdLabel)
+table.insert(DetaurBar.UI.alertItemControls, itemThresholdEdit)
 
 -- ============================================
 --  SETTINGS CONTROLS: Debuffs sub-tab
 -- ============================================
-local alertDebuffsControls = {}
+DetaurBar.UI.alertDebuffsControls = {}
 
 local debuffsEnableCheckbox, debuffsEnableLabel = CreateAlertCheck(sc, "Enable debuff tracking", 8, -8, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
@@ -1370,22 +1377,22 @@ local debuffsEnableCheckbox, debuffsEnableLabel = CreateAlertCheck(sc, "Enable d
     end
 end)
 DetaurBar.UI.SetSimpleTooltip(debuffsEnableCheckbox, "Enable debuff tracking", "Track enemy buffs/debuffs and show icons in the upper center of the screen.")
-table.insert(alertDebuffsControls, debuffsEnableCheckbox)
-table.insert(alertDebuffsControls, debuffsEnableLabel)
+table.insert(DetaurBar.UI.alertDebuffsControls, debuffsEnableCheckbox)
+table.insert(DetaurBar.UI.alertDebuffsControls, debuffsEnableLabel)
 
 DetaurBar.UI.debuffsShowAllCheckbox, DetaurBar.UI.debuffsShowAllLabel = CreateAlertCheck(sc, "Show everything", 8, -30, function(self)
     local settings = DetaurBar.UI.GetSettingsDB()
     settings.debuffsShowEverything = self:GetChecked() and true or false
 end)
 DetaurBar.UI.SetSimpleTooltip(DetaurBar.UI.debuffsShowAllCheckbox, "Show everything", "When unchecked, only shows debuffs from your current target.")
-table.insert(alertDebuffsControls, DetaurBar.UI.debuffsShowAllCheckbox)
-table.insert(alertDebuffsControls, DetaurBar.UI.debuffsShowAllLabel)
+table.insert(DetaurBar.UI.alertDebuffsControls, DetaurBar.UI.debuffsShowAllCheckbox)
+table.insert(DetaurBar.UI.alertDebuffsControls, DetaurBar.UI.debuffsShowAllLabel)
 
 -- Input box for spell ID
 local debuffsInputLabel = CreateAlertLabel(sc, "Spell ID (press Enter to add)", 8, -62)
 debuffsInputLabel:SetFontObject("GameFontNormalSmall")
 debuffsInputLabel:SetTextColor(0.6, 0.6, 0.6, 1.0)
-table.insert(alertDebuffsControls, debuffsInputLabel)
+table.insert(DetaurBar.UI.alertDebuffsControls, debuffsInputLabel)
 
 local debuffsInputEdit = CreateFrame("EditBox", nil, DetaurBar.UI.alertScrollChild, "InputBoxTemplate")
 debuffsInputEdit:SetSize(80, 20)
@@ -1433,7 +1440,7 @@ end)
 debuffsInputEdit:SetScript("OnEditFocusLost", function(self)
     self:SetText("")
 end)
-table.insert(alertDebuffsControls, debuffsInputEdit)
+table.insert(DetaurBar.UI.alertDebuffsControls, debuffsInputEdit)
 
 -- 5x5 grid of slots
 local debuffsSlots = {}
@@ -1494,7 +1501,7 @@ for row = 1, ROWS do
         slot.closeX = closeX
 
         debuffsSlots[idx] = slot
-        table.insert(alertDebuffsControls, slot)
+        table.insert(DetaurBar.UI.alertDebuffsControls, slot)
     end
 end
 
@@ -1510,15 +1517,15 @@ function DetaurBar.UI.SelectAlertSubTab(subTabName)
         alertScrollBar:SetValue(0)
     end
 
-    SetAlertControlsVisible(alertDungeonControls, subTabName == "Dung")
-    SetAlertControlsVisible(alertArenaControls, subTabName == "Arena")
-    SetAlertControlsVisible(alertRaidControls, subTabName == "Raid")
-    SetAlertControlsVisible(alertWintergraspControls, subTabName == "WG")
-    SetAlertControlsVisible(alertRandomControls, subTabName == "Random")
-    SetAlertControlsVisible(alertEnemyControls, subTabName == "Enemy")
-    SetAlertControlsVisible(alertBuffsControls, subTabName == "Buffs")
-    SetAlertControlsVisible(alertItemControls, subTabName == "Item")
-    SetAlertControlsVisible(alertDebuffsControls, subTabName == "Debuffs")
+    SetAlertControlsVisible(DetaurBar.UI.alertDungeonControls, subTabName == "Dung")
+    SetAlertControlsVisible(DetaurBar.UI.alertArenaControls, subTabName == "Arena")
+    SetAlertControlsVisible(DetaurBar.UI.alertRaidControls, subTabName == "Raid")
+    SetAlertControlsVisible(DetaurBar.UI.alertWintergraspControls, subTabName == "WG")
+    SetAlertControlsVisible(DetaurBar.UI.alertRandomControls, subTabName == "Random")
+    SetAlertControlsVisible(DetaurBar.UI.alertEnemyControls, subTabName == "Enemy")
+    SetAlertControlsVisible(DetaurBar.UI.alertBuffsControls, subTabName == "Buffs")
+    SetAlertControlsVisible(DetaurBar.UI.alertItemControls, subTabName == "Item")
+    SetAlertControlsVisible(DetaurBar.UI.alertDebuffsControls, subTabName == "Debuffs")
 
     if DetaurBar.UI.UpdateContentAnchors then
         DetaurBar.UI.UpdateContentAnchors()
@@ -1555,6 +1562,7 @@ function DetaurBar.UI.UpdateAlertPanel()
     raidReadySoundCheckbox:SetChecked(settings.raidReadyCheckAlertPlaySound and 1 or nil)
     DetaurBar.UI.SetButtonGroupValue(alertRaidReadySoundButtons, settings.raidReadyCheckAlertSound or "RaidWarning")
 
+    wgShowTimeCheckbox:SetChecked(settings.wgShowTimeOnEnemyTracker and 1 or nil)
     wgEnableCheckbox:SetChecked(settings.wgAlertsEnabled and 1 or nil)
     wgAlert1MinutesEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.wgAlert1Minutes, 15, 0, 120)))
     wgAlert1DurationEdit:SetText(tostring(DetaurBar.UI.ClampNumber(settings.wgAlert1Duration, 2, 0, 30)))
@@ -1589,15 +1597,15 @@ function DetaurBar.UI.UpdateAlertPanel()
     DetaurBar.UI.SetButtonGroupValue(alertEnemySoundButtons, settings.enemySound or "RaidWarning")
     enemyMindControlCheckbox:SetChecked(settings.mindControlAlertEnabled and 1 or nil)
 
-    DetaurBar.UI.SetAlertControlsVisible(alertDungeonControls, DetaurBar.UI.activeAlertSubTab == "Dung")
-    DetaurBar.UI.SetAlertControlsVisible(alertArenaControls, DetaurBar.UI.activeAlertSubTab == "Arena")
-    DetaurBar.UI.SetAlertControlsVisible(alertRaidControls, DetaurBar.UI.activeAlertSubTab == "Raid")
-    DetaurBar.UI.SetAlertControlsVisible(alertWintergraspControls, DetaurBar.UI.activeAlertSubTab == "WG")
-    DetaurBar.UI.SetAlertControlsVisible(alertRandomControls, DetaurBar.UI.activeAlertSubTab == "Random")
-    DetaurBar.UI.SetAlertControlsVisible(alertEnemyControls, DetaurBar.UI.activeAlertSubTab == "Enemy")
-    DetaurBar.UI.SetAlertControlsVisible(alertBuffsControls, DetaurBar.UI.activeAlertSubTab == "Buffs")
-    DetaurBar.UI.SetAlertControlsVisible(alertItemControls, DetaurBar.UI.activeAlertSubTab == "Item")
-    DetaurBar.UI.SetAlertControlsVisible(alertDebuffsControls, DetaurBar.UI.activeAlertSubTab == "Debuffs")
+    DetaurBar.UI.SetAlertControlsVisible(DetaurBar.UI.alertDungeonControls, DetaurBar.UI.activeAlertSubTab == "Dung")
+    DetaurBar.UI.SetAlertControlsVisible(DetaurBar.UI.alertArenaControls, DetaurBar.UI.activeAlertSubTab == "Arena")
+    DetaurBar.UI.SetAlertControlsVisible(DetaurBar.UI.alertRaidControls, DetaurBar.UI.activeAlertSubTab == "Raid")
+    DetaurBar.UI.SetAlertControlsVisible(DetaurBar.UI.alertWintergraspControls, DetaurBar.UI.activeAlertSubTab == "WG")
+    DetaurBar.UI.SetAlertControlsVisible(DetaurBar.UI.alertRandomControls, DetaurBar.UI.activeAlertSubTab == "Random")
+    DetaurBar.UI.SetAlertControlsVisible(DetaurBar.UI.alertEnemyControls, DetaurBar.UI.activeAlertSubTab == "Enemy")
+    DetaurBar.UI.SetAlertControlsVisible(DetaurBar.UI.alertBuffsControls, DetaurBar.UI.activeAlertSubTab == "Buffs")
+    DetaurBar.UI.SetAlertControlsVisible(DetaurBar.UI.alertItemControls, DetaurBar.UI.activeAlertSubTab == "Item")
+    DetaurBar.UI.SetAlertControlsVisible(DetaurBar.UI.alertDebuffsControls, DetaurBar.UI.activeAlertSubTab == "Debuffs")
 
     -- Update item tracking slot icons
     if DetaurBar.UI.activeAlertSubTab == "Item" then
@@ -1737,7 +1745,7 @@ function DetaurBar.UI.UpdateAlertScroll()
     elseif DetaurBar.UI.activeAlertSubTab == "Raid" then
         contentHeight = 470
     elseif DetaurBar.UI.activeAlertSubTab == "WG" then
-        contentHeight = 480
+        contentHeight = 504
     elseif DetaurBar.UI.activeAlertSubTab == "Random" then
         contentHeight = 380
     elseif DetaurBar.UI.activeAlertSubTab == "Enemy" then
@@ -1812,6 +1820,7 @@ function DetaurBar.UI.SaveSettings()
     for key, btn in pairs(alertRaidReadySoundButtons) do
         if not btn:IsEnabled() then settings.raidReadyCheckAlertSound = key; break end
     end
+    settings.wgShowTimeOnEnemyTracker = wgShowTimeCheckbox:GetChecked() and true or false
     settings.wgAlertsEnabled = wgEnableCheckbox:GetChecked() and true or false
     settings.wgAlert1Minutes = DetaurBar.UI.ClampNumber(wgAlert1MinutesEdit:GetText(), 15, 0, 120)
     settings.wgAlert1Duration = DetaurBar.UI.ClampNumber(wgAlert1DurationEdit:GetText(), 2, 0, 30)

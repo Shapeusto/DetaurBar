@@ -175,7 +175,7 @@ local function RebuildSettingsMenuCheckboxes()
             lab:SetTextColor(1, 0.82, 0, 1)
         end
     elseif active == "Price" then
-        local priceKeys = { "News", "Chart", "Bank" }
+        local priceKeys = { "News", "Chart", "Bank", "List" }
         for idx, key in ipairs(priceKeys) do
             local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
             cb:SetSize(20, 20)
@@ -621,6 +621,8 @@ function DetaurBar.UI.UpdateContentAnchors()
         if DetaurBar.UI.addButton then DetaurBar.UI.addButton:Hide() end
         if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
         if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+        if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
+        if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
         return
     end
     if DetaurBar.UI.settingsMenuPanel then DetaurBar.UI.settingsMenuPanel:Hide() end
@@ -632,6 +634,8 @@ function DetaurBar.UI.UpdateContentAnchors()
         if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
         if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
         if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+        if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
+        if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
         if DetaurBar.UI.alertSubTabBar then DetaurBar.UI.alertSubTabBar:Show() end
         if DetaurBar.UI.alertListBackground then DetaurBar.UI.alertListBackground:Show() end
         if DetaurBar.UI.alertScrollFrame then DetaurBar.UI.alertScrollFrame:Show() end
@@ -665,6 +669,8 @@ function DetaurBar.UI.UpdateContentAnchors()
     scrollFrame:ClearAllPoints()
     if activeTab == "Price" and DetaurBar.UI.activePriceItemSubTab == "Chart" then
         scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -120)
+    elseif activeTab == "Price" and DetaurBar.UI.activePriceItemSubTab == "List" then
+        scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -150)
     elseif activeTab == "Notes" or activeTab == "Price" then
         scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -88)
     elseif activeTab == "Loot" and DetaurBar.UI.activeLootSubTab == "Delete" then
@@ -720,6 +726,8 @@ function DetaurBar.UI.UpdateContentAnchors()
             if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
             if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
             if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+            if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
+            if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
             if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Show() end
             if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
         elseif DetaurBar.UI.activePriceItemSubTab == "Bank" then
@@ -729,8 +737,22 @@ function DetaurBar.UI.UpdateContentAnchors()
             if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
             if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
             if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+            if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
+            if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
             if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
             if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Show() end
+        elseif DetaurBar.UI.activePriceItemSubTab == "List" then
+            if scrollFrame then scrollFrame:Show() end
+            if DetaurBar.UI.listBackground then DetaurBar.UI.listBackground:Show() end
+            scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 50)
+            if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
+            if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
+            if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
+            if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+            if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Show() end
+            if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Show() end
+            if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
+            if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
         else
             -- Fallback (News-like default layout)
             if scrollFrame then scrollFrame:Show() end
@@ -740,6 +762,8 @@ function DetaurBar.UI.UpdateContentAnchors()
             if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
             if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
             if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+            if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
+            if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
             if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
             if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
         end
@@ -750,6 +774,8 @@ function DetaurBar.UI.UpdateContentAnchors()
         if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
         if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
         if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+        if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
+        if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
     else
         scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 50)
         if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
@@ -757,6 +783,8 @@ function DetaurBar.UI.UpdateContentAnchors()
         if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
         if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
         if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+        if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
+        if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
     end
 end
 
@@ -1278,6 +1306,20 @@ function DetaurBar.UI.RefreshTasks()
         end
     end
     local items = DetaurBar.Data.GetItems(category)
+    -- Filter price items by selected list (Chart or List sub-tab)
+    if category == "price" and DetaurBar.UI.activePriceItemSubTab ~= "News" and DetaurBar.UI.activePriceItemSubTab ~= "Bank" and DetaurBar.UI.activePriceListName then
+        local filtered = {}
+        for _, item in ipairs(items) do
+            if DetaurBar.UI.activePriceListName == "Default" then
+                if not item.list then
+                    table.insert(filtered, item)
+                end
+            elseif item.list == DetaurBar.UI.activePriceListName then
+                table.insert(filtered, item)
+            end
+        end
+        items = filtered
+    end
     if category == "price" and DetaurBar.UI.activePriceItemSubTab == "News" then
         local lowItems = {}
         local highItems = {}
@@ -1766,6 +1808,8 @@ function DetaurBar.UI.UpdateInputPlaceholder()
             placeholderText:SetText("Enter item to track...")
         elseif DetaurBar.UI.activePriceItemSubTab == "Bank" then
             placeholderText:SetText("")
+        elseif DetaurBar.UI.activePriceItemSubTab == "List" then
+            placeholderText:SetText("")
         else
             placeholderText:SetText("News (auto-populated)")
         end
@@ -1815,6 +1859,10 @@ function DetaurBar.UI.SelectTab(tabName)
         if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
         if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
         if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
+        if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+        if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
+        if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
+        if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
         if DetaurBar.UI.alertSubTabBar then DetaurBar.UI.alertSubTabBar:Show() end
         if DetaurBar.UI.alertPanel then DetaurBar.UI.alertPanel:Show() end
         if DetaurBar.UI.alertListBackground then DetaurBar.UI.alertListBackground:Show() end
@@ -1920,7 +1968,10 @@ function DetaurBar.UI.SelectTab(tabName)
         if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
         if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
         if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+        if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
+        if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
         if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
+        if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
         editBox:Show()
         addButton:Show()
         if DetaurBar.UI.alertPanel then DetaurBar.UI.alertPanel:Hide() end
@@ -1973,6 +2024,9 @@ function DetaurBar.UI.AddNewItem()
         if newItem and category == "price" and DetaurBar.UI.activePriceItemSubTab == "News" then
             newItem.frequent = true
         end
+        if newItem and category == "price" and DetaurBar.UI.activePriceItemSubTab == "List" and DetaurBar.UI.activePriceListName and DetaurBar.UI.activePriceListName ~= "Default" then
+            newItem.list = DetaurBar.UI.activePriceListName
+        end
         editBox:SetText("")
         editBox:ClearFocus()
         DetaurBar.UI.RefreshTasks()
@@ -2017,7 +2071,7 @@ end)
 function DetaurBar.UI.OnResize()
     DetaurBar.UI.UpdateTabAnchors()
     DetaurBar.UI.UpdateContentAnchors()
-    DetaurBar.UI.LayoutPriceSubTabs()
+    if DetaurBar.UI.LayoutPriceSubTabs then DetaurBar.UI.LayoutPriceSubTabs() end
     if DetaurBar.UI.alertSubTabBar then
         DetaurBar.UI.UpdateAlertSubTabBar()
     end

@@ -1,6 +1,46 @@
 # Changelog
 
-## 2026-07-26 — Scrollbar overhang fix (listBackground backdrop inset), Chart toolbar
+## 2026-07-27 — Scan filter toggle, list semantics fix
+
+### Added
+- **Chart toolbar 4th icon (scan filter toggle)**: click opens a checkbox panel below the toolbar with one checkbox per price list. Checked lists are included in AH scanning; unchecked lists are skipped. Positioned after the 3 existing toggle icons.
+- **`DetaurBarDB.settings.scanEnabledLists`**: table tracking which lists are enabled for AH scanning (`["Default"] = true` default). Each checkbox stores its enabled state directly.
+- **`RebuildScanFilterCheckboxes()`**: rebuilds the checkbox panel from `DetaurBarDB.priceLists` each time the icon is clicked. Panel has no backdrop border (clean dropdown appearance).
+- **`List` sub-tab delete confirmation**: delete button now shows `StaticPopupDialogs["DETAURBAR_DELETELIST"]` with YES/NO before removing a list.
+
+### Changed
+- **Default list semantics**: "Default" now shows only items WITHOUT a `list` field. Items in a specific list are hidden from Default view. This affects both Chart and List sub-tab displays (filtering in `RefreshTasks`).
+- **AH scan filter logic**: Default checkbox controls items without a list; each other checkbox controls only its own list. No more "Default overrides everything" — each checkbox independently filters its items.
+- **List dropdowns (Chart + List)**: "Default" no longer appears twice — static "Default" entry is already added, so `DetaurBarDB.priceLists["Default"]` is skipped during iteration.
+
+### Added
+- **AH Scan button**: "Scan AH" button (UIPanelButtonTemplate) on the right side of the AH Scan Interval row in Price > News. Immediately triggers a scan via `DetaurBar.AHScan.StartScan(true)` bypassing the interval timer. Always works even if "Scan auction house" is unchecked in Settings > Various.
+- **Scan AH button bypass**: `StartScan(force)` now skips the `ahScanningEnabled` check when `force=true`. Manual scan always works; "Scan auction house" checkbox only controls auto-scan.
+
+### Fixed
+- **Price > Bank grid icons misaligned**: icon size increased from 34×34 to 38×38, Y=-2 offset removed → icons now fill slot properly and are centered.
+- **Guild bank cache lost on reload**: `GetNumGuildBankTabs()` returns cached tab count even when guild bank is closed, causing `gbankAvailable = true` on login → all guildbank counts cleared without rescan. Fixed by adding `GuildBankFrame:IsShown()` check.
+- **`RebuildScanFilterCheckboxes` error**: `child:SetParent(nil)` called on FontStrings, which 3.3.5a does not allow. Changed to just `child:Hide()`.
+- **List dropdown showed "Default" twice**: both `InitChartListDropdown` and `InitListSubTabDropdown` added "Default" as a static entry first, then again from iterating `DetaurBarDB.priceLists`. Added `if name ~= "Default"` guard.
+
+## 2026-07-26 — Price List sub-tab & Chart list selector
+
+### Added
+- **Price > List sub-tab**: 4th price item sub-tab with list selector dropdown (left) and add-list input + button (right). Creating a new list adds it to `DetaurBarDB.priceLists`.
+- **Price > Chart toolbar**: list selector dropdown on the right side of the toolbar (next to the 3 toggle icons). Selecting a list filters Chart items to only those with matching `list` field.
+- **Default list**: always present, shows all tracked items (no filtering).
+- **DB field**: `DetaurBarDB.priceLists` — table of list names (`["Default"] = true`).
+- **Item list tagging**: each price item can have a `list` field; `"Default"` or nil = unfiltered.
+- **Settings > Price**: added "List" checkbox (default enabled).
+
+### Fixed
+- **Upvalue limit crash**: `UpdateAlertPanel` had >60 upvalues (Lua 5.1 limit) → file errored during load → `SelectAlertSubTab` stayed nil → tab switch to Settings crashed. Fixed by moving all 9 `alert*Controls` arrays from `local` to `DetaurBar.UI.*`, freeing 9 upvalue slots (~61 → ~52).
+- **Price sub-tab overlap**: `SelectPriceItemSubTab` no longer leaves elements visible from previous sub-tab. Added general cleanup at start that hides all sub-tab-specific panels, then each branch only shows what it needs.
+- **WG faction icon (reverted)**: attempted to add Horde/Alliance crest icon next to WG countdown, but neither `GetWorldPVPAreaInfo` nor `GetWorldStateValue` exist in 3.3.5a. Removed.
+- **WG text position**: moved `monitorWGText` from Y=-4 (inside frame) to Y=15 (above frame border) to prevent overlap with frame border.
+- **Price→Alert tab overlap**: `priceChartToolbar` and `bankPanel` not hidden when switching to Settings tab, causing overlap with Alert panel content. Added missing `Hide()` calls in `SelectTab` Settings branch. Also added `priceAhIntervalRow` to the non-Price `else` branch.
+
+## 2026-07-26 — WG countdown on enemy tracker, Chart toolbar icon fixes, Scrollbar fix
 
 ### Added
 - **Price > Chart toolbar**: three toggle icon buttons (Graph, Threshold, Order mode) below the price sub-tab bar, visible only in Chart sub-tab
@@ -10,6 +50,7 @@
 - Visual ON/OFF state on toggle buttons (gold border = ON, dark border = OFF)
 - Toolbar hidden when settings panel is open or non-Price tab is active
 - Settings: `chartGraphVisible`, `chartThresholdVisible`, `chartOrderMode` saved in `DetaurBarDB.settings`
+- **Alert > WG > "Show time in enemy tracker" checkbox**: when enabled, displays a Wintergrasp countdown (minutes:seconds) at the top of the enemy monitor window. Rows shift down to accommodate the timer. Countdown updates every 1s via the enemy detection OnUpdate loop. Exposed `GetWintergraspRemainingSeconds` on `DetaurBar.Alerts` for external access.
 
 ### Changed
 - Chart sub-tab rows respect `chartOrderMode`: up/down arrows replace delete button when order mode is active

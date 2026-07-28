@@ -304,17 +304,27 @@ end)
 -- StartScan — called when AH opens to kick off the scan
 --------------------------------------------------------------------------------
 
-function DetaurBar.AHScan.StartScan()
+function DetaurBar.AHScan.StartScan(force)
     local settings = DetaurBar.Data.GetSettings()
-    if not settings.ahScanningEnabled then return end
-    if (time() - lastScanTime) < GetAHScanIntervalSeconds() then return end
+    if not force and not settings.ahScanningEnabled then return end
+    if not force and (time() - lastScanTime) < GetAHScanIntervalSeconds() then return end
     local priceItems = DetaurBar.Data.GetItems("price")
+    local enabledLists = settings.scanEnabledLists or {}
     scanQueue = {}
     for _, item in ipairs(priceItems) do
         local itemId = tonumber(item.title:match("item:(%d+)"))
                     or tonumber(item.title:match("^%d+$") and item.title)
         if itemId then
-            table.insert(scanQueue, itemId)
+            local itemList = item.list
+            if itemList then
+                if enabledLists[itemList] then
+                    table.insert(scanQueue, itemId)
+                end
+            else
+                if enabledLists["Default"] then
+                    table.insert(scanQueue, itemId)
+                end
+            end
         end
     end
     scanTotal = #scanQueue

@@ -1,0 +1,44 @@
+(() => {
+    console.clear();
+    const vysledok = [];
+    const unikatneID = new Set();
+
+    // Vyhľadáme všetky elementy, ktoré obsahujú text s číslom bodov (X/Y)
+    const elementy = document.querySelectorAll('*');
+    elementy.forEach(el => {
+        if (el.children.length === 0 || (el.children.length > 0 && el.innerText.includes('/') && !el.innerHTML.includes('<div'))) {
+            const match = el.innerText.trim().match(/^(\d+)\s*\/\s*(\d+)$/);
+            if (match) {
+                const points = parseInt(match[1]);
+                if (points > 0) {
+                    // Hľadáme ID kúzla v okolí alebo v rodičovských elementoch
+                    let current = el;
+                    let spellId = null;
+                    for (let i = 0; i < 6 && current; i++) {
+                        const htmlString = current.outerHTML || '';
+                        const idMatch = htmlString.match(/spell=(\d+)|data-spell="(\d+)"/);
+                        if (idMatch) {
+                            spellId = idMatch[1] || idMatch[2];
+                            break;
+                        }
+                        current = current.parentElement;
+                    }
+
+                    if (spellId && !unikatneID.has(spellId)) {
+                        unikatneID.add(spellId);
+                        vysledok.push(`${spellId}: ${points}/${match[2]}`);
+                    }
+                }
+            }
+        }
+    });
+
+    if (vysledok.length === 0) {
+        console.warn("Nenašli sa žiadne talenty s bodmi. Skontroluj, či máš rozkliknutú správnu záložku s talentmi.");
+        return;
+    }
+
+    console.log("%c--- SKOPÍRUJ RIADKY NIŽŠIE DO TALENTY.TXT ---", "color: #00ff00; font-weight: bold;");
+    console.log(vysledok.join('\n'));
+    console.log("%c------------------------------------------------", "color: #00ff00; font-weight: bold;");
+})();

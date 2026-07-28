@@ -2,10 +2,11 @@
 -- Price tab: price item sub-tabs, graph panel, sub-tab bar, threshold row, AH interval, price sub-tabs
 
 DetaurBar.UI.priceItemSubTabs = {}
-DetaurBar.UI.priceItemSubTabNames = { "News", "Chart", "Bank" }
+DetaurBar.UI.priceItemSubTabNames = { "News", "Chart", "Bank", "List" }
 DetaurBar.UI.activePriceItemSubTab = "News"
 DetaurBar.UI.expandedPriceItemId = nil
 DetaurBar.UI.selectedPriceItemId = nil
+DetaurBar.UI.activePriceListName = "Default"
 
 -- [SUB-TAB STYLE] Price item sub-tab visual
 local function SetPriceItemSubTabStyle(subTab)
@@ -154,6 +155,135 @@ DetaurBar.UI.chartOrderToggle = CreateChartToolbarToggle(
     "Switch between threshold mode and reorder mode (up/down arrows).",
     "chartOrderMode"
 )
+
+-- [PRICE/LIST SCAN FILTER TOGGLE] 4th icon — shows checkboxes for which lists to AH-scan
+DetaurBar.UI.chartScanFilterToggle = CreateFrame("Button", nil, DetaurBar.UI.priceChartToolbar)
+DetaurBar.UI.chartScanFilterToggle:SetSize(22, 22)
+DetaurBar.UI.chartScanFilterToggle:SetPoint("LEFT", lastChartToggleBtn, "RIGHT", 4, 0)
+lastChartToggleBtn = DetaurBar.UI.chartScanFilterToggle
+
+DetaurBar.UI.chartScanFilterToggle:SetBackdrop({
+    bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true, tileSize = 12, edgeSize = 12,
+    insets = { left=3, right=3, top=3, bottom=3 }
+})
+
+local scanFilterIcon = DetaurBar.UI.chartScanFilterToggle:CreateTexture(nil, "ARTWORK")
+scanFilterIcon:SetSize(16, 16)
+scanFilterIcon:SetPoint("CENTER", DetaurBar.UI.chartScanFilterToggle, "CENTER", 0, 0)
+scanFilterIcon:SetTexture("Interface\\Icons\\INV_Misc_Note_02")
+
+local scanFilterHighlight = DetaurBar.UI.chartScanFilterToggle:CreateTexture(nil, "HIGHLIGHT")
+scanFilterHighlight:SetAllPoints(DetaurBar.UI.chartScanFilterToggle)
+scanFilterHighlight:SetTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+scanFilterHighlight:SetBlendMode("ADD")
+
+DetaurBar.UI.SetSimpleTooltip(DetaurBar.UI.chartScanFilterToggle, "Scan Filter", "Toggle which price lists are included in AH scanning.")
+
+-- Checkbox panel anchored below the toolbar
+DetaurBar.UI.scanFilterPanel = CreateFrame("Frame", "DetaurBarScanFilterPanel", DetaurBar.UI.priceChartToolbar)
+DetaurBar.UI.scanFilterPanel:SetWidth(140)
+DetaurBar.UI.scanFilterPanel:SetHeight(10)
+DetaurBar.UI.scanFilterPanel:SetPoint("TOPLEFT", DetaurBar.UI.priceChartToolbar, "BOTTOMLEFT", 6, 0)
+DetaurBar.UI.scanFilterPanel:Hide()
+DetaurBar.UI.scanFilterPanel:SetFrameLevel(DetaurBar.UI.priceChartToolbar:GetFrameLevel() + 5)
+
+local function RebuildScanFilterCheckboxes()
+    for _, child in ipairs(DetaurBar.UI.scanFilterPanel.children or {}) do
+        child:Hide()
+    end
+    DetaurBar.UI.scanFilterPanel.children = {}
+
+    DetaurBar.Data.InitializeDB()
+    local settings = DetaurBar.Data.GetSettings()
+    local enabledLists = settings.scanEnabledLists or {}
+    local listNames = {}
+    for name in pairs(DetaurBarDB.priceLists) do
+        table.insert(listNames, name)
+    end
+    table.sort(listNames)
+
+    local y = -4
+    for _, name in ipairs(listNames) do
+        local captured = name
+        local cb = CreateFrame("CheckButton", nil, DetaurBar.UI.scanFilterPanel, "UICheckButtonTemplate")
+        cb:SetSize(18, 18)
+        cb:SetPoint("TOPLEFT", DetaurBar.UI.scanFilterPanel, "TOPLEFT", 6, y)
+        cb:SetChecked(enabledLists[captured])
+
+        local label = cb:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        label:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+        label:SetText(captured)
+        label:SetTextColor(1, 1, 1, 1)
+
+        cb:SetScript("OnClick", function(self2)
+            DetaurBar.Data.InitializeDB()
+            DetaurBar.Data.GetSettings().scanEnabledLists[captured] = self2:GetChecked()
+        end)
+
+        table.insert(DetaurBar.UI.scanFilterPanel.children, cb)
+        table.insert(DetaurBar.UI.scanFilterPanel.children, label)
+        y = y - 22
+    end
+
+    local totalH = math.abs(y - 4) + 4
+    if totalH < 10 then totalH = 10 end
+    DetaurBar.UI.scanFilterPanel:SetHeight(totalH)
+end
+
+DetaurBar.UI.chartScanFilterToggle:SetScript("OnClick", function()
+    if DetaurBar.UI.scanFilterPanel:IsShown() then
+        DetaurBar.UI.scanFilterPanel:Hide()
+        if DetaurBar.UI.scrollFrame then DetaurBar.UI.scrollFrame:Show() end
+        DetaurBar.UI.chartScanFilterToggle:SetBackdropColor(0, 0, 0, 0.55)
+        DetaurBar.UI.chartScanFilterToggle:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.9)
+    else
+        RebuildScanFilterCheckboxes()
+        if DetaurBar.UI.scrollFrame then DetaurBar.UI.scrollFrame:Hide() end
+        DetaurBar.UI.scanFilterPanel:Show()
+        DetaurBar.UI.chartScanFilterToggle:SetBackdropColor(0.18, 0.12, 0.06, 0.95)
+        DetaurBar.UI.chartScanFilterToggle:SetBackdropBorderColor(1.0, 0.82, 0.0, 1.0)
+    end
+end)
+
+-- [PRICE/CHART LIST DROPDOWN] right side of toolbar
+local function InitChartListDropdown()
+    local info = UIDropDownMenu_CreateInfo()
+    info.text = "Default"
+    info.value = "Default"
+    info.func = function()
+        DetaurBar.UI.activePriceListName = "Default"
+        UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, "Default")
+        DetaurBar.UI.RefreshTasks()
+    end
+    UIDropDownMenu_AddButton(info)
+    DetaurBar.Data.InitializeDB()
+    local listNames = {}
+    for name in pairs(DetaurBarDB.priceLists) do
+        if name ~= "Default" then table.insert(listNames, name) end
+    end
+    table.sort(listNames)
+    for _, name in ipairs(listNames) do
+        local captured = name
+        local info2 = UIDropDownMenu_CreateInfo()
+        info2.text = captured
+        info2.value = captured
+        info2.func = function()
+            DetaurBar.UI.activePriceListName = captured
+            UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, captured)
+            DetaurBar.UI.RefreshTasks()
+        end
+        UIDropDownMenu_AddButton(info2)
+    end
+end
+
+DetaurBar.UI.chartListDropdown = CreateFrame("Frame", "DetaurBarChartListDropdown", DetaurBar.UI.priceChartToolbar, "UIDropDownMenuTemplate")
+DetaurBar.UI.chartListDropdown:SetPoint("RIGHT", DetaurBar.UI.priceChartToolbar, "RIGHT", -54, -2)
+DetaurBar.UI.chartListDropdown:SetWidth(96)
+UIDropDownMenu_SetAnchor(DetaurBar.UI.chartListDropdown, 0, 0, "TOPLEFT", DetaurBar.UI.chartListDropdown, "BOTTOMLEFT")
+UIDropDownMenu_Initialize(DetaurBar.UI.chartListDropdown, InitChartListDropdown)
+UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, "Default")
 
 -- [PRICE/GRAPH PANEL] fixed bottom section, shown only on Price tab
 DetaurBar.UI.priceGraphPanel = CreateFrame("Frame", "DetaurBarPriceGraphPanel", DetaurBar.UI.frame)
@@ -328,6 +458,18 @@ DetaurBar.UI.SetSimpleTooltip(DetaurBar.UI.ahIntervalEdit, "AH Scan Interval", {
     "the Auction House while the AH is open.",
 })
 
+DetaurBar.UI.ahScanButton = CreateFrame("Button", nil, DetaurBar.UI.priceAhIntervalRow, "UIPanelButtonTemplate")
+DetaurBar.UI.ahScanButton:SetSize(70, 20)
+DetaurBar.UI.ahScanButton:SetPoint("TOP", DetaurBar.UI.ahIntervalEdit, "TOP", 0, 0)
+DetaurBar.UI.ahScanButton:SetPoint("RIGHT", DetaurBar.UI.priceAhIntervalRow, "RIGHT", -4, 0)
+DetaurBar.UI.ahScanButton:SetText("Scan AH")
+DetaurBar.UI.SetSimpleTooltip(DetaurBar.UI.ahScanButton, "Scan AH", "Manually trigger an immediate Auction House scan.")
+DetaurBar.UI.ahScanButton:SetScript("OnClick", function()
+    if DetaurBar.AHScan and DetaurBar.AHScan.StartScan then
+        DetaurBar.AHScan.StartScan(true)
+    end
+end)
+
 -- [PRICE/SUB-TABS] 4 price sub-tab names + visual update
 DetaurBar.UI.priceSubTabNames = { "Daily", "Weekly", "Monthly", "Yearly" }
 DetaurBar.UI.activePriceSubTab = "Daily"
@@ -407,30 +549,42 @@ function DetaurBar.UI.SelectPriceItemSubTab(subTabName)
     DetaurBar.UI.UpdatePriceItemSubTabVisuals()
     DetaurBar.UI.UpdateInputPlaceholder()
 
+    -- Hide all sub-tab-specific elements first
+    if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
+    if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
+    if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
+    if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+    if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
+    if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
+    if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
+    if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
+    if DetaurBar.UI.scanFilterPanel then
+        DetaurBar.UI.scanFilterPanel:Hide()
+        if DetaurBar.UI.scrollFrame then DetaurBar.UI.scrollFrame:Show() end
+    end
+
     if subTabName == "News" then
-        DetaurBar.UI.priceGraphPanel:Hide()
-        DetaurBar.UI.priceSubTabBar:Hide()
-        if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
         DetaurBar.UI.editBox:Hide()
         DetaurBar.UI.addButton:Hide()
-        if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
     elseif subTabName == "Bank" then
-        DetaurBar.UI.priceGraphPanel:Hide()
-        DetaurBar.UI.priceSubTabBar:Hide()
-        if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
         DetaurBar.UI.editBox:Hide()
         DetaurBar.UI.addButton:Hide()
-        if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
-        if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
         if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Show() end
         if not DetaurBar.UI.bankCachedItems then
             DetaurBar.UI.LoadBankCache()
         end
         DetaurBar.UI.UpdateBankGrid()
+    elseif subTabName == "List" then
+        DetaurBar.UI.editBox:Show()
+        DetaurBar.UI.addButton:Show()
+        DetaurBar.UI.ShowPriceListPanel()
     else
         -- Chart sub-tab
         local settings = DetaurBar.UI.GetSettingsDB()
-        if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Show() end
+        if DetaurBar.UI.priceChartToolbar then
+            DetaurBar.UI.priceChartToolbar:Show()
+            UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, DetaurBar.UI.activePriceListName or "Default")
+        end
         if settings.chartGraphVisible then
             DetaurBar.UI.priceGraphPanel:Show()
             DetaurBar.UI.priceSubTabBar:Show()
@@ -571,6 +725,156 @@ function DetaurBar.UI.ClearPriceThreshold()
 end
 
 -- ============================================
+--  LIST SUB-TAB: panel, dropdown, add-list
+-- ============================================
+local function InitListSubTabDropdown()
+    local info = UIDropDownMenu_CreateInfo()
+    info.text = "Default"
+    info.value = "Default"
+    info.func = function()
+        DetaurBar.UI.activePriceListName = "Default"
+        UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, "Default")
+        DetaurBar.UI.RefreshTasks()
+    end
+    UIDropDownMenu_AddButton(info)
+    DetaurBar.Data.InitializeDB()
+    local listNames = {}
+    for name in pairs(DetaurBarDB.priceLists) do
+        if name ~= "Default" then table.insert(listNames, name) end
+    end
+    table.sort(listNames)
+    for _, name in ipairs(listNames) do
+        local captured = name
+        local info2 = UIDropDownMenu_CreateInfo()
+        info2.text = captured
+        info2.value = captured
+        info2.func = function()
+            DetaurBar.UI.activePriceListName = captured
+            UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, captured)
+            DetaurBar.UI.RefreshTasks()
+        end
+        UIDropDownMenu_AddButton(info2)
+    end
+end
+
+DetaurBar.UI.priceListPanel = CreateFrame("Frame", nil, DetaurBar.UI.frame)
+DetaurBar.UI.priceListPanel:SetPoint("TOPLEFT", DetaurBar.UI.frame, "TOPLEFT", 14, -86)
+DetaurBar.UI.priceListPanel:SetPoint("TOPRIGHT", DetaurBar.UI.frame, "TOPRIGHT", -14, -86)
+DetaurBar.UI.priceListPanel:SetHeight(28)
+DetaurBar.UI.priceListPanel:SetBackdrop({
+    bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true, tileSize = 12, edgeSize = 12,
+    insets = { left=3, right=3, top=3, bottom=3 }
+})
+DetaurBar.UI.priceListPanel:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+DetaurBar.UI.priceListPanel:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
+DetaurBar.UI.priceListPanel:Hide()
+
+-- List selector dropdown
+DetaurBar.UI.priceListDropdown = CreateFrame("Frame", "DetaurBarPriceListDropdown", DetaurBar.UI.priceListPanel, "UIDropDownMenuTemplate")
+DetaurBar.UI.priceListDropdown:SetPoint("LEFT", DetaurBar.UI.priceListPanel, "LEFT", -16, -2)
+DetaurBar.UI.priceListDropdown:SetWidth(130)
+UIDropDownMenu_SetAnchor(DetaurBar.UI.priceListDropdown, 0, 0, "TOPLEFT", DetaurBar.UI.priceListDropdown, "BOTTOMLEFT")
+UIDropDownMenu_Initialize(DetaurBar.UI.priceListDropdown, InitListSubTabDropdown)
+UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, "Default")
+
+-- [PRICE/LIST CONTROLS] Delete btn + add-list input + add btn (row below priceListPanel)
+DetaurBar.UI.priceListControls = CreateFrame("Frame", nil, DetaurBar.UI.frame)
+DetaurBar.UI.priceListControls:SetPoint("TOPLEFT", DetaurBar.UI.priceListPanel, "BOTTOMLEFT", 0, -2)
+DetaurBar.UI.priceListControls:SetPoint("TOPRIGHT", DetaurBar.UI.priceListPanel, "BOTTOMRIGHT", 0, -2)
+DetaurBar.UI.priceListControls:SetHeight(26)
+DetaurBar.UI.priceListControls:SetBackdrop({
+    bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true, tileSize = 12, edgeSize = 12,
+    insets = { left=3, right=3, top=3, bottom=3 }
+})
+DetaurBar.UI.priceListControls:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+DetaurBar.UI.priceListControls:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
+DetaurBar.UI.priceListControls:Hide()
+
+DetaurBar.UI.priceListDeleteBtn = CreateFrame("Button", nil, DetaurBar.UI.priceListControls, "UIPanelButtonTemplate")
+DetaurBar.UI.priceListDeleteBtn:SetSize(60, 20)
+DetaurBar.UI.priceListDeleteBtn:SetPoint("LEFT", DetaurBar.UI.priceListControls, "LEFT", 6, 0)
+DetaurBar.UI.priceListDeleteBtn:SetText("Delete")
+StaticPopupDialogs["DETAURBAR_DELETELIST"] = {
+    text = "Delete list '%s'?",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self, data)
+        DetaurBar.Data.InitializeDB()
+        DetaurBarDB.priceLists[data] = nil
+        DetaurBar.UI.activePriceListName = "Default"
+        local faction = UnitFactionGroup("player") or "Horde"
+        if DetaurBarDB.price[faction] then
+            for _, item in ipairs(DetaurBarDB.price[faction]) do
+                if item.list == data then item.list = nil end
+            end
+        end
+        UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, "Default")
+        DetaurBar.UI.RefreshTasks()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+DetaurBar.UI.priceListDeleteBtn:SetScript("OnClick", function()
+    local name = DetaurBar.UI.activePriceListName
+    if name and name ~= "Default" then
+        StaticPopup_Show("DETAURBAR_DELETELIST", name, nil, name)
+    end
+end)
+
+DetaurBar.UI.priceListAddBox = CreateFrame("EditBox", nil, DetaurBar.UI.priceListControls, "InputBoxTemplate")
+DetaurBar.UI.priceListAddBox:SetSize(140, 20)
+DetaurBar.UI.priceListAddBox:SetPoint("LEFT", DetaurBar.UI.priceListDeleteBtn, "RIGHT", 6, 0)
+DetaurBar.UI.priceListAddBox:SetTextInsets(4, 4, 0, 0)
+DetaurBar.UI.priceListAddBox:SetAutoFocus(false)
+DetaurBar.UI.priceListAddBox:SetScript("OnEscapePressed", function()
+    DetaurBar.UI.priceListAddBox:SetText("")
+    DetaurBar.UI.priceListAddBox:ClearFocus()
+end)
+DetaurBar.UI.priceListAddBox:SetScript("OnEnterPressed", function()
+    local name = DetaurBar.UI.priceListAddBox:GetText():match("^%s*(.-)%s*$")
+    if name and name ~= "" then
+        DetaurBar.Data.InitializeDB()
+        DetaurBarDB.priceLists[name] = true
+        DetaurBar.UI.priceListAddBox:SetText("")
+        DetaurBar.UI.priceListAddBox:ClearFocus()
+        DetaurBar.UI.RefreshTasks()
+    end
+end)
+
+DetaurBar.UI.priceListAddButton = CreateFrame("Button", nil, DetaurBar.UI.priceListControls, "UIPanelButtonTemplate")
+DetaurBar.UI.priceListAddButton:SetSize(50, 20)
+DetaurBar.UI.priceListAddButton:SetPoint("LEFT", DetaurBar.UI.priceListAddBox, "RIGHT", 4, 0)
+DetaurBar.UI.priceListAddButton:SetText("Add")
+DetaurBar.UI.priceListAddButton:SetScript("OnClick", function()
+    local name = DetaurBar.UI.priceListAddBox:GetText():match("^%s*(.-)%s*$")
+    if name and name ~= "" then
+        DetaurBar.Data.InitializeDB()
+        DetaurBarDB.priceLists[name] = true
+        DetaurBar.UI.priceListAddBox:SetText("")
+        DetaurBar.UI.priceListAddBox:ClearFocus()
+        DetaurBar.UI.RefreshTasks()
+    end
+end)
+
+DetaurBar.UI.ShowPriceListPanel = function()
+    DetaurBar.UI.priceListPanel:Show()
+    DetaurBar.UI.priceListControls:Show()
+    UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, DetaurBar.UI.activePriceListName or "Default")
+end
+
+DetaurBar.UI.HidePriceListPanel = function()
+    DetaurBar.UI.priceListPanel:Hide()
+    DetaurBar.UI.priceListControls:Hide()
+end
+
+-- ============================================
 --  BANK SUB-TAB: panel, grid, scan
 -- ============================================
 DetaurBar.UI.bankPanel = CreateFrame("Frame", "DetaurBarBankPanel", DetaurBar.UI.frame)
@@ -649,6 +953,7 @@ function DetaurBar.UI.CreateBankGridSlots()
 
             local slot = CreateFrame("Frame", "DetaurBarBankSlot_" .. idx, DetaurBar.UI.bankGridFrame)
             slot:SetSize(BANK_SLOT_SIZE, BANK_SLOT_SIZE)
+            slot:EnableMouse(true)
             slot:SetPoint("TOPLEFT", DetaurBar.UI.bankGridFrame, "TOPLEFT",
                 col * (BANK_SLOT_SIZE + BANK_SLOT_GAP),
                 -(row * (BANK_SLOT_SIZE + BANK_SLOT_GAP)))
@@ -663,8 +968,8 @@ function DetaurBar.UI.CreateBankGridSlots()
             slot:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.8)
 
             local icon = slot:CreateTexture(nil, "ARTWORK")
-            icon:SetSize(BANK_SLOT_SIZE - 6, BANK_SLOT_SIZE - 6)
-            icon:SetPoint("CENTER", slot, "CENTER", 0, -2)
+            icon:SetSize(BANK_SLOT_SIZE - 2, BANK_SLOT_SIZE - 2)
+            icon:SetPoint("CENTER", slot, "CENTER", 0, 0)
             icon:Hide()
             slot.icon = icon
 
@@ -677,16 +982,24 @@ function DetaurBar.UI.CreateBankGridSlots()
             slot:SetScript("OnEnter", function(self)
                 if self.itemId then
                     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                    GameTooltip:ClearLines()
-                    local name = DetaurBar.UI.GetOfflineItemNameById(self.itemId)
-                    if not name then
-                        name = GetItemInfo(self.itemId)
+                    local _, serverLink = GetItemInfo(self.itemId)
+                    if serverLink then
+                        GameTooltip:SetHyperlink(serverLink)
+                        GameTooltip:AddLine(" ")
+                        GameTooltip:AddLine("Count: " .. (self.itemCount or "?"), 0.8, 0.8, 0.8)
+                    else
+                        GameTooltip:ClearLines()
+                        local name = DetaurBar.UI.GetOfflineItemNameById(self.itemId)
+                        if name then
+                            GameTooltip:AddLine(name, 1.0, 1.0, 1.0)
+                            GameTooltip:AddLine("Count: " .. (self.itemCount or "?"), 0.8, 0.8, 0.8)
+                            GameTooltip:AddLine("ID: " .. self.itemId, 0.5, 0.5, 0.5)
+                        else
+                            GameTooltip:AddLine("Item ID: " .. self.itemId, 1.0, 1.0, 1.0)
+                            GameTooltip:AddLine("Count: " .. (self.itemCount or "?"), 0.8, 0.8, 0.8)
+                            GameTooltip:AddLine("Server data not cached yet", 0.5, 0.5, 0.5)
+                        end
                     end
-                    if name then
-                        GameTooltip:AddLine(name, 1.0, 1.0, 1.0)
-                    end
-                    GameTooltip:AddLine("Count: " .. (self.itemCount or "?"), 0.8, 0.8, 0.8)
-                    GameTooltip:AddLine("ID: " .. self.itemId, 0.5, 0.5, 0.5)
                     GameTooltip:Show()
                 end
             end)
@@ -848,7 +1161,7 @@ function DetaurBar.UI.ScanBankItems(silent)
             break
         end
     end
-    local gbankAvailable = GetNumGuildBankTabs() and GetNumGuildBankTabs() > 0
+    local gbankAvailable = GuildBankFrame and GuildBankFrame:IsShown() and GetNumGuildBankTabs() and GetNumGuildBankTabs() > 0
 
     -- Convert any old-format entries (combined count) before scan — set to 0, next scan populates per-source
     for idStr, entry in pairs(DetaurBarDB.bankCache) do

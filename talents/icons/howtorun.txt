@@ -1,0 +1,6 @@
+Priraď scriptu práva na spustenie:
+chmod +x download.sh
+
+spust ho:
+bash download.sh
+

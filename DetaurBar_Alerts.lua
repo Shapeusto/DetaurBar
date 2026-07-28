@@ -272,6 +272,7 @@ local function GetWintergraspRemainingSeconds()
 
     return nil, nil
 end
+DetaurBar.Alerts.GetWintergraspRemainingSeconds = GetWintergraspRemainingSeconds
 
 local function ResetWintergraspState(predictedStartAt)
     wintergraspState.battleStartAt = predictedStartAt
