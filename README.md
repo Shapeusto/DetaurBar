@@ -103,11 +103,10 @@ In-game organizer addon for **World of Warcraft: Wrath of the Lich King (Patch 3
 ### Settings (gear button)
 - **Loot sub-tab**: Show/hide Add and Delete sub-tabs in Loot tab
 - **Alert sub-tab**: Show/hide Dung/Raid/WG/Arena/Random/Enemy/Buffs/Debuffs/Item sub-tabs in Alert tab
-- **Price sub-tab**: Show/hide Notifications/Chart/Order sub-tabs in Price tab
+- **Price sub-tab**: Show/hide Notifications/Chart/Order sub-tabs in Price tab, plus "Scan auction house" toggle below a divider
 - **Various sub-tab**:
   - **Autosell junk and autorepair**: auto-sells all grey items and repairs equipment on merchant open
   - **Show alerts in chat**: prints alert name to chat when any alert fires
-  - **Scan auction house**: enables/disables automatic AH price scanning
   - **Ignore Yell**: filters out all Yell messages from chat frames
 
 ### Price History Viewer (standalone)

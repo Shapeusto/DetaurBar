@@ -43,6 +43,7 @@ You are a code assistant specialized in World of Warcraft addon development for 
 - **Backdrop `insets` shrink the bgFile, not the frame** — when a frame has `SetBackdrop({ insets = { right = 3 } })`, the bgFile texture only fills the area 3px inside the frame's right edge. The frame's own positioning and hit-rect are unaffected. If you anchor another element relative to the frame's right edge, the visible dark area will be 3px narrower than the frame. Always adjust anchor offsets to compensate when the backdrop bgFile must visually cover a neighboring element (e.g., `listBackground` x-offset must be `24` instead of `20` to cover scrollbar when `insets.right = 3`).
 - `GetWorldPVPAreaInfo(id)` — does **not exist** in 3.3.5a.
 - `GetWorldStateValue(id)` — does **not exist** in 3.3.5a. World state system is not exposed via Lua API. Wintergrasp faction control cannot be queried programmatically.
+- **Auctioneer replaces the AH UI** — `BrowseBuyoutButton` and other default AH frames are replaced by Auctioneer. `hooksecurefunc("BuyoutAuction")` fires but the browse list is cleared before the hook runs, so `GetAuctionItemLink("list", index)` returns nil. **Do not use AH hooks for buy detection. Use mailbox (`MAIL_INBOX_UPDATE`, `MAIL_CLOSED`) instead.**
 
 ## File Structure
 
@@ -76,8 +77,8 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - Panel has 4 sub-tabs: **Loot**, **Alert**, **Price**, **Various**
 - **Settings > Loot**: 2 checkboxes (Add, Delete) — default both checked, unchecking hides the corresponding sub-tab from the Loot tab
 - **Settings > Alert**: 9 checkboxes (Dung, Raid, WG, Arena, Random, Enemy, Buffs, Debuffs, Item) — default all checked, unchecking hides the corresponding sub-tab from the Settings/Alert tab
-- **Settings > Price**: 4 checkboxes (News, Chart, Bank, List) — default all checked, unchecking hides the corresponding sub-tab from the Price tab
-- **Settings > Various**: 3 checkboxes (Autosell junk and autorepair, Show alerts in chat, Scan auction house) — persistent v `DetaurBarDB.settings.*`
+- **Settings > Price**: 4 checkboxes (News, Chart, Bank, List) — default all checked, unchecking hides the corresponding sub-tab from the Price tab. Below them a divider (`UI-FriendsFrame-OnlineDivider`), then the **Scan auction house** checkbox (`DetaurBarDB.settings.ahScanningEnabled`)
+- **Settings > Various**: 3 checkboxes (Autosell junk and autorepair, Show alerts in chat, Ignore Yell) — persistent v `DetaurBarDB.settings.*`
 - State stored in `DetaurBarDB.settings.lootSubTabsVisible`, `DetaurBarDB.settings.priceSubTabsVisible`, and `DetaurBarDB.settings.alertSubTabsVisible`
 - Toggle via gear button; closes on tab switch
 

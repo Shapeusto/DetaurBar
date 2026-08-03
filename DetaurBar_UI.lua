@@ -127,6 +127,10 @@ local function RebuildSettingsMenuCheckboxes()
         child:Hide()
         child:SetParent(nil)
     end
+    -- Textures are not returned by GetChildren() — hide the tracked one (reused, not re-created)
+    if panel.priceDivider then
+        panel.priceDivider:Hide()
+    end
 
     local settings = DetaurBar.UI.GetSettingsDB()
     local active = DetaurBar.UI.settingsMenuActiveSubTab
@@ -175,7 +179,7 @@ local function RebuildSettingsMenuCheckboxes()
             lab:SetTextColor(1, 0.82, 0, 1)
         end
     elseif active == "Price" then
-        local priceKeys = { "News", "Chart", "Bank", "List" }
+        local priceKeys = { "News", "Chart", "List", "Bank" }
         for idx, key in ipairs(priceKeys) do
             local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
             cb:SetSize(20, 20)
@@ -190,11 +194,35 @@ local function RebuildSettingsMenuCheckboxes()
             lab:SetText(key)
             lab:SetTextColor(1, 0.82, 0, 1)
         end
+        -- Divider below the sub-tab checkboxes (created once, reused)
+        local divider = panel.priceDivider
+        if not divider then
+            divider = panel.content:CreateTexture(nil, "ARTWORK")
+            divider:SetTexture("Interface\\FriendsFrame\\UI-FriendsFrame-OnlineDivider")
+            divider:SetHeight(8)
+            panel.priceDivider = divider
+        end
+        divider:ClearAllPoints()
+        divider:SetPoint("TOPLEFT", panel.content, "TOPLEFT", 8, -8 - #priceKeys * 30)
+        divider:SetPoint("TOPRIGHT", panel.content, "TOPRIGHT", -8, -8 - #priceKeys * 30)
+        divider:Show()
+        -- Scan auction house checkbox below the divider
+        local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
+        cb:SetSize(20, 20)
+        cb:SetPoint("TOPLEFT", panel.content, "TOPLEFT", 8, -8 - #priceKeys * 30 - 14)
+        cb:SetChecked(settings.ahScanningEnabled and true or false)
+        cb:SetScript("OnClick", function(self)
+            DetaurBar.Data.InitializeDB()
+            settings.ahScanningEnabled = self:GetChecked() and true or false
+        end)
+        local lab = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        lab:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+        lab:SetText("Scan auction house")
+        lab:SetTextColor(1, 0.82, 0, 1)
     elseif active == "Various" then
         local variousKeys = {
             { key = "autoSellRepairEnabled", label = "Autosell junk and autorepair" },
             { key = "showAlertsInChat", label = "Show alerts in chat" },
-            { key = "ahScanningEnabled", label = "Scan auction house" },
             { key = "ignoreYellEnabled", label = "Ignore Yell" },
         }
         for idx, entry in ipairs(variousKeys) do
@@ -972,17 +1000,23 @@ local function CreateRowFrame(index)
     deleteBtn:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
     row.deleteBtn = deleteBtn
     
-    -- Down Button (for Price Order sub-tab reordering)
-    local downBtn = CreateFrame("Button", nil, row)
-    downBtn:SetSize(21, 21)
-    downBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    row.downBtn = downBtn
-    
+    -- List Copy Button (copy item to a price list, rightmost)
+    local listCopyBtn = CreateFrame("Button", nil, row)
+    listCopyBtn:SetSize(21, 21)
+    listCopyBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.listCopyBtn = listCopyBtn
+
     -- Swap Button (Up arrow for Price Order sub-tab)
     local swapBtn = CreateFrame("Button", nil, row)
     swapBtn:SetSize(21, 21)
-    swapBtn:SetPoint("RIGHT", downBtn, "LEFT", -2, 0)
+    swapBtn:SetPoint("RIGHT", listCopyBtn, "LEFT", -2, 0)
     row.swapBtn = swapBtn
+
+    -- Down Button (for Price Order sub-tab reordering)
+    local downBtn = CreateFrame("Button", nil, row)
+    downBtn:SetSize(21, 21)
+    downBtn:SetPoint("RIGHT", swapBtn, "LEFT", -2, 0)
+    row.downBtn = downBtn
     
     -- Copy/Duplicate Button (next to delete button, identical positioning as swapBtn since they are mutually exclusive)
     local copyBtn = CreateFrame("Button", nil, row)
@@ -1170,9 +1204,25 @@ local function CreateRowFrame(index)
                     DetaurBar.UI.expandedPriceItemId = nil
                 end
             else
+                local deletedName = nil
+                if row.itemCategory == "price" then
+                    local item = DetaurBar.Data.GetItemById("price", row.itemId)
+                    if item then
+                        local itemId = DetaurBar.UI.GetItemIdFromText(item.title)
+                        if itemId then
+                            deletedName = DetaurBar.Data.GetItemName(itemId)
+                        end
+                        if not deletedName then
+                            deletedName = item.title
+                        end
+                    end
+                end
                 DetaurBar.Data.DeleteItem(row.itemCategory, row.itemId)
                 if row.itemCategory == "price" and DetaurBar.UI.expandedPriceItemId == row.itemId then
                     DetaurBar.UI.expandedPriceItemId = nil
+                end
+                if deletedName then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cff82c5ff[DetaurBar]|r Deleted: " .. deletedName)
                 end
             end
             DetaurBar.UI.RefreshTasks()
@@ -1249,6 +1299,35 @@ local function CreateRowFrame(index)
     downBtn:SetScript("OnLeave", function(self)
         GameTooltip:Hide()
     end)
+
+    listCopyBtn:SetScript("OnClick", function(self)
+        if DetaurBar.UI.listCopyPopup then DetaurBar.UI.listCopyPopup:Hide() end
+        if not row.itemId or row.itemCategory ~= "price" then return end
+        local item = DetaurBar.Data.GetItemById(row.itemCategory, row.itemId)
+        if not item or not item.title then return end
+        DetaurBar.Data.InitializeDB()
+        local listNames = {}
+        for name in pairs(DetaurBarDB.priceLists) do
+            if name ~= "All" then table.insert(listNames, name) end
+        end
+        table.sort(listNames)
+        DetaurBar.UI.SetActiveListCopyItem(item.title)
+        DetaurBar.UI.activeListCopySourceItem = item
+        DetaurBar.UI.RebuildListCopyPopup(listNames)
+        DetaurBar.UI.listCopyPopup:ClearAllPoints()
+        DetaurBar.UI.listCopyPopup:SetPoint("TOPLEFT", self, "BOTTOMLEFT", 0, 4)
+        DetaurBar.UI.listCopyPopup:Show()
+    end)
+    listCopyBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:ClearLines()
+        GameTooltip:AddLine("Copy to List", 1.0, 1.0, 1.0)
+        GameTooltip:AddLine("Add this item to a price list.", 0.5, 0.5, 0.5)
+        GameTooltip:Show()
+    end)
+    listCopyBtn:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
     
     copyBtn:SetScript("OnClick", function(self)
         if row.itemId and row.itemCategory and row.itemCategory:find("notes_") then
@@ -1290,11 +1369,74 @@ local function CreateRowFrame(index)
     return row
 end
 
+-- [LIST COPY POPUP] popup frame for copying items to price lists
+DetaurBar.UI.activeListCopyItemTitle = nil
+
+function DetaurBar.UI.SetActiveListCopyItem(title)
+    DetaurBar.UI.activeListCopyItemTitle = title
+end
+
+function DetaurBar.UI.RebuildListCopyPopup(listNames)
+    for _, child in ipairs(DetaurBar.UI.listCopyPopup.children or {}) do
+        child:Hide()
+        child:SetParent(nil)
+    end
+    DetaurBar.UI.listCopyPopup.children = {}
+    DetaurBar.UI.listCopyPopup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+
+    local y = -4
+    for _, name in ipairs(listNames) do
+        local captured = name
+        local btn = CreateFrame("Button", nil, DetaurBar.UI.listCopyPopup, "UIPanelButtonTemplate")
+        btn:SetSize(DetaurBar.UI.listCopyPopup:GetWidth() - 8, 20)
+        btn:SetPoint("TOP", DetaurBar.UI.listCopyPopup, "TOP", 0, y)
+        btn:SetText(captured)
+        btn:SetScript("OnClick", function()
+            local title = DetaurBar.UI.activeListCopyItemTitle
+            local src = DetaurBar.UI.activeListCopySourceItem
+            if title then
+                local newItem = DetaurBar.Data.AddItem("price", title)
+                if newItem and src then
+                    newItem.list = captured
+                    newItem.threshold = src.threshold
+                    newItem.thresholdHigh = src.thresholdHigh
+                    newItem.frequent = src.frequent
+                    newItem.frequentHigh = src.frequentHigh
+                end
+                DetaurBar.UI.RefreshTasks()
+            end
+            DetaurBar.UI.listCopyPopup:Hide()
+        end)
+        table.insert(DetaurBar.UI.listCopyPopup.children, btn)
+        y = y - 24
+    end
+
+    local totalH = math.abs(y - 4) + 4
+    if totalH < 10 then totalH = 10 end
+    DetaurBar.UI.listCopyPopup:SetHeight(totalH)
+end
+
+DetaurBar.UI.listCopyPopup = CreateFrame("Frame", "DetaurBarListCopyPopup", UIParent)
+DetaurBar.UI.listCopyPopup:SetWidth(130)
+DetaurBar.UI.listCopyPopup:SetHeight(10)
+DetaurBar.UI.listCopyPopup:SetFrameStrata("TOOLTIP")
+DetaurBar.UI.listCopyPopup:SetBackdrop({
+    bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true, tileSize = 12, edgeSize = 12,
+    insets = { left=3, right=3, top=3, bottom=3 }
+})
+DetaurBar.UI.listCopyPopup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+DetaurBar.UI.listCopyPopup:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
+DetaurBar.UI.listCopyPopup:Hide()
+
 -- [REFRESH] DetaurBar.UI.RefreshTasks — main render loop: rebuilds the visible row list
 function DetaurBar.UI.RefreshTasks()
     if activeTab == "Settings" then
         return
     end
+
+    if DetaurBar.UI.listCopyPopup then DetaurBar.UI.listCopyPopup:Hide() end
 
     local category = activeTab:lower()
     if category == "notes" and DetaurBar.UI.activeNotesSubTab then
@@ -1310,7 +1452,9 @@ function DetaurBar.UI.RefreshTasks()
     if category == "price" and DetaurBar.UI.activePriceItemSubTab ~= "News" and DetaurBar.UI.activePriceItemSubTab ~= "Bank" and DetaurBar.UI.activePriceListName then
         local filtered = {}
         for _, item in ipairs(items) do
-            if DetaurBar.UI.activePriceListName == "Default" then
+            if DetaurBar.UI.activePriceListName == "All" then
+                table.insert(filtered, item)
+            elseif DetaurBar.UI.activePriceListName == "Default" then
                 if not item.list then
                     table.insert(filtered, item)
                 end
@@ -1394,6 +1538,7 @@ function DetaurBar.UI.RefreshTasks()
             row.copyBtn:Hide()
             row.deleteBtn:Hide()
             row.downBtn:Hide()
+            row.listCopyBtn:Hide()
             row:SetHeight(22)
             row.titleText:SetPoint("LEFT", row, "LEFT", 10, 0)
             row.titleText:SetPoint("RIGHT", row, "RIGHT", -10, 0)
@@ -1404,6 +1549,8 @@ function DetaurBar.UI.RefreshTasks()
             row.itemIcon:Hide()
             row.swapBtn:Hide()
             row.copyBtn:Hide()
+            row.downBtn:Hide()
+            row.listCopyBtn:Hide()
             row.deleteBtn:Show()
             row.checkbox:SetChecked(item.completed and 1 or nil)
             
@@ -1422,6 +1569,7 @@ function DetaurBar.UI.RefreshTasks()
             row.checkbox:Hide()
             row.copyBtn:Hide()
             row.downBtn:Hide()
+            row.listCopyBtn:Hide()
 
                 -- News subtab: simple display with current price
             if DetaurBar.UI.activePriceItemSubTab == "News" then
@@ -1505,20 +1653,24 @@ function DetaurBar.UI.RefreshTasks()
                 local settings = DetaurBar.UI.GetSettingsDB()
                 local orderMode = settings.chartOrderMode
 
-                if orderMode then
-                    -- Chart in order mode: up/down arrows, no delete, no threshold
+                if orderMode and DetaurBar.UI.activePriceItemSubTab == "Chart" then
+                    -- Chart in order mode: up/down arrows + list copy, no delete, no threshold
                     row.deleteBtn:Hide()
                     row.swapBtn:Show()
+                    row.listCopyBtn:Show()
                     row.downBtn:Show()
                     row.swapBtn:SetNormalTexture("Interface\\Buttons\\UI-ScrollBar-ScrollUpButton-Up")
                     row.swapBtn:SetPushedTexture("Interface\\Buttons\\UI-ScrollBar-ScrollUpButton-Down")
                     row.swapBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+                    row.listCopyBtn:SetNormalTexture("Interface\\Icons\\INV_Misc_Note_02")
+                    row.listCopyBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
                     row.downBtn:SetNormalTexture("Interface\\Buttons\\UI-ScrollBar-ScrollDownButton-Up")
                     row.downBtn:SetPushedTexture("Interface\\Buttons\\UI-ScrollBar-ScrollDownButton-Down")
                     row.downBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
                 else
                     row.deleteBtn:Show()
                     row.swapBtn:Hide()
+                    row.listCopyBtn:Hide()
                     row.downBtn:Hide()
                 end
 
@@ -1591,6 +1743,8 @@ function DetaurBar.UI.RefreshTasks()
         elseif category == "loot_add" or category == "loot_delete" or category == "sell" then
             row.checkbox:Hide()
             row.copyBtn:Hide()
+            row.downBtn:Hide()
+            row.listCopyBtn:Hide()
 
             -- Swap button: Add=copy to Price, Refuse=move to Delete, Delete=hidden
             if category == "loot_add" then
@@ -1809,7 +1963,7 @@ function DetaurBar.UI.UpdateInputPlaceholder()
         elseif DetaurBar.UI.activePriceItemSubTab == "Bank" then
             placeholderText:SetText("")
         elseif DetaurBar.UI.activePriceItemSubTab == "List" then
-            placeholderText:SetText("")
+            placeholderText:SetText("Add item to list...")
         else
             placeholderText:SetText("News (auto-populated)")
         end
@@ -2024,7 +2178,7 @@ function DetaurBar.UI.AddNewItem()
         if newItem and category == "price" and DetaurBar.UI.activePriceItemSubTab == "News" then
             newItem.frequent = true
         end
-        if newItem and category == "price" and DetaurBar.UI.activePriceItemSubTab == "List" and DetaurBar.UI.activePriceListName and DetaurBar.UI.activePriceListName ~= "Default" then
+        if newItem and category == "price" and DetaurBar.UI.activePriceItemSubTab == "List" and DetaurBar.UI.activePriceListName and DetaurBar.UI.activePriceListName ~= "Default" and DetaurBar.UI.activePriceListName ~= "All" then
             newItem.list = DetaurBar.UI.activePriceListName
         end
         editBox:SetText("")

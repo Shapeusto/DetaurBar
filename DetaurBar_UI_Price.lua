@@ -2,7 +2,7 @@
 -- Price tab: price item sub-tabs, graph panel, sub-tab bar, threshold row, AH interval, price sub-tabs
 
 DetaurBar.UI.priceItemSubTabs = {}
-DetaurBar.UI.priceItemSubTabNames = { "News", "Chart", "Bank", "List" }
+DetaurBar.UI.priceItemSubTabNames = { "News", "Chart", "List", "Bank" }
 DetaurBar.UI.activePriceItemSubTab = "News"
 DetaurBar.UI.expandedPriceItemId = nil
 DetaurBar.UI.selectedPriceItemId = nil
@@ -106,6 +106,7 @@ local function CreateChartToolbarToggle(texture, tooltipTitle, tooltipText, sett
     icon:SetSize(16, 16)
     icon:SetPoint("CENTER", btn, "CENTER", 0, 0)
     icon:SetTexture(texture)
+    btn.icon = icon
 
     local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints(btn)
@@ -117,6 +118,7 @@ local function CreateChartToolbarToggle(texture, tooltipTitle, tooltipText, sett
     function btn:UpdateVisualState()
         DetaurBar.Data.InitializeDB()
         local on = DetaurBarDB.settings[settingKey]
+        btn.icon:SetDesaturated(not on)
         if on then
             btn:SetBackdropColor(0.18, 0.12, 0.06, 0.95)
             btn:SetBackdropBorderColor(1.0, 0.82, 0.0, 1.0)
@@ -173,6 +175,8 @@ local scanFilterIcon = DetaurBar.UI.chartScanFilterToggle:CreateTexture(nil, "AR
 scanFilterIcon:SetSize(16, 16)
 scanFilterIcon:SetPoint("CENTER", DetaurBar.UI.chartScanFilterToggle, "CENTER", 0, 0)
 scanFilterIcon:SetTexture("Interface\\Icons\\INV_Misc_Note_02")
+DetaurBar.UI.chartScanFilterToggle.icon = scanFilterIcon
+DetaurBar.UI.chartScanFilterToggle.icon:SetDesaturated(true)
 
 local scanFilterHighlight = DetaurBar.UI.chartScanFilterToggle:CreateTexture(nil, "HIGHLIGHT")
 scanFilterHighlight:SetAllPoints(DetaurBar.UI.chartScanFilterToggle)
@@ -200,11 +204,11 @@ local function RebuildScanFilterCheckboxes()
     local enabledLists = settings.scanEnabledLists or {}
     local listNames = {}
     for name in pairs(DetaurBarDB.priceLists) do
-        table.insert(listNames, name)
+        if name ~= "All" then table.insert(listNames, name) end
     end
     table.sort(listNames)
 
-    local y = -4
+    local y = -11
     for _, name in ipairs(listNames) do
         local captured = name
         local cb = CreateFrame("CheckButton", nil, DetaurBar.UI.scanFilterPanel, "UICheckButtonTemplate")
@@ -238,30 +242,44 @@ DetaurBar.UI.chartScanFilterToggle:SetScript("OnClick", function()
         if DetaurBar.UI.scrollFrame then DetaurBar.UI.scrollFrame:Show() end
         DetaurBar.UI.chartScanFilterToggle:SetBackdropColor(0, 0, 0, 0.55)
         DetaurBar.UI.chartScanFilterToggle:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.9)
+        DetaurBar.UI.chartScanFilterToggle.icon:SetDesaturated(true)
     else
         RebuildScanFilterCheckboxes()
         if DetaurBar.UI.scrollFrame then DetaurBar.UI.scrollFrame:Hide() end
         DetaurBar.UI.scanFilterPanel:Show()
         DetaurBar.UI.chartScanFilterToggle:SetBackdropColor(0.18, 0.12, 0.06, 0.95)
         DetaurBar.UI.chartScanFilterToggle:SetBackdropBorderColor(1.0, 0.82, 0.0, 1.0)
+        DetaurBar.UI.chartScanFilterToggle.icon:SetDesaturated(false)
     end
 end)
 
+-- [PRICE/CHART BUY/SELL TOGGLE] 5th icon — show/hide buy/sell markers on graph
+DetaurBar.UI.chartBuySellToggle = CreateChartToolbarToggle(
+    "Interface\\Icons\\INV_Misc_Bag_01",
+    "Toggle Buy/Sell Markers",
+    "Show or hide buy/sell history markers on the price graph.",
+    "chartBuySellVisible"
+)
+
 -- [PRICE/CHART LIST DROPDOWN] right side of toolbar
 local function InitChartListDropdown()
-    local info = UIDropDownMenu_CreateInfo()
-    info.text = "Default"
-    info.value = "Default"
-    info.func = function()
-        DetaurBar.UI.activePriceListName = "Default"
-        UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, "Default")
-        DetaurBar.UI.RefreshTasks()
+    local function AddStaticListEntry(text, value)
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = text
+        info.value = value
+        info.func = function()
+            DetaurBar.UI.activePriceListName = value
+            UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, text)
+            DetaurBar.UI.RefreshTasks()
+        end
+        UIDropDownMenu_AddButton(info)
     end
-    UIDropDownMenu_AddButton(info)
+    AddStaticListEntry("Default", "Default")
+    AddStaticListEntry("All", "All")
     DetaurBar.Data.InitializeDB()
     local listNames = {}
     for name in pairs(DetaurBarDB.priceLists) do
-        if name ~= "Default" then table.insert(listNames, name) end
+        if name ~= "Default" and name ~= "All" then table.insert(listNames, name) end
     end
     table.sort(listNames)
     for _, name in ipairs(listNames) do
@@ -728,19 +746,23 @@ end
 --  LIST SUB-TAB: panel, dropdown, add-list
 -- ============================================
 local function InitListSubTabDropdown()
-    local info = UIDropDownMenu_CreateInfo()
-    info.text = "Default"
-    info.value = "Default"
-    info.func = function()
-        DetaurBar.UI.activePriceListName = "Default"
-        UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, "Default")
-        DetaurBar.UI.RefreshTasks()
+    local function AddStaticListEntry(text, value)
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = text
+        info.value = value
+        info.func = function()
+            DetaurBar.UI.activePriceListName = value
+            UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, text == "Default" and "Select list..." or text)
+            DetaurBar.UI.RefreshTasks()
+        end
+        UIDropDownMenu_AddButton(info)
     end
-    UIDropDownMenu_AddButton(info)
+    AddStaticListEntry("Default", "Default")
+    AddStaticListEntry("All", "All")
     DetaurBar.Data.InitializeDB()
     local listNames = {}
     for name in pairs(DetaurBarDB.priceLists) do
-        if name ~= "Default" then table.insert(listNames, name) end
+        if name ~= "Default" and name ~= "All" then table.insert(listNames, name) end
     end
     table.sort(listNames)
     for _, name in ipairs(listNames) do
@@ -777,7 +799,7 @@ DetaurBar.UI.priceListDropdown:SetPoint("LEFT", DetaurBar.UI.priceListPanel, "LE
 DetaurBar.UI.priceListDropdown:SetWidth(130)
 UIDropDownMenu_SetAnchor(DetaurBar.UI.priceListDropdown, 0, 0, "TOPLEFT", DetaurBar.UI.priceListDropdown, "BOTTOMLEFT")
 UIDropDownMenu_Initialize(DetaurBar.UI.priceListDropdown, InitListSubTabDropdown)
-UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, "Default")
+UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, "Select list...")
 
 -- [PRICE/LIST CONTROLS] Delete btn + add-list input + add btn (row below priceListPanel)
 DetaurBar.UI.priceListControls = CreateFrame("Frame", nil, DetaurBar.UI.frame)
@@ -812,7 +834,7 @@ StaticPopupDialogs["DETAURBAR_DELETELIST"] = {
                 if item.list == data then item.list = nil end
             end
         end
-        UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, "Default")
+        UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, "Select list...")
         DetaurBar.UI.RefreshTasks()
     end,
     timeout = 0,
@@ -823,7 +845,7 @@ StaticPopupDialogs["DETAURBAR_DELETELIST"] = {
 
 DetaurBar.UI.priceListDeleteBtn:SetScript("OnClick", function()
     local name = DetaurBar.UI.activePriceListName
-    if name and name ~= "Default" then
+    if name and name ~= "Default" and name ~= "All" then
         StaticPopup_Show("DETAURBAR_DELETELIST", name, nil, name)
     end
 end)
@@ -839,12 +861,23 @@ DetaurBar.UI.priceListAddBox:SetScript("OnEscapePressed", function()
 end)
 DetaurBar.UI.priceListAddBox:SetScript("OnEnterPressed", function()
     local name = DetaurBar.UI.priceListAddBox:GetText():match("^%s*(.-)%s*$")
-    if name and name ~= "" then
+    if name and name ~= "" and name ~= "Default" and name ~= "All" then
         DetaurBar.Data.InitializeDB()
         DetaurBarDB.priceLists[name] = true
         DetaurBar.UI.priceListAddBox:SetText("")
         DetaurBar.UI.priceListAddBox:ClearFocus()
         DetaurBar.UI.RefreshTasks()
+    end
+end)
+
+DetaurBar.UI.priceListAddBoxPlaceholder = DetaurBar.UI.priceListAddBox:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+DetaurBar.UI.priceListAddBoxPlaceholder:SetPoint("LEFT", DetaurBar.UI.priceListAddBox, "LEFT", 6, 0)
+DetaurBar.UI.priceListAddBoxPlaceholder:SetText("List name...")
+DetaurBar.UI.priceListAddBox:SetScript("OnTextChanged", function(self)
+    if self:GetText() == "" then
+        DetaurBar.UI.priceListAddBoxPlaceholder:Show()
+    else
+        DetaurBar.UI.priceListAddBoxPlaceholder:Hide()
     end
 end)
 
@@ -854,7 +887,7 @@ DetaurBar.UI.priceListAddButton:SetPoint("LEFT", DetaurBar.UI.priceListAddBox, "
 DetaurBar.UI.priceListAddButton:SetText("Add")
 DetaurBar.UI.priceListAddButton:SetScript("OnClick", function()
     local name = DetaurBar.UI.priceListAddBox:GetText():match("^%s*(.-)%s*$")
-    if name and name ~= "" then
+    if name and name ~= "" and name ~= "Default" and name ~= "All" then
         DetaurBar.Data.InitializeDB()
         DetaurBarDB.priceLists[name] = true
         DetaurBar.UI.priceListAddBox:SetText("")
@@ -866,7 +899,7 @@ end)
 DetaurBar.UI.ShowPriceListPanel = function()
     DetaurBar.UI.priceListPanel:Show()
     DetaurBar.UI.priceListControls:Show()
-    UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, DetaurBar.UI.activePriceListName or "Default")
+    UIDropDownMenu_SetText(DetaurBar.UI.priceListDropdown, DetaurBar.UI.activePriceListName == "Default" and "Select list..." or DetaurBar.UI.activePriceListName or "Select list...")
 end
 
 DetaurBar.UI.HidePriceListPanel = function()

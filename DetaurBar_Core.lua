@@ -27,7 +27,111 @@ eventFrame:RegisterEvent("READY_CHECK")
 eventFrame:RegisterEvent("START_LOOT_ROLL")
 eventFrame:RegisterEvent("BANKFRAME_OPENED")
 eventFrame:RegisterEvent("GUILDBANKFRAME_OPENED")
+eventFrame:RegisterEvent("MAIL_INBOX_UPDATE")
 local arenaFlashShown = false
+
+-- ============================================
+--  BUY/SELL PRICE TRACKING — via mailbox only
+--  Auctioneer replaces the AH UI, so AH hooks
+--  (BrowseBuyoutButton, BuyoutAuction) are unreliable.
+--  All buyout/bid-win/sold items arrive via mail.
+-- ============================================
+local processedMails = {}
+
+local function IsAuctionSoldSubject(subject)
+    local s = subject:lower()
+    if s:find("auction successful", 1, true) then return true end
+    if s:find("auction sold", 1, true) then return true end
+    local g = AUCTION_SOLD
+    if g and g ~= "" and not g:lower():find("auction successful", 1, true) then
+        return s:find(g:lower(), 1, true) ~= nil
+    end
+    return false
+end
+
+local function SubjectItemName(subject)
+    local name = subject:match(": (.+)$")
+    if name then
+        name = name:gsub("^%s*(.-)%s*$", "%1")
+    end
+    return name
+end
+
+local lastMailScan = 0
+
+function DetaurBar.Core.ScanMailboxForSells()
+    local numMails = GetInboxNumItems()
+    if not numMails or numMails == 0 then return end
+
+    local now = time()
+    if now - lastMailScan < 1 then return end
+    lastMailScan = now
+
+    local wonStr = AUCTION_WON or "Auction Won"
+    local anyRecorded = false
+
+    for i = 1, numMails do
+        if processedMails[i] then break end
+
+        local subject = select(4, GetInboxHeaderInfo(i)) or ""
+        local subjectLower = subject:lower()
+
+        if subjectLower:find("auction", 1, true) then
+            local money = select(5, GetInboxHeaderInfo(i)) or 0
+
+            if money > 0 and IsAuctionSoldSubject(subject) then
+                local itemName = SubjectItemName(subject)
+                if itemName then
+                    local cleaned = string.lower(itemName)
+                    local itemId = DetaurBar.Data.ItemDatabase and DetaurBar.Data.ItemDatabase[cleaned]
+                    if not itemId and DetaurBar.Data.ItemDatabase then
+                        for name, id in pairs(DetaurBar.Data.ItemDatabase) do
+                            if name:lower() == cleaned then
+                                itemId = id
+                                break
+                            end
+                        end
+                    end
+                    if itemId then
+                        DetaurBar.Data.RecordSellTransaction(itemId, math.floor(money), 1, time())
+                        anyRecorded = true
+                        DEFAULT_CHAT_FRAME:AddMessage("|cff82c5ff[DetaurBar]|r Sell recorded: " .. (DetaurBar.Data.GetItemName(itemId) or ("item:" .. itemId)) .. " for " .. DetaurBar.UI.FormatMoney(money))
+                    end
+                end
+                processedMails[i] = true
+            else
+                local itemLink = GetInboxItemLink(i, 1)
+                if itemLink and subjectLower:find(wonStr:lower(), 1, true) then
+                    local itemId = tonumber(itemLink:match("item:(%d+)"))
+                    if not itemId then
+                        local nameInBrackets = itemLink:match("%[(.-)%]")
+                        if nameInBrackets and DetaurBar.Data.ItemDatabase then
+                            local cleaned = nameInBrackets:lower():gsub("^%s*(.-)%s*$", "%1")
+                            itemId = DetaurBar.Data.ItemDatabase[cleaned]
+                        end
+                    end
+                    if itemId and DetaurBar.Data.IsItemInPriceList(itemId) then
+                        DetaurBar.Data.RecordBuyTransaction(itemId, 0, nil, time())
+                        anyRecorded = true
+                        DEFAULT_CHAT_FRAME:AddMessage("|cff82c5ff[DetaurBar]|r Buy recorded: " .. (DetaurBar.Data.GetItemName(itemId) or ("item:" .. itemId)))
+                    end
+                    processedMails[i] = true
+                end
+            end
+        end
+    end
+
+    if anyRecorded and DetaurBar.UI and DetaurBar.UI.RefreshTasks then
+        DetaurBar.UI.RefreshTasks()
+    end
+end
+
+-- Clear processed mail tracking on mailbox close
+local mailCloseFrame = CreateFrame("Frame", nil, eventFrame)
+mailCloseFrame:RegisterEvent("MAIL_CLOSED")
+mailCloseFrame:SetScript("OnEvent", function()
+    processedMails = {}
+end)
 
 local function GetSettingsTable()
     if DetaurBar.Data and DetaurBar.Data.GetSettings then
@@ -191,6 +295,9 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
         if DetaurBar.UI and DetaurBar.UI.ScanBankItems then
             DetaurBar.UI.ScanBankItems()
         end
+
+    elseif event == "MAIL_INBOX_UPDATE" then
+        DetaurBar.Core.ScanMailboxForSells()
 
     end
 end)

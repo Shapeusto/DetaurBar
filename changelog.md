@@ -1,5 +1,94 @@
 # Changelog
 
+## 2026-08-01 — Settings menu divider leaked into all sub-tabs
+
+### Fixed
+- **Divider (Settings > Price) visible in all Settings sub-tabs**: `RebuildSettingsMenuCheckboxes` cleared content via `panel.content:GetChildren()`, which returns only Frames — Textures are not included, so the divider was never cleaned up and stayed visible after switching sub-tabs.
+- **`SetParent(nil)` crash on texture**: 3.3.5a does not allow `SetParent(nil)` on textures/fontstrings. Fixed by creating the divider once (`panel.priceDivider`), reusing it, and only `Hide()`-ing it in the clear step.
+
+## 2026-08-01 — Move "Scan auction house" checkbox to Settings > Price
+
+### Changed
+- **"Scan auction house" checkbox moved from Settings > Various to Settings > Price**: now shown below a divider (`UI-FriendsFrame-OnlineDivider`) under the News/Chart/Bank/List sub-tab checkboxes. Same persisted setting `DetaurBarDB.settings.ahScanningEnabled`.
+- Settings > Various now has: Autosell junk and autorepair, Show alerts in chat, Ignore Yell.
+
+## 2026-08-01 — "All" default price list (shows every item, no scanning)
+
+### Added
+- **"All" as a second always-available default list** alongside "Default" in both the Chart and List sub-tab dropdowns. Shows **all** tracked items (no list filtering). Like "Default", it's hardcoded and not stored in `DetaurBarDB.priceLists`.
+- **"All" has no scan option** — excluded from the Chart scan-filter checkbox panel (which only lists real lists from `priceLists`).
+- `InitializeDB` cleanup: removes any legacy `"All"` from `priceLists` and untags items with `list == "All"` (reserved name).
+
+### Changed
+- `RefreshTasks` list filtering: `"All"` inserts every item; `"Default"` still shows only untagged items.
+- Adding items while "All" is selected in List sub-tab does **not** tag them with a list (falls to Default).
+- Add-list input/button rejects creating lists named `"Default"` or `"All"`; delete button refuses to delete them.
+- Item copy-to-list popup skips `"All"` (not a real list target).
+
+## 2026-08-01 — Deleted price item prints to chat
+
+### Added
+- **Deleting a price item now prints to chat** `[DetaurBar] Deleted: <name>` (name resolved via offline DB / `GetItemInfo`, falls back to raw title). Applies to Price > Chart, List and Bank sub-tabs.
+
+## 2026-08-01 — Buy/Sell markers: connected line + tooltips, no vertical line
+
+### Changed
+- **Buy/Sell markers in Chart graph redesigned**: previously each buy/sell was a dot + full-height vertical line. Now:
+  - **Vertical line removed**.
+  - **Markers connected chronologically** with a thin line (colored by the point type), like the regular price series.
+  - **Hover tooltip** on each marker (same as regular price points): date/time + "Buy"/"Sell" + amount in gold. Dot enlarges on hover.
+- Right-click delete intentionally not added for buy/sell markers (deletion only exists for price history points).
+
+## 2026-08-01 — Chart item switching too slow (3s freeze)
+
+### Fixed
+- **Switching between items in Price > Chart froze for ~3 seconds**: every switch redraws the graph, and `DrawGfLine` created one texture per pixel. Axes (x2), 3 gridlines and buy/sell marker lines each spanned the full plot width (~650px), so one redraw created ~4000–5000 textures via `CreateTexture` — the freeze.
+- **Axis-aligned lines now use a single texture each**: added `DrawGfHLine` / `DrawGfVLine` (one texture per horizontal/vertical line) used for axes, gridlines and buy/sell marker lines. Dot-stepping (`DrawGfLine`) remains only for diagonal data-point connectors.
+- **Texture/label/frame pooling**: `ClearGraphObjects` no longer drops the object tables; `GfTex`/`GfLabel`/`GfFrame` now reuse hidden objects from the pool instead of re-creating them on every redraw. First draw still builds the pool; subsequent item switches just reposition existing objects.
+
+## 2026-08-01 — Sold-auction detection fix + mailbox scan performance
+
+### Fixed
+- **Sold auctions never recorded to graph**: mail subject is `"Auction successful: <item>"` (server string), but detection matched `AUCTION_SOLD` (`"Auction Sold"`) which never matches. Added `IsAuctionSoldSubject()` — matches `"Auction successful"` and `"Auction sold"` literals plus the localized global as fallback.
+- **Sold mail had no itemLink**: successful-auction mail contains only money (item name lives in the subject). Added `SubjectItemName()` to extract the name after the colon and look it up in the offline DB.
+- **Whole game lag while collecting mail**: the scan iterated all 50 inbox mails on every `MAIL_INBOX_UPDATE` calling `GetInboxItemLink()` for each, then rebuilt the whole UI via `RefreshTasks()` on every event. Now:
+  - Subject pre-filtered for `"auction"` before any `GetInboxItemLink()` call (only auction mails resolved).
+  - Sold (money-only) mails processed without `GetInboxItemLink` at all.
+  - 1s throttle between scans (`lastMailScan`).
+  - `RefreshTasks()` only called when a transaction was actually recorded.
+- Removed per-mail DEBUG spam lines from `ScanMailboxForSells`.
+
+## 2026-07-29 — Buy/Sell price markers on graph (Auctioneer-compatible)
+
+### Added
+- **Buy/Sell price tracking**: records when you buy or sell items from your price tracking list. Data stored in `DetaurBarDB.buySellHistory[itemId:faction]` as array of `{ts, type, price, quantity}` records.
+- **5th Chart toolbar icon** (bag icon `INV_Misc_Bag_01`): toggles `chartBuySellVisible` setting. Show/hide buy/sell markers on the price graph.
+- **Graph markers**: red vertical line + dot (7px) for buys, green vertical line + dot for sells. Larger than regular data points (5px). Vertical lines at 30% alpha.
+- **DB functions**: `RecordBuyTransaction`, `RecordSellTransaction`, `GetBuySellHistory`, `IsItemInPriceList`.
+- **RecordBuyTransaction fallback**: when price=0 (mailbox buy), uses last scanned AH price from `priceHistory` for accurate graph positioning.
+
+### Changed
+- **Detection via mailbox only** (Auctioneer-compatible): removed all AH hooks (`BuyoutAuction`, `BrowseBuyoutButton`). Auctioneer replaces the AH UI making those hooks unreliable.
+- **Sell detection**: `MAIL_INBOX_UPDATE` event (not `MAIL_SHOW` — the latter fires before inbox data is ready). Scans for "Auction Sold" mails with money, extracts item name from subject, looks up ID in offline DB.
+- **Buy detection**: via mailbox "Auction Won" mails (item attachment). Captures both buyouts and bid wins.
+- **Deduplication**: `processedMails` table, cleared on `MAIL_CLOSED`.
+- **Case-insensitive subject matching**: `"Auction won"` vs `"Auction Won"` — both match now using `subjectLower:find(wonStr:lower())`.
+- **Uses Blizzard globals**: `AUCTION_WON`, `AUCTION_SOLD` for localization, with hardcoded fallbacks.
+- **Auctioneer note**: added to AGENTS.md that Auctioneer breaks AH hooks so mailbox is the only reliable source.
+
+### Fixed
+- **Buy marker price=0**: mailbox buys had price=0, causing red dot at graph bottom edge. Now falls back to last scanned AH price from `priceHistory`.
+- **`MAIL_SHOW` timing**: `MAIL_INBOX_UPDATE` used instead — fires after inbox data is actually loaded.
+- **Case-sensitive match**: `"Auction won"` (lowercase w on Warmane) failed `subject:find("Auction Won")`.
+- **Graph nil guard**: `rec.price or dMin` prevents error when price is nil.
+
+## 2026-07-28 — Order mode buttons leaking into Bank/Notes/Loot tabs
+
+### Fixed
+- **`listCopyBtn` and `downBtn` visible in Bank sub-tab**: order mode check (`chartOrderMode`) applied globally to all price sub-tabs, so Bank rendered with order-mode buttons when `chartOrderMode = true`. Added `activePriceItemSubTab == "Chart"` guard to only show these buttons in Chart.
+- **`listCopyBtn` and `downBtn` visible in Notes tab**: `tasks_` rendering section never hid these buttons — they remained visible from previous tab state. Added `row.downBtn:Hide()` and `row.listCopyBtn:Hide()`.
+- **`listCopyBtn` and `downBtn` visible in Loot tab**: same issue — `loot_add`/`loot_delete` section missing hides. Added both `:Hide()` calls.
+
 ## 2026-07-27 — Scan filter toggle, list semantics fix
 
 ### Added

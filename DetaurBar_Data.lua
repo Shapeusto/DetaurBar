@@ -107,8 +107,21 @@ function DetaurBar.Data.InitializeDB()
     if not DetaurBarDB.priceHistory then
         DetaurBarDB.priceHistory = {}
     end
+    if not DetaurBarDB.buySellHistory then
+        DetaurBarDB.buySellHistory = {}
+    end
     if not DetaurBarDB.priceLists then
         DetaurBarDB.priceLists = { ["Default"] = true }
+    else
+        DetaurBarDB.priceLists["All"] = nil
+        DetaurBarDB.priceLists["Default"] = true
+        for _, factionItems in pairs(DetaurBarDB.price) do
+            if type(factionItems) == "table" then
+                for _, item in ipairs(factionItems) do
+                    if item.list == "All" then item.list = nil end
+                end
+            end
+        end
     end
     if not DetaurBarDB.settings then
         DetaurBarDB.settings = {}
@@ -136,6 +149,9 @@ function DetaurBar.Data.InitializeDB()
     end
     if DetaurBarDB.settings.chartOrderMode == nil then
         DetaurBarDB.settings.chartOrderMode = false
+    end
+    if DetaurBarDB.settings.chartBuySellVisible == nil then
+        DetaurBarDB.settings.chartBuySellVisible = true
     end
     if not DetaurBarDB.settings.ahScanInterval then
         DetaurBarDB.settings.ahScanInterval = 10
@@ -540,6 +556,73 @@ function DetaurBar.Data.GetPriceHistory(itemId)
     local faction = UnitFactionGroup("player") or "Unknown"
     local key = itemId .. ":" .. faction
     return DetaurBarDB.priceHistory[key] or {}
+end
+
+function DetaurBar.Data.GetBuySellHistory(itemId)
+    DetaurBar.Data.InitializeDB()
+    local faction = UnitFactionGroup("player") or "Unknown"
+    local key = itemId .. ":" .. faction
+    local raw = DetaurBarDB.buySellHistory[key]
+    if not raw then return {} end
+    local result = {}
+    for _, record in ipairs(raw) do
+        table.insert(result, record)
+    end
+    table.sort(result, function(a, b) return a.ts < b.ts end)
+    return result
+end
+
+function DetaurBar.Data.IsItemInPriceList(itemId)
+    DetaurBar.Data.InitializeDB()
+    local faction = UnitFactionGroup("player") or "Unknown"
+    local items = DetaurBarDB.price[faction]
+    if not items then return false end
+    local prefix = "item:" .. itemId
+    for _, item in ipairs(items) do
+        if item.title == prefix then return true end
+    end
+    return false
+end
+
+function DetaurBar.Data.RecordBuyTransaction(itemId, pricePerItem, quantity, timestamp)
+    DetaurBar.Data.InitializeDB()
+    if pricePerItem == 0 then
+        local history = DetaurBar.Data.GetPriceHistory(itemId)
+        local maxTs = 0
+        for tsStr, price in pairs(history) do
+            local ts = tonumber(tsStr)
+            if ts and ts > maxTs then
+                maxTs = ts
+                pricePerItem = price
+            end
+        end
+    end
+    local faction = UnitFactionGroup("player") or "Unknown"
+    local key = itemId .. ":" .. faction
+    if not DetaurBarDB.buySellHistory[key] then
+        DetaurBarDB.buySellHistory[key] = {}
+    end
+    table.insert(DetaurBarDB.buySellHistory[key], {
+        ts = timestamp or time(),
+        type = "buy",
+        price = pricePerItem,
+        quantity = quantity or 1,
+    })
+end
+
+function DetaurBar.Data.RecordSellTransaction(itemId, pricePerItem, quantity, timestamp)
+    DetaurBar.Data.InitializeDB()
+    local faction = UnitFactionGroup("player") or "Unknown"
+    local key = itemId .. ":" .. faction
+    if not DetaurBarDB.buySellHistory[key] then
+        DetaurBarDB.buySellHistory[key] = {}
+    end
+    table.insert(DetaurBarDB.buySellHistory[key], {
+        ts = timestamp or time(),
+        type = "sell",
+        price = pricePerItem,
+        quantity = quantity or 1,
+    })
 end
 
 function DetaurBar.Data.DeletePricePoint(itemId, timestampStr)

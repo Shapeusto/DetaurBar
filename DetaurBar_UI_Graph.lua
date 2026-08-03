@@ -77,6 +77,7 @@ function DetaurBar.UI.FormatGold(copper)
 end
 
 -- [GRAPH HELPERS] ClearGraphObjects — hides all textures/labels/frames for a row graph
+-- Keeps the object pool so the next redraw reuses them instead of re-creating (fast item switching).
 function DetaurBar.UI.ClearGraphObjects(row)
     if row.graphTextures then
         for _, t in ipairs(row.graphTextures) do t:Hide() end
@@ -87,37 +88,59 @@ function DetaurBar.UI.ClearGraphObjects(row)
     if row.graphFrames then
         for _, fr in ipairs(row.graphFrames) do fr:Hide() end
     end
-    row.graphTextures = {}
-    row.graphLabels = {}
-    row.graphFrames = {}
 end
 
--- [GRAPH HELPERS] GfTex — create and track a graph texture
+-- [GRAPH HELPERS] GfTex — get (or create) a graph texture, reusing hidden ones from the pool
 function DetaurBar.UI.GfTex(row, gf, layer)
+    if row.graphTextures then
+        for _, t in ipairs(row.graphTextures) do
+            if not t:IsShown() then
+                t:ClearAllPoints()
+                t:SetDrawLayer(layer or "OVERLAY")
+                return t
+            end
+        end
+    end
     local t = gf:CreateTexture(nil, layer or "OVERLAY")
     t:SetDrawLayer(layer or "OVERLAY")
     table.insert(row.graphTextures, t)
     return t
 end
 
--- [GRAPH HELPERS] GfLabel — create and track a graph label font string
+-- [GRAPH HELPERS] GfLabel — get (or create) a graph label font string
 function DetaurBar.UI.GfLabel(row, gf)
+    if row.graphLabels then
+        for _, f in ipairs(row.graphLabels) do
+            if not f:IsShown() then
+                f:ClearAllPoints()
+                return f
+            end
+        end
+    end
     local f = gf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     table.insert(row.graphLabels, f)
     return f
 end
 
--- [GRAPH HELPERS] GfFrame — create and track a graph hover frame
+-- [GRAPH HELPERS] GfFrame — get (or create) a graph hover frame
 function DetaurBar.UI.GfFrame(row, gf)
     if not row.graphFrames then
         row.graphFrames = {}
     end
+    for _, f in ipairs(row.graphFrames) do
+        if not f:IsShown() then
+            f:ClearAllPoints()
+            return f
+        end
+    end
     local f = CreateFrame("Button", nil, gf)
+    f:Hide()
     table.insert(row.graphFrames, f)
     return f
 end
 
 -- [GRAPH HELPERS] DrawGfLine — dot-stepping line renderer (SetRotation doesn't work in 3.3.5a)
+-- Only for diagonal lines; axis-aligned lines should use DrawGfHLine/DrawGfVLine.
 function DetaurBar.UI.DrawGfLine(row, gf, x1, y1, x2, y2, thick, r, g, b, a)
     local dx, dy = x2 - x1, y2 - y1
     local steps = math.floor(math.max(math.abs(dx), math.abs(dy)))
@@ -130,6 +153,26 @@ function DetaurBar.UI.DrawGfLine(row, gf, x1, y1, x2, y2, thick, r, g, b, a)
         t:SetPoint("CENTER", gf, "BOTTOMLEFT", x1 + sx * i, y1 + sy * i)
         t:Show()
     end
+end
+
+-- [GRAPH HELPERS] DrawGfHLine — single-texture horizontal line (no dot-stepping)
+function DetaurBar.UI.DrawGfHLine(row, gf, x1, x2, y, thick, r, g, b, a)
+    local t = DetaurBar.UI.GfTex(row, gf)
+    t:SetTexture(r, g, b, a)
+    t:SetWidth(x2 - x1)
+    t:SetHeight(thick)
+    t:SetPoint("BOTTOMLEFT", gf, "BOTTOMLEFT", x1, y - thick / 2)
+    t:Show()
+end
+
+-- [GRAPH HELPERS] DrawGfVLine — single-texture vertical line (no dot-stepping)
+function DetaurBar.UI.DrawGfVLine(row, gf, x, y1, y2, thick, r, g, b, a)
+    local t = DetaurBar.UI.GfTex(row, gf)
+    t:SetTexture(r, g, b, a)
+    t:SetWidth(thick)
+    t:SetHeight(y2 - y1)
+    t:SetPoint("BOTTOMLEFT", gf, "BOTTOMLEFT", x - thick / 2, y1)
+    t:Show()
 end
 
 -- [GRAPH] DrawPriceGraph — renders full graph for a given itemId on the graph frame
@@ -176,9 +219,9 @@ function DetaurBar.UI.DrawPriceGraph(row, gf, itemId)
     bg:SetTexture(0, 0, 0, 0.5)
     bg:Show()
 
-    -- axes
-    DetaurBar.UI.DrawGfLine(row, gf, GRAPH_PAD_L, GRAPH_PAD_B, GRAPH_PAD_L, GRAPH_PAD_B + plotH, 1, 0.5, 0.5, 0.5, 1)
-    DetaurBar.UI.DrawGfLine(row, gf, GRAPH_PAD_L, GRAPH_PAD_B, GRAPH_PAD_L + plotW, GRAPH_PAD_B, 1, 0.5, 0.5, 0.5, 1)
+    -- axes (single textures, not dot-stepped)
+    DetaurBar.UI.DrawGfVLine(row, gf, GRAPH_PAD_L, GRAPH_PAD_B, GRAPH_PAD_B + plotH, 1, 0.5, 0.5, 0.5, 1)
+    DetaurBar.UI.DrawGfHLine(row, gf, GRAPH_PAD_L, GRAPH_PAD_L + plotW, GRAPH_PAD_B, 1, 0.5, 0.5, 0.5, 1)
 
     if #points == 0 then
         local lbl = DetaurBar.UI.GfLabel(row, gf)
@@ -214,7 +257,7 @@ function DetaurBar.UI.DrawPriceGraph(row, gf, itemId)
     for i = 0, 2 do
         local price = dMin + dRange * i / 2
         local y = GRAPH_PAD_B + plotH * i / 2
-        DetaurBar.UI.DrawGfLine(row, gf, GRAPH_PAD_L, y, GRAPH_PAD_L + plotW, y, 1, 0.25, 0.25, 0.25, 0.6)
+        DetaurBar.UI.DrawGfHLine(row, gf, GRAPH_PAD_L, GRAPH_PAD_L + plotW, y, 1, 0.25, 0.25, 0.25, 0.6)
         local lbl = DetaurBar.UI.GfLabel(row, gf)
         lbl:SetPoint("RIGHT", gf, "BOTTOMLEFT", GRAPH_PAD_L - 2, y)
         lbl:SetText(DetaurBar.UI.FormatGold(math.floor(price)))
@@ -278,7 +321,62 @@ function DetaurBar.UI.DrawPriceGraph(row, gf, itemId)
                 confirmFrame:Show()
             end
         end)
+        hover:Show()
 
         prevX, prevY = x, y
+    end
+
+    -- Buy/Sell markers overlay (connected like the price series, with tooltips)
+    local settings = DetaurBar.Data.GetSettings()
+    if settings.chartBuySellVisible then
+        local bsHistory = DetaurBar.Data.GetBuySellHistory(itemId)
+        if bsHistory and #bsHistory > 0 then
+            local prevBX, prevBY
+            for _, rec in ipairs(bsHistory) do
+                if rec.ts >= cutoff then
+                    local markerPrice = rec.price or dMin
+                    if markerPrice <= 0 then
+                        markerPrice = dMin
+                    end
+                    local bx, by = toX(rec.ts), toY(markerPrice)
+                    by = math.max(GRAPH_PAD_B, math.min(GRAPH_PAD_B + plotH, by))
+                    local isBuy = rec.type == "buy"
+                    local bsR, bsG, bsB = isBuy and 1.0 or 0.0, isBuy and 0.0 or 1.0, 0.0
+
+                    -- Connect to previous buy/sell marker
+                    if prevBX then
+                        DetaurBar.UI.DrawGfLine(row, gf, prevBX, prevBY, bx, by, 1, bsR, bsG, bsB, 0.9)
+                    end
+
+                    -- Marker dot (larger than data points)
+                    local dot = DetaurBar.UI.GfTex(row, gf)
+                    dot:SetTexture(bsR, bsG, bsB, 1)
+                    dot:SetSize(7, 7)
+                    dot:SetPoint("CENTER", gf, "BOTTOMLEFT", bx, by)
+                    dot:Show()
+
+                    -- Interactive hover frame for tooltip
+                    local hover = DetaurBar.UI.GfFrame(row, gf)
+                    hover:SetSize(14, 14)
+                    hover:SetPoint("CENTER", gf, "BOTTOMLEFT", bx, by)
+                    hover:EnableMouse(true)
+                    hover:SetScript("OnEnter", function(self)
+                        dot:SetSize(9, 9)
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        GameTooltip:ClearLines()
+                        GameTooltip:AddLine(date("%d.%m.%Y %H:%M", rec.ts), 1.0, 0.82, 0.0)
+                        GameTooltip:AddLine((isBuy and "Buy" or "Sell") .. " " .. DetaurBar.UI.FormatMoney(markerPrice), bsR, bsG, bsB)
+                        GameTooltip:Show()
+                    end)
+                    hover:SetScript("OnLeave", function(self)
+                        dot:SetSize(7, 7)
+                        GameTooltip:Hide()
+                    end)
+                    hover:Show()
+
+                    prevBX, prevBY = bx, by
+                end
+            end
+        end
     end
 end
