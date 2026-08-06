@@ -82,6 +82,9 @@ function DetaurBar.Data.InitializeDB()
     if not DetaurBarDB.price then
         DetaurBarDB.price = {}
     end
+    if not DetaurBarDB.recipes then
+        DetaurBarDB.recipes = {}
+    end
     -- [MIGRATION 2026-07-06] Convert old array-format price to faction-based format
     -- Old: DetaurBarDB.price = { {title=...}, {title=...}, ["Horde"]={} }
     -- New: DetaurBarDB.price = { ["Horde"] = { {title=...}, {title=...} } }
@@ -271,7 +274,7 @@ function DetaurBar.Data.InitializeDB()
         DetaurBarDB.settings.lootSubTabsVisible = { ["Add"] = true, ["Delete"] = true }
     end
     if not DetaurBarDB.settings.priceSubTabsVisible then
-        DetaurBarDB.settings.priceSubTabsVisible = { ["News"] = true, ["Chart"] = true, ["Bank"] = true, ["List"] = true }
+        DetaurBarDB.settings.priceSubTabsVisible = { ["News"] = true, ["Chart"] = true, ["Bank"] = true, ["List"] = true, ["Recipes"] = true }
     end
     if not DetaurBarDB.settings.alertSubTabsVisible then
         DetaurBarDB.settings.alertSubTabsVisible = { ["Dung"] = true, ["Raid"] = true, ["WG"] = true, ["Random"] = true, ["Enemy"] = true, ["Buffs"] = true, ["Debuffs"] = true, ["Item"] = true, ["Arena"] = true }
@@ -287,6 +290,29 @@ function DetaurBar.Data.InitializeDB()
     end
     if DetaurBarDB.settings.ignoreYellEnabled == nil then
         DetaurBarDB.settings.ignoreYellEnabled = false
+    end
+    if DetaurBarDB.settings.showArmorEnabled == nil then
+        DetaurBarDB.settings.showArmorEnabled = false
+    end
+    if DetaurBarDB.settings.armorShowMail == nil then
+        DetaurBarDB.settings.armorShowMail = true
+    end
+    if DetaurBarDB.settings.armorShowPlate == nil then
+        DetaurBarDB.settings.armorShowPlate = true
+    end
+    if DetaurBarDB.settings.armorShowCloth == nil then
+        DetaurBarDB.settings.armorShowCloth = true
+    end
+    if DetaurBarDB.settings.armorShowLeather == nil then
+        DetaurBarDB.settings.armorShowLeather = true
+    end
+    if not DetaurBarDB.settings.armorIcons then
+        DetaurBarDB.settings.armorIcons = {
+            Mail = "Interface\\Icons\\INV_Chest_Chain_03",
+            Plate = "Interface\\Icons\\INV_Chest_Plate03",
+            Cloth = "Interface\\Icons\\INV_Chest_Cloth_06",
+            Leather = "Interface\\Icons\\INV_Chest_Leather_04",
+        }
     end
     if DetaurBarDB.settings.buffsEnabled == nil then
         DetaurBarDB.settings.buffsEnabled = false
@@ -469,6 +495,8 @@ function DetaurBar.Data.GetItems(category)
             DetaurBarDB.price[faction] = {}
         end
         return DetaurBarDB.price[faction]
+    elseif category == "recipes" then
+        return DetaurBarDB.recipes
     end
     return {}
 end
@@ -496,6 +524,27 @@ function DetaurBar.Data.DeleteItem(category, id)
     for i, item in ipairs(items) do
         if item.id == id then
             table.remove(items, i)
+            return true
+        end
+    end
+    return false
+end
+
+-- [RECIPES] AddRecipe — appends a recipe entry (with spellId, profession, reagents)
+function DetaurBar.Data.AddRecipe(recipeData)
+    DetaurBar.Data.InitializeDB()
+    recipeData.id = recipeData.id or (time() .. "_" .. tostring(math.random(1000, 9999)))
+    recipeData.created = recipeData.created or time()
+    table.insert(DetaurBarDB.recipes, recipeData)
+    return recipeData
+end
+
+-- [RECIPES] DeleteRecipe — removes recipe by id
+function DetaurBar.Data.DeleteRecipe(id)
+    DetaurBar.Data.InitializeDB()
+    for i, recipe in ipairs(DetaurBarDB.recipes) do
+        if recipe.id == id then
+            table.remove(DetaurBarDB.recipes, i)
             return true
         end
     end

@@ -55,11 +55,13 @@ You are a code assistant specialized in World of Warcraft addon development for 
 | `DetaurBar_UI_Todo.lua` | Todo sub-tabs (Day/Week/Month) + SelectTodoSubTab |
 | `DetaurBar_UI_Notes.lua` | Notes sub-tabs (General/War/Guild) + drag-to-move + SelectNotesSubTab |
 | `DetaurBar_UI_Loot.lua` | Loot sub-tabs (Add/Delete) + deleteAllGraysCheckbox + SelectLootSubTab |
-| `DetaurBar_UI_Price.lua` | Price item sub-tabs (News/Order/Chart/Bank), graph panel, threshold row, AH interval, price sub-tabs, bank grid/scan, all price functions |
+| `DetaurBar_UI_Price.lua` | Price item sub-tabs (News/Chart/Bank/List), graph panel, threshold row, AH interval, price sub-tabs, bank grid/scan, all price functions |
+| `DetaurBar_UI_Recipes.lua` | Price > Recipes sub-tab: profession dropdown, recipe link input, reagent capture, expand/collapse recipe rows |
 | `DetaurBar_UI_Settings.lua` | Alert panel (Dung/Raid/WG/Random/Enemy/Buffs/Item sub-tabs, flash alerts, flash frames) |
 | `DetaurBar_UI_Buffs.lua` | Buffs tracking: cooldown expiry alerts, stacking buff change alerts, center-screen icon display |
 | `DetaurBar_UI_Debuffs.lua` | Debuffs tracking: COMBAT_LOG_EVENT_UNFILTERED hook, center-screen icon pool (10 slots, y=200), stack counting, hostile-only filter |
 | `DetaurBar_UI_Enemy.lua` | Enemy detection engine, draggable monitor window, smooth/aggressive flash alerts, right-click dismiss |
+| `DetaurBar_UI_ArmorIcons.lua` | Armor-type icons on enemy player nameplates (class-color detection, all visible enemies, auto-enables ShowClassColorInNameplate CVar) |
 | `DetaurBar_UI_Graph.lua` | Price graph drawing (DrawPriceGraph, ClearGraphObjects, DrawGfLine) |
 | `DetaurBar_Data.lua` | SavedVariable helpers, 21,000+ item offline database, random alert CRUD functions |
 | `DetaurBar_Minimap.lua` | Minimap button |
@@ -78,7 +80,7 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - **Settings > Loot**: 2 checkboxes (Add, Delete) — default both checked, unchecking hides the corresponding sub-tab from the Loot tab
 - **Settings > Alert**: 9 checkboxes (Dung, Raid, WG, Arena, Random, Enemy, Buffs, Debuffs, Item) — default all checked, unchecking hides the corresponding sub-tab from the Settings/Alert tab
 - **Settings > Price**: 4 checkboxes (News, Chart, Bank, List) — default all checked, unchecking hides the corresponding sub-tab from the Price tab. Below them a divider (`UI-FriendsFrame-OnlineDivider`), then the **Scan auction house** checkbox (`DetaurBarDB.settings.ahScanningEnabled`)
-- **Settings > Various**: 3 checkboxes (Autosell junk and autorepair, Show alerts in chat, Ignore Yell) — persistent v `DetaurBarDB.settings.*`
+- **Settings > Various**: 3 checkboxes (Autosell junk and autorepair, Show alerts in chat, Ignore Yell) — persistent v `DetaurBarDB.settings.*`. Below a divider (`UI-FriendsFrame-OnlineDivider`): **Show armor** checkbox (`showArmorEnabled`), then 4 armor-type rows (Mail/Plate/Cloth/Leather, each `armorShow<Type>` checkbox + clickable icon button opening the armor icon picker `armorIcons[type]`). When **Show armor** is on, armor icons are drawn above EVERY visible enemy player nameplate (no targeting needed, no separate mode checkbox)
 - State stored in `DetaurBarDB.settings.lootSubTabsVisible`, `DetaurBarDB.settings.priceSubTabsVisible`, and `DetaurBarDB.settings.alertSubTabsVisible`
 - Toggle via gear button; closes on tab switch
 
@@ -124,12 +126,20 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
   - 6×6 item grid (36 slots) with icons and counts, sorted by count descending
   - Auto-scan on login, bank open, guild bank open
   - Persistent cache (`DetaurBarDB.bankCache`) stores per-source counts (personal/bank/guildbank)
-  - 3 source checkboxes (Personal, Bank, Guildbank) arranged vertically below the grid — filter which sources contribute to display
+  - 3 source checkboxes (Personal, Bank, Guildbank) stacked vertically below the grid — filter which sources contribute to display. The main frame default/min height is 485 (not 430) so these fit below the 6x6 grid at 36px slots; do not shrink the grid back to 40px slots at 430 height or the checkboxes overflow the panel.
   - Horizontal divider between grid and checkboxes
   - Works with Bagnon addon
 - **List sub-tab**: Create and manage custom item lists (dropdown selector + add/delete). Items added while a specific list is selected get tagged with `list = "ListName"` and only appear in that list (hidden from Default).
   - Delete button shows confirmation dialog (YES/NO) before removing a list
   - DB structure: `DetaurBarDB.priceLists = { ["Default"] = true, ["Gems"] = true, ... }`
+- **Recipes sub-tab**: Track profession recipes with a captured material list.
+  - **Profession dropdown** ("All" + the player's professions). **`GetProfessions()`/`GetProfessionInfo()` do NOT exist in 3.3.5a** — detect professions by iterating `GetNumSkillLines()` and matching `GetSkillLineInfo(i)` (returns `skillName, isHeader, ...`) against the 11 primary profession names plus Cooking/First Aid/Fishing (all open the TradeSkill window); skip header lines, stop at i > 14 (weapon skills follow).
+  - **Recipe link input**: shift-click a recipe from the open profession book (TradeSkill window) into the input box and press Enter. The recipe is matched by name against the open profession window and its icon + reagents are captured at link time (`GetTradeSkillReagentInfo`); the book never needs to be open again.
+    - 3.3.5a gotchas: `GetTradeSkillInfo(i)` returns `name, tradeType, numAvailable, isExpanded` — the 2nd return is `"header"`/`"rank"`, NOT a texture. **Collapsed subclass headers hide their recipes from `GetNumTradeSkills`/`GetTradeSkillInfo`**, and the "Have Materials" filter (`TradeSkillOnlyShowMakeable`) hides un-craftable recipes. Before scanning, expand all collapsed headers (`ExpandTradeSkillSubClass(i)`) and temporarily disable the Have Materials filter, then restore both after. Match recipes robustly by item ID via `GetTradeSkillItemLink(i)` (`item:(\d+)`) falling back to name match.
+  - Click a recipe row = expand/collapse its reagents under the recipe name; delete (X) removes the recipe.
+  - DB: `DetaurBarDB.recipes` (list of `{ id, name, profession, icon, itemId, reagents = { {name, icon, count, itemId} }, created }`), helpers `DetaurBar.Data.AddRecipe` / `DeleteRecipe`. `itemId` is the crafted item ID parsed from the recipe link; reagent `itemId` is resolved offline via `DetaurBar.UI.GetItemIdFromText`. Icons are resolved offline via `DetaurBar.Data.GetItemTexture(itemId)` (NOT `GetTradeSkillInfo` texture, which is wrong in 3.3.5a).
+  - Expanding a recipe inserts one sub-row per reagent (indented icon + `countx name`); clicking a reagent row links it to chat; shift-click on a recipe row links the crafted item.
+  - Recipe and reagent rows show a very small right-aligned threshold badge (`LOW xg` red / `HIGH xg` green) when the item is tracked in the Price list and has `threshold`/`thresholdHigh` set (`DetaurBar.UI.GetItemThresholdText(itemId)`).
 - AH auto-scan: every N minutes when AH opened (page 0 only), configurable in Price > News
 
 ### Alert tab
@@ -190,7 +200,7 @@ DetaurBarDB = {
         ahScanInterval = 10,
         scanEnabledLists = { ["Default"] = true },
         lootSubTabsVisible = { Add = true, Delete = true },
-        priceSubTabsVisible = { News = true, Chart = true, Bank = true, List = true },
+        priceSubTabsVisible = { News = true, Chart = true, Bank = true, List = true, Recipes = true },
         alertSubTabsVisible = { Dung = true, Raid = true, WG = true, Arena = true, Random = true, Enemy = true, Buffs = true, Debuffs = true, Item = true },
         wgAlertsEnabled = true,
         wgShowTimeOnEnemyTracker = false,

@@ -7,11 +7,11 @@ DetaurBar.UI = DetaurBar.UI or {}
 
 -- [MAIN FRAME] CreateFrame with size/position/move/resize, default hidden
 local frame = CreateFrame("Frame", "DetaurBarFrame", UIParent)
-frame:SetSize(300, 430)
+frame:SetSize(300, 485)
 frame:SetPoint("CENTER")
 frame:SetMovable(true)
 frame:SetResizable(true)
-frame:SetMinResize(300, 430)
+frame:SetMinResize(300, 485)
 frame:SetMaxResize(600, 1200)
 frame:Hide() -- Hidden by default
 DetaurBar.UI.frame = frame
@@ -131,6 +131,12 @@ local function RebuildSettingsMenuCheckboxes()
     if panel.priceDivider then
         panel.priceDivider:Hide()
     end
+    if panel.variousDivider then
+        panel.variousDivider:Hide()
+    end
+    if panel.armorIconPickerPanel then
+        panel.armorIconPickerPanel:Hide()
+    end
 
     local settings = DetaurBar.UI.GetSettingsDB()
     local active = DetaurBar.UI.settingsMenuActiveSubTab
@@ -179,7 +185,7 @@ local function RebuildSettingsMenuCheckboxes()
             lab:SetTextColor(1, 0.82, 0, 1)
         end
     elseif active == "Price" then
-        local priceKeys = { "News", "Chart", "List", "Bank" }
+        local priceKeys = { "News", "Chart", "List", "Bank", "Recipes" }
         for idx, key in ipairs(priceKeys) do
             local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
             cb:SetSize(20, 20)
@@ -238,6 +244,95 @@ local function RebuildSettingsMenuCheckboxes()
             lab:SetPoint("LEFT", cb, "RIGHT", 4, 0)
             lab:SetText(entry.label)
             lab:SetTextColor(1, 0.82, 0, 1)
+        end
+        -- Divider below the 3 base checkboxes (created once, reused)
+        local divider = panel.variousDivider
+        if not divider then
+            divider = panel.content:CreateTexture(nil, "ARTWORK")
+            divider:SetTexture("Interface\\FriendsFrame\\UI-FriendsFrame-OnlineDivider")
+            divider:SetHeight(8)
+            panel.variousDivider = divider
+        end
+        divider:ClearAllPoints()
+        divider:SetPoint("TOPLEFT", panel.content, "TOPLEFT", 8, -8 - #variousKeys * 30)
+        divider:SetPoint("TOPRIGHT", panel.content, "TOPRIGHT", -8, -8 - #variousKeys * 30)
+        divider:Show()
+
+        -- Show armor master checkbox
+        local showArmorCb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
+        showArmorCb:SetSize(20, 20)
+        showArmorCb:SetPoint("TOPLEFT", panel.content, "TOPLEFT", 8, -8 - #variousKeys * 30 - 14)
+        showArmorCb:SetChecked(settings.showArmorEnabled and true or false)
+        showArmorCb:SetScript("OnClick", function(self)
+            DetaurBar.Data.InitializeDB()
+            settings.showArmorEnabled = self:GetChecked() and true or false
+        end)
+        local showArmorLab = showArmorCb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        showArmorLab:SetPoint("LEFT", showArmorCb, "RIGHT", 4, 0)
+        showArmorLab:SetText("Show armor")
+        showArmorLab:SetTextColor(1, 0.82, 0, 1)
+
+        -- 4 armor-type rows: checkbox + label + icon button
+        local armorTypes = { "Mail", "Plate", "Cloth", "Leather" }
+        local armorIcons = {
+            Mail = "Interface\\Icons\\INV_Chest_Chain_03",
+            Plate = "Interface\\Icons\\INV_Chest_Plate03",
+            Cloth = "Interface\\Icons\\INV_Chest_Cloth_06",
+            Leather = "Interface\\Icons\\INV_Chest_Leather_04",
+        }
+        for idx, armorKey in ipairs(armorTypes) do
+            local rowY = -8 - #variousKeys * 30 - 14 - 30 - (idx - 1) * 30
+            local cb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
+            cb:SetSize(20, 20)
+            cb:SetPoint("TOPLEFT", panel.content, "TOPLEFT", 8, rowY)
+            cb:SetChecked(settings["armorShow" .. armorKey] ~= false)
+            cb:SetScript("OnClick", function(self)
+                DetaurBar.Data.InitializeDB()
+                settings["armorShow" .. armorKey] = self:GetChecked() and true or false
+            end)
+            local lab = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            lab:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+            lab:SetText(armorKey)
+            lab:SetTextColor(1, 0.82, 0, 1)
+
+            local iconBtn = CreateFrame("Button", nil, panel.content)
+            iconBtn:SetSize(24, 24)
+            iconBtn:SetPoint("LEFT", lab, "RIGHT", 8, 0)
+            local iconTex = iconBtn:CreateTexture(nil, "ARTWORK")
+            iconTex:SetAllPoints(iconBtn)
+            iconBtn.iconTexture = iconTex
+            iconBtn.armorKey = armorKey
+            iconBtn:SetScript("OnClick", function(self)
+                DetaurBar.Data.InitializeDB()
+                local picker = DetaurBar.UI.armorIconPickerPanel
+                if not picker then
+                    DetaurBar.UI.CreateArmorIconPicker()
+                    picker = DetaurBar.UI.armorIconPickerPanel
+                end
+                picker.selectedArmorType = self.armorKey
+                picker:ClearAllPoints()
+                picker:SetPoint("TOPLEFT", self, "BOTTOMLEFT", 0, -2)
+                picker:SetFrameStrata("DIALOG")
+                picker:Show()
+                picker:Raise()
+            end)
+            local function UpdateArmorIconTex()
+                local iconPath = settings.armorIcons and settings.armorIcons[armorKey] or armorIcons[armorKey]
+                iconTex:SetTexture(iconPath)
+                iconTex:Show()
+            end
+            UpdateArmorIconTex()
+            iconBtn.UpdateIcon = UpdateArmorIconTex
+            panel.armorIconButtons = panel.armorIconButtons or {}
+            panel.armorIconButtons[armorKey] = iconBtn
+        end
+
+        -- If icon picker exists, hide it on sub-tab rebuild and refresh shown icons
+        if panel.armorIconPickerPanel then
+            panel.armorIconPickerPanel:Hide()
+        end
+        for _, btn in pairs(panel.armorIconButtons or {}) do
+            if btn.UpdateIcon then btn.UpdateIcon() end
         end
     end
 end
@@ -330,6 +425,106 @@ local function CreateSettingsMenuPanel()
     DetaurBar.UI.settingsMenuPanel = panel
 end
 
+-- [SETTINGS MENU] Armor icon picker — small panel with preset armor icons
+local ARMOR_PICKER_ICONS = {
+    "Interface\\Icons\\INV_Chest_Chain_03",
+    "Interface\\Icons\\INV_Chest_Chain_07",
+    "Interface\\Icons\\INV_Chest_Chain_08",
+    "Interface\\Icons\\INV_Chest_Chain_12",
+    "Interface\\Icons\\INV_Chest_Plate03",
+    "Interface\\Icons\\INV_Chest_Plate04",
+    "Interface\\Icons\\INV_Chest_Plate05",
+    "Interface\\Icons\\INV_Chest_Plate06",
+    "Interface\\Icons\\INV_Chest_Plate08",
+    "Interface\\Icons\\INV_Chest_Plate10",
+    "Interface\\Icons\\INV_Chest_Cloth_01",
+    "Interface\\Icons\\INV_Chest_Cloth_06",
+    "Interface\\Icons\\INV_Chest_Cloth_07",
+    "Interface\\Icons\\INV_Chest_Cloth_08",
+    "Interface\\Icons\\INV_Chest_Cloth_09",
+    "Interface\\Icons\\INV_Chest_Cloth_10",
+    "Interface\\Icons\\INV_Chest_Leather_01",
+    "Interface\\Icons\\INV_Chest_Leather_02",
+    "Interface\\Icons\\INV_Chest_Leather_04",
+    "Interface\\Icons\\INV_Chest_Leather_05",
+    "Interface\\Icons\\INV_Chest_Leather_06",
+    "Interface\\Icons\\INV_Chest_Leather_07",
+    "Interface\\Icons\\INV_Chest_Leather_08",
+    "Interface\\Icons\\INV_Chest_Leather_10",
+    "Interface\\Icons\\INV_Misc_ArmorKit_02",
+    "Interface\\Icons\\INV_Shoulder_24",
+    "Interface\\Icons\\INV_Shoulder_25",
+    "Interface\\Icons\\INV_Shoulder_31",
+    "Interface\\Icons\\INV_Shoulder_32",
+    "Interface\\Icons\\INV_Helmet_12",
+    "Interface\\Icons\\INV_Helmet_13",
+    "Interface\\Icons\\INV_Helmet_15",
+}
+
+function DetaurBar.UI.CreateArmorIconPicker()
+    if DetaurBar.UI.armorIconPickerPanel then return end
+    local picker = CreateFrame("Frame", "DetaurBarArmorIconPicker", UIParent)
+    picker:SetSize(170, 160)
+    picker:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 12, edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    picker:SetBackdropColor(0.1, 0.08, 0.06, 0.98)
+    picker:SetBackdropBorderColor(1.0, 0.82, 0.0, 0.9)
+    picker:EnableMouse(true)
+    picker:Hide()
+
+    local cols = 4
+    local size = 36
+    local gap = 4
+    local pickerButtons = {}
+    for i, iconPath in ipairs(ARMOR_PICKER_ICONS) do
+        local col = (i - 1) % cols
+        local row = math.floor((i - 1) / cols)
+        local btn = CreateFrame("Button", nil, picker)
+        btn:SetSize(size, size)
+        btn:SetPoint("TOPLEFT", picker, "TOPLEFT", 6 + col * (size + gap), -6 - row * (size + gap))
+        local tex = btn:CreateTexture(nil, "ARTWORK")
+        tex:SetAllPoints(btn)
+        tex:SetTexture(iconPath)
+        btn.iconPath = iconPath
+        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints(btn)
+        hl:SetTexture(1.0, 1.0, 1.0, 0.2)
+        btn:SetScript("OnClick", function(self)
+            DetaurBar.Data.InitializeDB()
+            local armorType = picker.selectedArmorType
+            if armorType then
+                DetaurBarDB.settings.armorIcons = DetaurBarDB.settings.armorIcons or {}
+                DetaurBarDB.settings.armorIcons[armorType] = self.iconPath
+                picker:Hide()
+                local panel = DetaurBar.UI.settingsMenuPanel
+                if panel and panel.armorIconButtons and panel.armorIconButtons[armorType] then
+                    panel.armorIconButtons[armorType].iconTexture:SetTexture(self.iconPath)
+                end
+            end
+        end)
+        pickerButtons[i] = btn
+    end
+
+    picker.SetSelectedArmorType = function(self, armorType)
+        self.selectedArmorType = armorType
+    end
+    picker.Close = function(self)
+        self:Hide()
+    end
+
+    -- Close on ESC / click outside handled by frame OnUpdate guard (simple hide)
+    picker:SetScript("OnMouseDown", function(self)
+        self:Hide()
+    end)
+
+    picker:Hide()
+    DetaurBar.UI.armorIconPickerPanel = picker
+end
+
 -- [STATE] Tab names, active tab
 local tabs = {}
 local tabNames = { "Notes", "Loot", "Price", "Settings" }
@@ -351,6 +546,9 @@ function DetaurBar.UI.ToggleSettingsMenu()
     end
     local panel = DetaurBar.UI.settingsMenuPanel
     if panel:IsShown() then
+        if DetaurBar.UI.armorIconPickerPanel then
+            DetaurBar.UI.armorIconPickerPanel:Hide()
+        end
         panel:Hide()
         DetaurBar.UI.settingsMenuPanelVisible = false
         DetaurBar.UI.SelectTab("Notes")
@@ -512,6 +710,34 @@ function DetaurBar.UI.GetUsableItemLink(text)
     return itemLink, nil
 end
 
+-- [ITEM HELPERS] GetItemThresholds — returns the tracked price item (with threshold/thresholdHigh) for an itemId, or nil
+function DetaurBar.UI.GetItemThresholds(itemId)
+    if not itemId then return nil end
+    local items = DetaurBar.Data.GetItems("price")
+    for _, item in ipairs(items) do
+        if DetaurBar.UI.GetItemIdFromText(item.title) == itemId then
+            return item
+        end
+    end
+    return nil
+end
+
+-- [ITEM HELPERS] GetItemThresholdText — small colored "Xg Yg" string if the item is tracked with thresholds
+function DetaurBar.UI.GetItemThresholdText(itemId)
+    local item = DetaurBar.UI.GetItemThresholds(itemId)
+    if not item then return nil end
+    local low = item.threshold and item.threshold > 0 and item.threshold
+    local high = item.thresholdHigh and item.thresholdHigh > 0 and item.thresholdHigh
+    if not low and not high then return nil end
+    local t = ""
+    if low then t = "|cffffd700" .. low .. "G|r" end
+    if high then
+        if low then t = t .. "  " end
+        t = t .. "|cffff8000" .. high .. "G|r"
+    end
+    return t
+end
+
 -- [DRAG-DROP] OnReceiveDragHandler — imports dragged items into active tab/category
 local function OnReceiveDragHandler()
     local infoType, itemId, itemLink = GetCursorInfo()
@@ -651,6 +877,7 @@ function DetaurBar.UI.UpdateContentAnchors()
         if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
         if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
         if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
+        if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
         return
     end
     if DetaurBar.UI.settingsMenuPanel then DetaurBar.UI.settingsMenuPanel:Hide() end
@@ -664,6 +891,7 @@ function DetaurBar.UI.UpdateContentAnchors()
         if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
         if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
         if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
+        if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
         if DetaurBar.UI.alertSubTabBar then DetaurBar.UI.alertSubTabBar:Show() end
         if DetaurBar.UI.alertListBackground then DetaurBar.UI.alertListBackground:Show() end
         if DetaurBar.UI.alertScrollFrame then DetaurBar.UI.alertScrollFrame:Show() end
@@ -698,6 +926,8 @@ function DetaurBar.UI.UpdateContentAnchors()
     if activeTab == "Price" and DetaurBar.UI.activePriceItemSubTab == "Chart" then
         scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -120)
     elseif activeTab == "Price" and DetaurBar.UI.activePriceItemSubTab == "List" then
+        scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -150)
+    elseif activeTab == "Price" and DetaurBar.UI.activePriceItemSubTab == "Recipes" then
         scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -150)
     elseif activeTab == "Notes" or activeTab == "Price" then
         scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -88)
@@ -758,6 +988,7 @@ function DetaurBar.UI.UpdateContentAnchors()
             if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
             if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Show() end
             if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
+            if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
         elseif DetaurBar.UI.activePriceItemSubTab == "Bank" then
             if scrollFrame then scrollFrame:Hide() end
             if DetaurBar.UI.listBackground then DetaurBar.UI.listBackground:Hide() end
@@ -769,6 +1000,7 @@ function DetaurBar.UI.UpdateContentAnchors()
             if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
             if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
             if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Show() end
+            if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
         elseif DetaurBar.UI.activePriceItemSubTab == "List" then
             if scrollFrame then scrollFrame:Show() end
             if DetaurBar.UI.listBackground then DetaurBar.UI.listBackground:Show() end
@@ -781,6 +1013,20 @@ function DetaurBar.UI.UpdateContentAnchors()
             if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Show() end
             if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
             if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
+            if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
+        elseif DetaurBar.UI.activePriceItemSubTab == "Recipes" then
+            if scrollFrame then scrollFrame:Show() end
+            if DetaurBar.UI.listBackground then DetaurBar.UI.listBackground:Show() end
+            scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 50)
+            if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
+            if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
+            if DetaurBar.UI.priceGraphPanel then DetaurBar.UI.priceGraphPanel:Hide() end
+            if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
+            if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
+            if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
+            if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
+            if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
+            if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Show() end
         else
             -- Fallback (News-like default layout)
             if scrollFrame then scrollFrame:Show() end
@@ -794,6 +1040,7 @@ function DetaurBar.UI.UpdateContentAnchors()
             if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
             if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
             if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
+            if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
         end
     elseif activeTab == "Notes" then
         scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 84)
@@ -804,6 +1051,7 @@ function DetaurBar.UI.UpdateContentAnchors()
         if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
         if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
         if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
+        if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
     else
         scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 50)
         if DetaurBar.UI.priceSubTabBar then DetaurBar.UI.priceSubTabBar:Hide() end
@@ -813,6 +1061,7 @@ function DetaurBar.UI.UpdateContentAnchors()
         if DetaurBar.UI.priceChartToolbar then DetaurBar.UI.priceChartToolbar:Hide() end
         if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
         if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
+        if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
     end
 end
 
@@ -957,6 +1206,29 @@ local GRAPH_PAD_T = 8
 local GRAPH_PAD_B = 20
 
 -- [ROW FACTORY] CreateRowFrame — builds a pooled row frame with all child controls
+-- Helper: price items visible under the current list filter (Chart/List sub-tab).
+local function GetVisiblePriceItems()
+    local items = DetaurBar.Data.GetItems("price")
+    if not items then return nil end
+    if DetaurBar.UI.activePriceItemSubTab == "News" or DetaurBar.UI.activePriceItemSubTab == "Bank" or not DetaurBar.UI.activePriceListName then
+        return items
+    end
+    if DetaurBar.UI.activePriceListName == "All" then
+        return items
+    end
+    local filtered = {}
+    for _, item in ipairs(items) do
+        if DetaurBar.UI.activePriceListName == "Default" then
+            if not item.list then
+                table.insert(filtered, item)
+            end
+        elseif item.list == DetaurBar.UI.activePriceListName then
+            table.insert(filtered, item)
+        end
+    end
+    return filtered
+end
+
 local function CreateRowFrame(index)
     local row = CreateFrame("Frame", "DetaurBarRow_" .. index, scrollChild)
     row:SetHeight(rowHeight)
@@ -1041,12 +1313,45 @@ local function CreateRowFrame(index)
     titleText:SetJustifyH("LEFT") -- Force left-alignment
     titleText:SetNonSpaceWrap(true) -- Allow breaking long words/URLs if required
     row.titleText = titleText
+
+    -- Very small threshold badge (Recipes sub-tab: LOW/HIGH gold thresholds for tracked items)
+    local thresholdText = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    thresholdText:SetFont("Fonts\\FRIZQT___CYR.ttf", 8, "OUTLINE")
+    thresholdText:SetJustifyH("RIGHT")
+    thresholdText:Hide()
+    row.thresholdText = thresholdText
     
     -- Handle Shift-click on item row to link it to active chat frame, or click on notes to copy
     row:SetScript("OnMouseDown", function(self, button)
         if button == "LeftButton" then
+            if row.isReagentRow then
+                if row.reagentItemId then
+                    local itemLink = DetaurBar.UI.GetUsableItemLink(row.reagentItemId)
+                    if itemLink then
+                        HandleModifiedItemClick(itemLink)
+                    end
+                end
+                return
+            end
             if IsShiftKeyDown() then
-                if row.itemCategory == "loot_add" or row.itemCategory == "loot_delete" or row.itemCategory == "sell" or row.itemCategory == "price" then
+                if row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab == "Recipes" then
+                    local recipe
+                    for _, r in ipairs(DetaurBar.Data.GetItems("recipes")) do
+                        if r.id == self.itemId then recipe = r break end
+                    end
+                    if recipe then
+                        local craftedId = recipe.itemId
+                        if not craftedId and recipe.name then
+                            craftedId = DetaurBar.UI.GetItemIdFromText(recipe.name)
+                        end
+                        if craftedId then
+                            local itemLink = DetaurBar.UI.GetUsableItemLink(craftedId)
+                            if itemLink then
+                                HandleModifiedItemClick(itemLink)
+                            end
+                        end
+                    end
+                elseif row.itemCategory == "loot_add" or row.itemCategory == "loot_delete" or row.itemCategory == "sell" or row.itemCategory == "price" then
                     local itemDetail = DetaurBar.Data.GetItemById(row.itemCategory, self.itemId)
                     if itemDetail and itemDetail.title then
                         local itemLink = DetaurBar.UI.GetUsableItemLink(itemDetail.title)
@@ -1057,16 +1362,26 @@ local function CreateRowFrame(index)
                 end
             else
                 if row.itemCategory == "price" then
-                    if DetaurBar.UI.expandedPriceItemId == self.itemId then
-                        DetaurBar.UI.expandedPriceItemId = nil
+                    if DetaurBar.UI.activePriceItemSubTab == "Recipes" then
+                        -- Recipes: click row to expand/collapse reagents
+                        if DetaurBar.UI.expandedRecipeId == self.itemId then
+                            DetaurBar.UI.expandedRecipeId = nil
+                        else
+                            DetaurBar.UI.expandedRecipeId = self.itemId
+                        end
+                        DetaurBar.UI.RefreshTasks()
                     else
-                        DetaurBar.UI.expandedPriceItemId = self.itemId
+                        if DetaurBar.UI.expandedPriceItemId == self.itemId then
+                            DetaurBar.UI.expandedPriceItemId = nil
+                        else
+                            DetaurBar.UI.expandedPriceItemId = self.itemId
+                        end
+                        -- Also select for threshold row in "Chart" subtab
+                        if DetaurBar.UI.activePriceItemSubTab == "Chart" then
+                            DetaurBar.UI.SetSelectedPriceItem(self.itemId)
+                        end
+                        DetaurBar.UI.RefreshTasks()
                     end
-                    -- Also select for threshold row in "Chart" subtab
-        if DetaurBar.UI.activePriceItemSubTab == "Chart" then
-                        DetaurBar.UI.SetSelectedPriceItem(self.itemId)
-                    end
-                    DetaurBar.UI.RefreshTasks()
                 end
             end
         end
@@ -1119,7 +1434,26 @@ local function CreateRowFrame(index)
         self.bg:SetTexture(1.0, 0.82, 0.0, 0.1) -- Subtle gold highlight on hover
         
         -- GameTooltip hover support for item linking categories (Loot/Sell/Price)
-        if row.itemCategory == "loot_add" or row.itemCategory == "loot_delete" or row.itemCategory == "sell" or row.itemCategory == "price" then
+        if row.isReagentRow then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:ClearLines()
+            if row.reagentItemId then
+                local _, serverLink = GetItemInfo(row.reagentItemId)
+                if serverLink then
+                    GameTooltip:SetHyperlink(serverLink)
+                else
+                    local name = DetaurBar.UI.GetOfflineItemNameById(row.reagentItemId)
+                    GameTooltip:AddLine(name or (row.reagentName or "?"), 1.0, 1.0, 1.0)
+                    GameTooltip:AddLine("ID: " .. row.reagentItemId, 0.7, 0.7, 0.7)
+                end
+            else
+                GameTooltip:AddLine(row.reagentName or "?", 1.0, 1.0, 1.0)
+            end
+            if row.reagentItemId then
+                GameTooltip:AddLine("Click to link to chat", 0.5, 0.5, 0.5)
+            end
+            GameTooltip:Show()
+        elseif row.itemCategory == "loot_add" or row.itemCategory == "loot_delete" or row.itemCategory == "sell" or row.itemCategory == "price" then
             local itemDetail = DetaurBar.Data.GetItemById(row.itemCategory, self.itemId)
             if itemDetail and itemDetail.title then
                 local itemLink = DetaurBar.UI.GetUsableItemLink(itemDetail.title)
@@ -1188,7 +1522,12 @@ local function CreateRowFrame(index)
     
     deleteBtn:SetScript("OnClick", function(self)
         if row.itemId and row.itemCategory then
-            if row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab == "News" then
+            if row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab == "Recipes" then
+                DetaurBar.Data.DeleteRecipe(row.itemId)
+                if DetaurBar.UI.expandedRecipeId == row.itemId then
+                    DetaurBar.UI.expandedRecipeId = nil
+                end
+            elseif row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab == "News" then
                 local item = DetaurBar.Data.GetItemById("price", row.itemId)
                 if item then
                     if row.notifType ~= "high" then
@@ -1228,6 +1567,26 @@ local function CreateRowFrame(index)
             DetaurBar.UI.RefreshTasks()
         end
     end)
+
+    deleteBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:ClearLines()
+        if row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab == "Recipes" then
+            GameTooltip:AddLine("Delete Recipe", 1.0, 1.0, 1.0)
+            GameTooltip:AddLine("Removes this recipe from the list.", 0.5, 0.5, 0.5)
+        elseif row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab == "News" then
+            GameTooltip:AddLine("Remove Alert", 1.0, 1.0, 1.0)
+            GameTooltip:AddLine("Removes this item from the alert list", 0.5, 0.5, 0.5)
+            GameTooltip:AddLine("and clears its threshold.", 0.5, 0.5, 0.5)
+        else
+            GameTooltip:AddLine("Delete", 1.0, 1.0, 1.0)
+            GameTooltip:AddLine("Removes this item from the list.", 0.5, 0.5, 0.5)
+        end
+        GameTooltip:Show()
+    end)
+    deleteBtn:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
     
     swapBtn:SetScript("OnClick", function(self)
         if row.itemId and row.itemCategory == "loot_add" then
@@ -1237,16 +1596,25 @@ local function CreateRowFrame(index)
                 DetaurBar.UI.RefreshTasks()
             end
         elseif row.itemId and row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab == "Chart" and DetaurBar.UI.GetSettingsDB().chartOrderMode then
-            local category = "price"
-            local items = DetaurBar.Data.GetItems(category)
+            local items = DetaurBar.Data.GetItems("price")
             if not items then return end
+            local visible = GetVisiblePriceItems()
+            if not visible then return end
             local idx
-            for i, v in ipairs(items) do
+            for i, v in ipairs(visible) do
                 if v.id == row.itemId then idx = i; break end
             end
             if idx and idx > 1 then
-                items[idx], items[idx-1] = items[idx-1], items[idx]
-                DetaurBar.UI.RefreshTasks()
+                local target = visible[idx-1]
+                local rowIdx, targetIdx
+                for i, v in ipairs(items) do
+                    if v.id == row.itemId then rowIdx = i end
+                    if v.id == target.id then targetIdx = i end
+                end
+                if rowIdx and targetIdx then
+                    items[rowIdx], items[targetIdx] = items[targetIdx], items[rowIdx]
+                    DetaurBar.UI.RefreshTasks()
+                end
             end
         elseif row.itemId and row.itemCategory == "price" then
             DetaurBar.UI.SelectPriceItemSubTab("Chart")
@@ -1277,16 +1645,25 @@ local function CreateRowFrame(index)
     -- Down button (Price Order reorder)
     downBtn:SetScript("OnClick", function(self)
         if row.itemId and row.itemCategory == "price" and DetaurBar.UI.activePriceItemSubTab == "Chart" and DetaurBar.UI.GetSettingsDB().chartOrderMode then
-            local category = "price"
-            local items = DetaurBar.Data.GetItems(category)
+            local items = DetaurBar.Data.GetItems("price")
             if not items then return end
+            local visible = GetVisiblePriceItems()
+            if not visible then return end
             local idx
-            for i, v in ipairs(items) do
+            for i, v in ipairs(visible) do
                 if v.id == row.itemId then idx = i; break end
             end
-            if idx and idx < #items then
-                items[idx], items[idx+1] = items[idx+1], items[idx]
-                DetaurBar.UI.RefreshTasks()
+            if idx and idx < #visible then
+                local target = visible[idx+1]
+                local rowIdx, targetIdx
+                for i, v in ipairs(items) do
+                    if v.id == row.itemId then rowIdx = i end
+                    if v.id == target.id then targetIdx = i end
+                end
+                if rowIdx and targetIdx then
+                    items[rowIdx], items[targetIdx] = items[targetIdx], items[rowIdx]
+                    DetaurBar.UI.RefreshTasks()
+                end
             end
         end
     end)
@@ -1448,8 +1825,30 @@ function DetaurBar.UI.RefreshTasks()
         end
     end
     local items = DetaurBar.Data.GetItems(category)
+    -- Recipes sub-tab: pull from recipe DB, filtered by selected profession
+    if category == "price" and DetaurBar.UI.activePriceItemSubTab == "Recipes" then
+        local allRecipes = DetaurBar.Data.GetItems("recipes")
+        local prof = DetaurBar.UI.activeRecipeProfession
+        local expandedList = {}
+        for _, recipe in ipairs(allRecipes) do
+            if not prof or prof == "All" or recipe.profession == prof then
+                table.insert(expandedList, recipe)
+                if DetaurBar.UI.expandedRecipeId == recipe.id then
+                    local reagents = recipe.reagents
+                    if reagents and #reagents > 0 then
+                        for _, reagent in ipairs(reagents) do
+                            table.insert(expandedList, { isReagent = true, recipeId = recipe.id, reagent = reagent })
+                        end
+                    else
+                        table.insert(expandedList, { isReagent = true, recipeId = recipe.id, reagent = { name = "(no reagents captured)", count = nil, icon = nil } })
+                    end
+                end
+            end
+        end
+        items = expandedList
+    end
     -- Filter price items by selected list (Chart or List sub-tab)
-    if category == "price" and DetaurBar.UI.activePriceItemSubTab ~= "News" and DetaurBar.UI.activePriceItemSubTab ~= "Bank" and DetaurBar.UI.activePriceListName then
+    if category == "price" and DetaurBar.UI.activePriceItemSubTab ~= "News" and DetaurBar.UI.activePriceItemSubTab ~= "Bank" and DetaurBar.UI.activePriceItemSubTab ~= "Recipes" and DetaurBar.UI.activePriceListName then
         local filtered = {}
         for _, item in ipairs(items) do
             if DetaurBar.UI.activePriceListName == "All" then
@@ -1514,6 +1913,11 @@ function DetaurBar.UI.RefreshTasks()
         row.itemId = item.id
         row.itemCategory = category
         row.notifType = nil
+        row.isReagentRow = false
+        row.reagentItemId = nil
+        row.reagentName = nil
+        row.thresholdText:Hide()
+        row.itemIcon:SetPoint("LEFT", row, "LEFT", 6, 0)
         
         -- Clear prior points to allow layout realignment
         row.titleText:ClearAllPoints()
@@ -1571,6 +1975,88 @@ function DetaurBar.UI.RefreshTasks()
             row.downBtn:Hide()
             row.listCopyBtn:Hide()
 
+            if DetaurBar.UI.activePriceItemSubTab == "Recipes" then
+                -- Recipes subtab: recipe row (icon + name) + expandable reagent sub-rows
+                row.swapBtn:Hide()
+
+                if item.isReagent then
+                    -- Reagent sub-row: icon + "countx name", click to link to chat
+                    row.deleteBtn:Hide()
+                    local reagent = item.reagent
+                    local reagentId = reagent.itemId
+                    if not reagentId and reagent.name then
+                        reagentId = DetaurBar.UI.GetItemIdFromText(reagent.name)
+                    end
+                    local icon = reagent.icon
+                    if reagentId then
+                        local offlineIcon = DetaurBar.Data.GetItemTexture(reagentId)
+                        if offlineIcon then icon = offlineIcon end
+                    end
+                    if icon then
+                        row.itemIcon:SetPoint("LEFT", row, "LEFT", 26, 0)
+                        row.itemIcon:SetTexture(icon)
+                        row.itemIcon:Show()
+                        row.titleText:SetPoint("LEFT", row.itemIcon, "RIGHT", 6, 0)
+                    else
+                        row.itemIcon:Hide()
+                        row.titleText:SetPoint("LEFT", row, "LEFT", 26, 0)
+                    end
+                    local thrText = DetaurBar.UI.GetItemThresholdText(reagentId)
+                    if thrText then
+                        row.thresholdText:SetText(thrText)
+                        row.thresholdText:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+                        row.thresholdText:Show()
+                        row.titleText:SetPoint("RIGHT", row.thresholdText, "LEFT", -4, 0)
+                    else
+                        row.thresholdText:Hide()
+                        row.titleText:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+                    end
+                    row.titleText:SetText((reagent.count and reagent.count .. "x " or "") .. (reagent.name or "?"))
+                    row.titleText:SetTextColor(0.85, 0.85, 0.85, 1.0)
+                    row.isReagentRow = true
+                    row.reagentItemId = reagentId
+                    row.reagentName = reagent.name
+                else
+                    -- Recipe row: offline-resolved icon + name, click to expand/collapse reagents
+                    row.deleteBtn:Show()
+                    local recipe = item
+                    local recipeId = recipe.itemId
+                    if not recipeId and recipe.name then
+                        recipeId = DetaurBar.UI.GetItemIdFromText(recipe.name)
+                    end
+                    local icon = recipe.icon
+                    if recipeId then
+                        local offlineIcon = DetaurBar.Data.GetItemTexture(recipeId)
+                        if offlineIcon then icon = offlineIcon end
+                        if not recipe.itemId then
+                            recipe.itemId = recipeId
+                            recipe.icon = icon or recipe.icon
+                        end
+                    end
+                    if icon then
+                        row.itemIcon:SetPoint("LEFT", row, "LEFT", 6, 0)
+                        row.itemIcon:SetTexture(icon)
+                        row.itemIcon:Show()
+                        row.titleText:SetPoint("LEFT", row.itemIcon, "RIGHT", 8, 0)
+                    else
+                        row.itemIcon:Hide()
+                        row.titleText:SetPoint("LEFT", row, "LEFT", 8, 0)
+                    end
+                    local thrText = DetaurBar.UI.GetItemThresholdText(recipeId)
+                    if thrText then
+                        row.thresholdText:SetText(thrText)
+                        row.thresholdText:SetPoint("RIGHT", row.deleteBtn, "LEFT", -4, 0)
+                        row.thresholdText:Show()
+                        row.titleText:SetPoint("RIGHT", row.thresholdText, "LEFT", -4, 0)
+                    else
+                        row.thresholdText:Hide()
+                        row.titleText:SetPoint("RIGHT", row.deleteBtn, "LEFT", -8, 0)
+                    end
+                    row.titleText:SetText(recipe.name or "Unknown recipe")
+                    row.titleText:SetTextColor(1.0, 1.0, 1.0, 1.0)
+                end
+
+            else
                 -- News subtab: simple display with current price
             if DetaurBar.UI.activePriceItemSubTab == "News" then
                 row.deleteBtn:Show()
@@ -1738,6 +2224,7 @@ function DetaurBar.UI.RefreshTasks()
                         row.titleText:SetTextColor(1, 1, 1, 1)
                     end
                 end
+            end
             end
 
         elseif category == "loot_add" or category == "loot_delete" or category == "sell" then
@@ -1960,6 +2447,8 @@ function DetaurBar.UI.UpdateInputPlaceholder()
     elseif activeTab == "Price" then
         if DetaurBar.UI.activePriceItemSubTab == "Chart" then
             placeholderText:SetText("Enter item to track...")
+        elseif DetaurBar.UI.activePriceItemSubTab == "Recipes" then
+            placeholderText:SetText("")
         elseif DetaurBar.UI.activePriceItemSubTab == "Bank" then
             placeholderText:SetText("")
         elseif DetaurBar.UI.activePriceItemSubTab == "List" then
@@ -2017,6 +2506,7 @@ function DetaurBar.UI.SelectTab(tabName)
         if DetaurBar.UI.priceListPanel then DetaurBar.UI.priceListPanel:Hide() end
         if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
         if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
+        if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
         if DetaurBar.UI.alertSubTabBar then DetaurBar.UI.alertSubTabBar:Show() end
         if DetaurBar.UI.alertPanel then DetaurBar.UI.alertPanel:Show() end
         if DetaurBar.UI.alertListBackground then DetaurBar.UI.alertListBackground:Show() end
@@ -2126,6 +2616,7 @@ function DetaurBar.UI.SelectTab(tabName)
         if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
         if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
         if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
+        if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
         editBox:Show()
         addButton:Show()
         if DetaurBar.UI.alertPanel then DetaurBar.UI.alertPanel:Hide() end
@@ -2196,9 +2687,16 @@ end)
 -- [HOOK] HandleModifiedItemClick override — inserts item link into edit box if focused
 local orig_HandleModifiedItemClick = HandleModifiedItemClick
 function HandleModifiedItemClick(link)
-    if DetaurBarFrame and DetaurBarFrame:IsShown() and editBox:HasFocus() then
-        editBox:Insert(link)
-        return true
+    if DetaurBarFrame and DetaurBarFrame:IsShown() then
+        -- Recipes sub-tab input box gets spell/item links via shift-click
+        if DetaurBar.UI.recipesLinkBox and DetaurBar.UI.recipesLinkBox:HasFocus() then
+            DetaurBar.UI.recipesLinkBox:Insert(link)
+            return true
+        end
+        if editBox:HasFocus() then
+            editBox:Insert(link)
+            return true
+        end
     end
     if orig_HandleModifiedItemClick then
         return orig_HandleModifiedItemClick(link)

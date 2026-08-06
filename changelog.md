@@ -1,5 +1,68 @@
 # Changelog
 
+## 2026-08-04 — Price Chart: some rows rendered indented
+
+### Fixed
+- **Price > Chart rows appeared pushed right** (and the same in News/Loot) after visiting Price > Recipes. Recipe reagent sub-rows set the pooled row's icon anchor to `LEFT 26` but never restored it, so any Chart/News/Loot row whose pooled frame had previously rendered a reagent kept its icon at x=26, shifting the whole row right. The icon anchor is now reset to the default `LEFT 6` at the top of every row render in `RefreshTasks` (Recipes still overrides it to 26 for reagent sub-rows).
+
+## 2026-08-04 — Bank: source checkboxes fell outside the panel
+
+### Fixed
+- **Price > Bank: the Personal/Bank/Guildbank checkboxes were below the visible panel** at the default frame size (300x430). The 6x6 grid + divider + 3 stacked checkboxes needed ~370px but the panel was only ~296px, so the checkboxes rendered off-screen (and a horizontal workaround made them overlap). The frame's default/min height is now **485** (`DetaurBar_UI.lua`, was 430) so the vertically stacked checkboxes fit below the divider; the grid slots stay 36px (gap 1) so the full 6x6 grid + 3 checkboxes need ~340px against the ~351px panel.
+
+## 2026-08-04 — Recipes: show thresholds on tracked items
+
+### Added
+- **Threshold badges in Price > Recipes**: if a recipe's crafted item (or a reagent) is tracked in the Price list and has thresholds set, a very small `Xg` / `Yg` badge is shown right-aligned on that row — gold (`cffffd700`) for the low threshold, orange (`cffff8000`) for the high one, no LOW/HIGH words. Recipe rows get the crafted item's thresholds, reagent rows get each reagent's own thresholds. Resolved via `DetaurBar.UI.GetItemThresholdText(itemId)` (price list lookup by item ID).
+
+## 2026-08-04 — Recipes: fix "could not find" for hidden recipes
+
+### Fixed
+- **Some recipes couldn't be added** ("Could not find ... in the open profession window", e.g. Last Week's Mammoth). In 3.3.5a, collapsed subclass headers hide their recipes from `GetNumTradeSkills`/`GetTradeSkillInfo`, and the "Have Materials" filter hides un-craftable ones. Capture now expands all collapsed headers (`ExpandTradeSkillSubClass`) and temporarily disables the Have Materials filter, then restores both. Matching is done by item ID via `GetTradeSkillItemLink(i)` (`item:(\d+)`) with a name fallback — `GetTradeSkillInfo`'s 2nd return is `"header"`/`"rank"`, not a texture.
+
+## 2026-08-04 — Recipes: correct icons + linkable reagents
+
+### Fixed
+- **Recipe icons were wrong** (e.g. Goblin Rocket Fuel showed Potion of Speed's icon). `GetTradeSkillInfo(i)` returns an unreliable texture in 3.3.5a. The crafted item ID is now parsed from the recipe link and the icon is resolved offline via `DetaurBar.Data.GetItemTexture(itemId)`. Existing recipes are auto-repaired on render (name → offline ID lookup). Recipe entries now store `itemId`.
+- **Expanded reagents were plain text** ("1x Goldthorn"). Each reagent now renders as its own indented sub-row with icon + `countx name` (icons resolved offline). Clicking a reagent row links it to chat; shift-click on a recipe row links the crafted item.
+- Reagent entries now store a resolved `itemId` at capture time (offline name → ID via `DetaurBar.UI.GetItemIdFromText`).
+
+## 2026-08-04 — Price > Recipes sub-tab
+
+### Added
+- **New Price sub-tab "Recipes"**: track your profession recipes with a linked material list.
+- **Profession dropdown** ("All" + your primary professions, detected via `GetNumSkillLines()`/`GetSkillLineInfo(i)` — `GetProfessions()`/`GetProfessionInfo()` do not exist in 3.3.5a). The list below filters recipes by the selected profession.
+- **Recipe link input**: shift-click a recipe in your open profession book (TradeSkill window) into the input box and press Enter. The addon matches the linked recipe by name against the open profession window and captures its icon + reagents (`GetTradeSkillReagentInfo`) at link time, storing them in the recipe entry — the profession book never has to be open again.
+- **Click a recipe row** to expand/collapse its reagents under the recipe name (e.g. `2x Frost Lotus`). Click again to collapse. Delete (X) removes the recipe.
+- Stored in `DetaurBarDB.recipes` (new DB section), created with `DetaurBar.Data.AddRecipe`, removed with `DetaurBar.Data.DeleteRecipe`.
+- New module `DetaurBar_UI_Recipes.lua` added to the TOC after `DetaurBar_UI_Price.lua`.
+
+## 2026-08-04 — Price Chart: list-scoped move up/down + News delete tooltip
+
+### Fixed
+- **Chart move up/down buttons did nothing when a specific price list was selected** (e.g. "Gems"). The reorder worked on the full `price` array, so the button swapped the row with a neighbour that belonged to a different (invisible) list — the displayed order never changed. Now both buttons operate on the list-filtered set (`GetVisiblePriceItems`, same filter logic as `RefreshTasks`) and swap with the adjacent **visible** row.
+- **Price > News delete (X) button had no tooltip.** Added hover tooltip: in News it reads "Remove Alert — Removes this item from the alert list and clears its threshold." (it clears `frequent`/`threshold` or `frequentHigh`/`thresholdHigh`), elsewhere "Delete — Removes this item from the list."
+
+## 2026-08-04 — Armor icons over all visible enemy players
+
+### Changed
+- **Show armor** now draws the armor icon above **every visible enemy player** nameplate — no targeting needed and no separate "All enemies" checkbox. The previous target/mouseover-only mode is gone.
+- **How it works**: in 3.3.5a enemy player nameplates show a class-colored health bar, so the class (and armor type) is read from the bar color via a reverse `RAID_CLASS_COLORS` lookup (the same technique LibNameplates uses). Friendly players show a blue bar and NPCs show reaction colors, so they never match and no icon is drawn for them. Works with default, TidyPlates, Aloft and ElvUI plates.
+- **Performance**: per-plate class-color→armor result is cached (`plateCache`) and only recomputed when the bar color changes; icons are created lazily (only for confirmed enemy plates) and `SetTexture` only runs when the icon path changes. Settings are read once per scan instead of per plate.
+
+### Fixed
+- **Icons showed nothing until mouseover**: the class was only read from the health bar color, and enemy player nameplates are red by default when the client has **Show Class Colors in Nameplates** off — a red bar matches no class. The addon now auto-enables the `ShowClassColorInNameplate` CVar on login so enemy bars become class-colored. The current target and mouseover plates always fall back to reliable unit-based class detection, so those icons work regardless of the CVar.
+
+## 2026-08-03 — Armor type icons on enemy nameplates
+
+### Added
+- **Settings > Various**: below the 3 existing checkboxes a divider (`UI-FriendsFrame-OnlineDivider`) and a **Show armor** checkbox (`DetaurBarDB.settings.showArmorEnabled`).
+- Below it 4 armor-type rows (Mail / Plate / Cloth / Leather), each with an enable checkbox (`armorShowMail`/`armorShowPlate`/`armorShowCloth`/`armorShowLeather`) and a clickable icon button.
+- **Icon picker**: clicking an armor icon opens a small panel with a preset grid of armor icons (`INV_Chest_*`, shoulders, helmets). Selection is saved to `DetaurBarDB.settings.armorIcons[type]`. The picker is hidden on sub-tab switch and settings-menu close, and reuses the same divider pattern (created once, `Hide()`-only).
+- **New module `DetaurBar_UI_ArmorIcons.lua`**: when Show armor is enabled, draws the chosen icon on the nameplate of the current **target** and the **mouseover** unit.
+- 3.3.5a limitation: nameplates have no native unitID (no `C_NamePlate`/`NAME_PLATE_*` events). The plate is matched the same way PlateBuffs does it — target plate has full alpha (≥0.99) and mouseover plate has a visible highlight region, both cross-checked against the unit name. Works with default, TidyPlates, Aloft, Kui, dNameplates and ElvUI plates.
+- Armor type is inferred from class (max-level mapping): Warrior/Paladin/DK→Plate, Hunter/Shaman→Mail, Rogue/Druid→Leather, Mage/Priest/Warlock→Cloth. Only enemy players are shown.
+
 ## 2026-08-01 — Settings menu divider leaked into all sub-tabs
 
 ### Fixed

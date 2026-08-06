@@ -2,7 +2,7 @@
 -- Price tab: price item sub-tabs, graph panel, sub-tab bar, threshold row, AH interval, price sub-tabs
 
 DetaurBar.UI.priceItemSubTabs = {}
-DetaurBar.UI.priceItemSubTabNames = { "News", "Chart", "List", "Bank" }
+DetaurBar.UI.priceItemSubTabNames = { "News", "Chart", "List", "Bank", "Recipes" }
 DetaurBar.UI.activePriceItemSubTab = "News"
 DetaurBar.UI.expandedPriceItemId = nil
 DetaurBar.UI.selectedPriceItemId = nil
@@ -576,12 +576,17 @@ function DetaurBar.UI.SelectPriceItemSubTab(subTabName)
     if DetaurBar.UI.priceListControls then DetaurBar.UI.priceListControls:Hide() end
     if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
     if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
+    if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
     if DetaurBar.UI.scanFilterPanel then
         DetaurBar.UI.scanFilterPanel:Hide()
         if DetaurBar.UI.scrollFrame then DetaurBar.UI.scrollFrame:Show() end
     end
 
-    if subTabName == "News" then
+    if subTabName == "Recipes" then
+        DetaurBar.UI.editBox:Hide()
+        DetaurBar.UI.addButton:Hide()
+        if DetaurBar.UI.ShowRecipesPanel then DetaurBar.UI.ShowRecipesPanel() end
+    elseif subTabName == "News" then
         DetaurBar.UI.editBox:Hide()
         DetaurBar.UI.addButton:Hide()
     elseif subTabName == "Bank" then
@@ -959,16 +964,16 @@ DetaurBar.UI.bankCountLabel = bankCountLabel
 
 local BANK_COLS = 6
 local BANK_ROWS = 6
-local BANK_SLOT_SIZE = 40
-local BANK_SLOT_GAP = 2
+local BANK_SLOT_SIZE = 36
+local BANK_SLOT_GAP = 1
 
 local BANK_GRID_HEIGHT = BANK_ROWS * (BANK_SLOT_SIZE + BANK_SLOT_GAP)
 
 -- 6x6 item grid
 DetaurBar.UI.bankGridFrame = CreateFrame("Frame", "DetaurBarBankGrid", DetaurBar.UI.bankPanel)
-DetaurBar.UI.bankGridFrame:SetPoint("TOPLEFT", DetaurBar.UI.bankThresholdRow, "BOTTOMLEFT", 0, 4)
-DetaurBar.UI.bankGridFrame:SetPoint("BOTTOMLEFT", DetaurBar.UI.bankThresholdRow, "BOTTOMLEFT", 0, 4 - BANK_GRID_HEIGHT)
-DetaurBar.UI.bankGridFrame:SetPoint("TOPRIGHT", DetaurBar.UI.bankThresholdRow, "BOTTOMRIGHT", 0, 4)
+DetaurBar.UI.bankGridFrame:SetPoint("TOPLEFT", DetaurBar.UI.bankThresholdRow, "BOTTOMLEFT", 0, -1)
+DetaurBar.UI.bankGridFrame:SetPoint("BOTTOMLEFT", DetaurBar.UI.bankThresholdRow, "BOTTOMLEFT", 0, -1 - BANK_GRID_HEIGHT)
+DetaurBar.UI.bankGridFrame:SetPoint("TOPRIGHT", DetaurBar.UI.bankThresholdRow, "BOTTOMRIGHT", 0, -1)
 
 function DetaurBar.UI.CreateBankGridSlots()
     if DetaurBar.UI.bankGridSlots then
@@ -1054,7 +1059,7 @@ DetaurBar.UI.bankSourceDivider:SetHeight(8)
 DetaurBar.UI.bankSourceDivider:SetPoint("TOPLEFT", DetaurBar.UI.bankGridFrame, "BOTTOMLEFT", 0, -4)
 DetaurBar.UI.bankSourceDivider:SetPoint("TOPRIGHT", DetaurBar.UI.bankGridFrame, "BOTTOMRIGHT", 0, -4)
 
--- Source checkboxes below each other below divider
+-- Source checkboxes stacked below each other below divider
 local function OnBankSourceCheckboxClick(self)
     local checked = self:GetChecked()
     DetaurBarDB.settings.bankSources[self.source] = checked or false
