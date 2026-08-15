@@ -2,11 +2,18 @@
 -- Price tab: price item sub-tabs, graph panel, sub-tab bar, threshold row, AH interval, price sub-tabs
 
 DetaurBar.UI.priceItemSubTabs = {}
-DetaurBar.UI.priceItemSubTabNames = { "News", "Chart", "List", "Bank", "Recipes" }
-DetaurBar.UI.activePriceItemSubTab = "News"
+DetaurBar.UI.priceItemSubTabNames = { "Chart", "List", "Bank", "Recipes" }
+DetaurBar.UI.activePriceItemSubTab = "Chart"
+DetaurBar.UI.newsViewActive = false
 DetaurBar.UI.expandedPriceItemId = nil
 DetaurBar.UI.selectedPriceItemId = nil
 DetaurBar.UI.activePriceListName = "Default"
+
+-- News is no longer a separate sub-tab: it is a toggle view inside Chart.
+-- True when the Chart sub-tab is showing the News Low/High alert list.
+function DetaurBar.UI.IsNewsView()
+    return DetaurBar.UI.activePriceItemSubTab == "Chart" and DetaurBar.UI.newsViewActive
+end
 
 -- [SUB-TAB STYLE] Price item sub-tab visual
 local function SetPriceItemSubTabStyle(subTab)
@@ -21,7 +28,7 @@ local function SetPriceItemSubTabStyle(subTab)
     end
 end
 
--- [SUB-TABS/PRICE] Create 3 sub-tabs: News, Chart, Order
+-- [SUB-TABS/PRICE] Create 4 sub-tabs: Chart, List, Bank, Recipes
 for i, name in ipairs(DetaurBar.UI.priceItemSubTabNames) do
     local subTab = CreateFrame("Button", "DetaurBarPriceItemSubTab_" .. name, DetaurBar.UI.frame)
     subTab:SetHeight(24)
@@ -139,18 +146,49 @@ local function CreateChartToolbarToggle(texture, tooltipTitle, tooltipText, sett
     return btn
 end
 
-DetaurBar.UI.chartGraphToggle = CreateChartToolbarToggle(
-    "Interface\\Icons\\INV_Misc_Book_01",
-    "Toggle Graph",
-    "Show or hide the price history graph section.",
-    "chartGraphVisible"
-)
-DetaurBar.UI.chartThresholdToggle = CreateChartToolbarToggle(
-    "Interface\\Icons\\INV_Misc_Coin_01",
-    "Toggle Threshold",
-    "Show or hide the price threshold row.",
-    "chartThresholdVisible"
-)
+-- [PRICE/CHART NEWS VIEW TOGGLE] 1st icon — switches the Chart sub-tab between the
+-- classic price chart view and the News Low/High alert list view.
+DetaurBar.UI.newsViewToggle = CreateFrame("Button", "DetaurBarNewsViewToggle", DetaurBar.UI.priceChartToolbar)
+DetaurBar.UI.newsViewToggle:SetSize(22, 22)
+DetaurBar.UI.newsViewToggle:SetPoint("LEFT", DetaurBar.UI.priceChartToolbar, "LEFT", 6, 0)
+DetaurBar.UI.newsViewToggle:SetBackdrop({
+    bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true, tileSize = 12, edgeSize = 12,
+    insets = { left=3, right=3, top=3, bottom=3 }
+})
+local newsViewIcon = DetaurBar.UI.newsViewToggle:CreateTexture(nil, "ARTWORK")
+newsViewIcon:SetSize(16, 16)
+newsViewIcon:SetPoint("CENTER", DetaurBar.UI.newsViewToggle, "CENTER", 0, 0)
+newsViewIcon:SetTexture("Interface\\Icons\\INV_Jewelcrafting_Dragonseye03")
+DetaurBar.UI.newsViewToggle.icon = newsViewIcon
+local newsViewHighlight = DetaurBar.UI.newsViewToggle:CreateTexture(nil, "HIGHLIGHT")
+newsViewHighlight:SetAllPoints(DetaurBar.UI.newsViewToggle)
+newsViewHighlight:SetTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+newsViewHighlight:SetBlendMode("ADD")
+DetaurBar.UI.SetSimpleTooltip(DetaurBar.UI.newsViewToggle, "News View",
+    "Switch between the price chart and the News Low/High price alert list.")
+
+function DetaurBar.UI.newsViewToggle:UpdateVisualState()
+    local on = DetaurBar.UI.newsViewActive
+    self.icon:SetDesaturated(not on)
+    if on then
+        self:SetBackdropColor(0.18, 0.12, 0.06, 0.95)
+        self:SetBackdropBorderColor(1.0, 0.82, 0.0, 1.0)
+    else
+        self:SetBackdropColor(0, 0, 0, 0.55)
+        self:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.9)
+    end
+end
+DetaurBar.UI.newsViewToggle:SetScript("OnClick", function()
+    DetaurBar.UI.newsViewActive = not DetaurBar.UI.newsViewActive
+    DetaurBar.UI.newsViewToggle:UpdateVisualState()
+    DetaurBar.UI.SelectPriceItemSubTab("Chart")
+end)
+DetaurBar.UI.newsViewToggle:UpdateVisualState()
+
+-- [PRICE/CHART ORDER MODE TOGGLE] 2nd icon — sits right of the News view toggle.
+lastChartToggleBtn = DetaurBar.UI.newsViewToggle
 DetaurBar.UI.chartOrderToggle = CreateChartToolbarToggle(
     "Interface\\Buttons\\UI-ScrollBar-ScrollUpButton-Up",
     "Toggle Order Mode",
@@ -158,117 +196,19 @@ DetaurBar.UI.chartOrderToggle = CreateChartToolbarToggle(
     "chartOrderMode"
 )
 
--- [PRICE/LIST SCAN FILTER TOGGLE] 4th icon — shows checkboxes for which lists to AH-scan
-DetaurBar.UI.chartScanFilterToggle = CreateFrame("Button", nil, DetaurBar.UI.priceChartToolbar)
-DetaurBar.UI.chartScanFilterToggle:SetSize(22, 22)
-DetaurBar.UI.chartScanFilterToggle:SetPoint("LEFT", lastChartToggleBtn, "RIGHT", 4, 0)
-lastChartToggleBtn = DetaurBar.UI.chartScanFilterToggle
-
-DetaurBar.UI.chartScanFilterToggle:SetBackdrop({
-    bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-    tile = true, tileSize = 12, edgeSize = 12,
-    insets = { left=3, right=3, top=3, bottom=3 }
-})
-
-local scanFilterIcon = DetaurBar.UI.chartScanFilterToggle:CreateTexture(nil, "ARTWORK")
-scanFilterIcon:SetSize(16, 16)
-scanFilterIcon:SetPoint("CENTER", DetaurBar.UI.chartScanFilterToggle, "CENTER", 0, 0)
-scanFilterIcon:SetTexture("Interface\\Icons\\INV_Misc_Note_02")
-DetaurBar.UI.chartScanFilterToggle.icon = scanFilterIcon
-DetaurBar.UI.chartScanFilterToggle.icon:SetDesaturated(true)
-
-local scanFilterHighlight = DetaurBar.UI.chartScanFilterToggle:CreateTexture(nil, "HIGHLIGHT")
-scanFilterHighlight:SetAllPoints(DetaurBar.UI.chartScanFilterToggle)
-scanFilterHighlight:SetTexture("Interface\\Buttons\\UI-Common-MouseHilight")
-scanFilterHighlight:SetBlendMode("ADD")
-
-DetaurBar.UI.SetSimpleTooltip(DetaurBar.UI.chartScanFilterToggle, "Scan Filter", "Toggle which price lists are included in AH scanning.")
-
--- Checkbox panel anchored below the toolbar
-DetaurBar.UI.scanFilterPanel = CreateFrame("Frame", "DetaurBarScanFilterPanel", DetaurBar.UI.priceChartToolbar)
-DetaurBar.UI.scanFilterPanel:SetWidth(140)
-DetaurBar.UI.scanFilterPanel:SetHeight(10)
-DetaurBar.UI.scanFilterPanel:SetPoint("TOPLEFT", DetaurBar.UI.priceChartToolbar, "BOTTOMLEFT", 6, 0)
-DetaurBar.UI.scanFilterPanel:Hide()
-DetaurBar.UI.scanFilterPanel:SetFrameLevel(DetaurBar.UI.priceChartToolbar:GetFrameLevel() + 5)
-
-local function RebuildScanFilterCheckboxes()
-    for _, child in ipairs(DetaurBar.UI.scanFilterPanel.children or {}) do
-        child:Hide()
-    end
-    DetaurBar.UI.scanFilterPanel.children = {}
-
-    DetaurBar.Data.InitializeDB()
-    local settings = DetaurBar.Data.GetSettings()
-    local enabledLists = settings.scanEnabledLists or {}
-    local listNames = {}
-    for name in pairs(DetaurBarDB.priceLists) do
-        if name ~= "All" then table.insert(listNames, name) end
-    end
-    table.sort(listNames)
-
-    local y = -11
-    for _, name in ipairs(listNames) do
-        local captured = name
-        local cb = CreateFrame("CheckButton", nil, DetaurBar.UI.scanFilterPanel, "UICheckButtonTemplate")
-        cb:SetSize(18, 18)
-        cb:SetPoint("TOPLEFT", DetaurBar.UI.scanFilterPanel, "TOPLEFT", 6, y)
-        cb:SetChecked(enabledLists[captured])
-
-        local label = cb:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        label:SetPoint("LEFT", cb, "RIGHT", 4, 0)
-        label:SetText(captured)
-        label:SetTextColor(1, 1, 1, 1)
-
-        cb:SetScript("OnClick", function(self2)
-            DetaurBar.Data.InitializeDB()
-            DetaurBar.Data.GetSettings().scanEnabledLists[captured] = self2:GetChecked()
-        end)
-
-        table.insert(DetaurBar.UI.scanFilterPanel.children, cb)
-        table.insert(DetaurBar.UI.scanFilterPanel.children, label)
-        y = y - 22
-    end
-
-    local totalH = math.abs(y - 4) + 4
-    if totalH < 10 then totalH = 10 end
-    DetaurBar.UI.scanFilterPanel:SetHeight(totalH)
-end
-
-DetaurBar.UI.chartScanFilterToggle:SetScript("OnClick", function()
-    if DetaurBar.UI.scanFilterPanel:IsShown() then
-        DetaurBar.UI.scanFilterPanel:Hide()
-        if DetaurBar.UI.scrollFrame then DetaurBar.UI.scrollFrame:Show() end
-        DetaurBar.UI.chartScanFilterToggle:SetBackdropColor(0, 0, 0, 0.55)
-        DetaurBar.UI.chartScanFilterToggle:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.9)
-        DetaurBar.UI.chartScanFilterToggle.icon:SetDesaturated(true)
-    else
-        RebuildScanFilterCheckboxes()
-        if DetaurBar.UI.scrollFrame then DetaurBar.UI.scrollFrame:Hide() end
-        DetaurBar.UI.scanFilterPanel:Show()
-        DetaurBar.UI.chartScanFilterToggle:SetBackdropColor(0.18, 0.12, 0.06, 0.95)
-        DetaurBar.UI.chartScanFilterToggle:SetBackdropBorderColor(1.0, 0.82, 0.0, 1.0)
-        DetaurBar.UI.chartScanFilterToggle.icon:SetDesaturated(false)
-    end
-end)
-
--- [PRICE/CHART BUY/SELL TOGGLE] 5th icon — show/hide buy/sell markers on graph
-DetaurBar.UI.chartBuySellToggle = CreateChartToolbarToggle(
-    "Interface\\Icons\\INV_Misc_Bag_01",
-    "Toggle Buy/Sell Markers",
-    "Show or hide buy/sell history markers on the price graph.",
-    "chartBuySellVisible"
-)
-
--- [PRICE/CHART LIST DROPDOWN] right side of toolbar
+-- [PRICE/CHART LIST DROPDOWN] right side of toolbar.
+-- This is the single list filter: it filters the item list in Chart view AND
+-- selects which lists the AH scan includes (scanFilterList), which also drives
+-- what the News view shows.
 local function InitChartListDropdown()
     local function AddStaticListEntry(text, value)
         local info = UIDropDownMenu_CreateInfo()
         info.text = text
         info.value = value
         info.func = function()
+            DetaurBar.Data.InitializeDB()
             DetaurBar.UI.activePriceListName = value
+            DetaurBarDB.settings.scanFilterList = value
             UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, text)
             DetaurBar.UI.RefreshTasks()
         end
@@ -288,7 +228,9 @@ local function InitChartListDropdown()
         info2.text = captured
         info2.value = captured
         info2.func = function()
+            DetaurBar.Data.InitializeDB()
             DetaurBar.UI.activePriceListName = captured
+            DetaurBarDB.settings.scanFilterList = captured
             UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, captured)
             DetaurBar.UI.RefreshTasks()
         end
@@ -301,7 +243,8 @@ DetaurBar.UI.chartListDropdown:SetPoint("RIGHT", DetaurBar.UI.priceChartToolbar,
 DetaurBar.UI.chartListDropdown:SetWidth(96)
 UIDropDownMenu_SetAnchor(DetaurBar.UI.chartListDropdown, 0, 0, "TOPLEFT", DetaurBar.UI.chartListDropdown, "BOTTOMLEFT")
 UIDropDownMenu_Initialize(DetaurBar.UI.chartListDropdown, InitChartListDropdown)
-UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, "Default")
+DetaurBar.Data.InitializeDB()
+UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, DetaurBarDB.settings.scanFilterList or "All")
 
 -- [PRICE/GRAPH PANEL] fixed bottom section, shown only on Price tab
 DetaurBar.UI.priceGraphPanel = CreateFrame("Frame", "DetaurBarPriceGraphPanel", DetaurBar.UI.frame)
@@ -577,18 +520,11 @@ function DetaurBar.UI.SelectPriceItemSubTab(subTabName)
     if DetaurBar.UI.priceAhIntervalRow then DetaurBar.UI.priceAhIntervalRow:Hide() end
     if DetaurBar.UI.bankPanel then DetaurBar.UI.bankPanel:Hide() end
     if DetaurBar.UI.recipesPanel then DetaurBar.UI.recipesPanel:Hide() end
-    if DetaurBar.UI.scanFilterPanel then
-        DetaurBar.UI.scanFilterPanel:Hide()
-        if DetaurBar.UI.scrollFrame then DetaurBar.UI.scrollFrame:Show() end
-    end
 
     if subTabName == "Recipes" then
         DetaurBar.UI.editBox:Hide()
         DetaurBar.UI.addButton:Hide()
         if DetaurBar.UI.ShowRecipesPanel then DetaurBar.UI.ShowRecipesPanel() end
-    elseif subTabName == "News" then
-        DetaurBar.UI.editBox:Hide()
-        DetaurBar.UI.addButton:Hide()
     elseif subTabName == "Bank" then
         DetaurBar.UI.editBox:Hide()
         DetaurBar.UI.addButton:Hide()
@@ -602,31 +538,37 @@ function DetaurBar.UI.SelectPriceItemSubTab(subTabName)
         DetaurBar.UI.addButton:Show()
         DetaurBar.UI.ShowPriceListPanel()
     else
-        -- Chart sub-tab
+        -- Chart sub-tab: classic price chart view OR News Low/High alert list view
         local settings = DetaurBar.UI.GetSettingsDB()
+        DetaurBar.UI.activePriceListName = settings.scanFilterList or "All"
         if DetaurBar.UI.priceChartToolbar then
             DetaurBar.UI.priceChartToolbar:Show()
-            UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, DetaurBar.UI.activePriceListName or "Default")
+            UIDropDownMenu_SetText(DetaurBar.UI.chartListDropdown, DetaurBar.UI.activePriceListName)
         end
-        if settings.chartGraphVisible then
-            DetaurBar.UI.priceGraphPanel:Show()
-            DetaurBar.UI.priceSubTabBar:Show()
-            DetaurBar.UI.priceThresholdRow:ClearAllPoints()
-            DetaurBar.UI.priceThresholdRow:SetPoint("BOTTOMLEFT", DetaurBar.UI.priceSubTabBar, "TOPLEFT", 0, 4)
-            DetaurBar.UI.priceThresholdRow:SetPoint("BOTTOMRIGHT", DetaurBar.UI.priceSubTabBar, "TOPRIGHT", 0, 4)
+        if DetaurBar.UI.newsViewActive then
+            DetaurBar.UI.editBox:Hide()
+            DetaurBar.UI.addButton:Hide()
         else
-            DetaurBar.UI.priceGraphPanel:Hide()
-            DetaurBar.UI.priceSubTabBar:Hide()
-            DetaurBar.UI.priceThresholdRow:ClearAllPoints()
-            DetaurBar.UI.priceThresholdRow:SetPoint("BOTTOMLEFT", DetaurBar.UI.frame, "BOTTOMLEFT", 16, 46)
-            DetaurBar.UI.priceThresholdRow:SetPoint("BOTTOMRIGHT", DetaurBar.UI.frame, "BOTTOMRIGHT", -20, 46)
-        end
-        DetaurBar.UI.editBox:Show()
-        DetaurBar.UI.addButton:Show()
-        if settings.chartThresholdVisible then
-            DetaurBar.UI.UpdateThresholdRow()
-        else
-            if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
+            if settings.chartGraphVisible then
+                DetaurBar.UI.priceGraphPanel:Show()
+                DetaurBar.UI.priceSubTabBar:Show()
+                DetaurBar.UI.priceThresholdRow:ClearAllPoints()
+                DetaurBar.UI.priceThresholdRow:SetPoint("BOTTOMLEFT", DetaurBar.UI.priceSubTabBar, "TOPLEFT", 0, 4)
+                DetaurBar.UI.priceThresholdRow:SetPoint("BOTTOMRIGHT", DetaurBar.UI.priceSubTabBar, "TOPRIGHT", 0, 4)
+            else
+                DetaurBar.UI.priceGraphPanel:Hide()
+                DetaurBar.UI.priceSubTabBar:Hide()
+                DetaurBar.UI.priceThresholdRow:ClearAllPoints()
+                DetaurBar.UI.priceThresholdRow:SetPoint("BOTTOMLEFT", DetaurBar.UI.frame, "BOTTOMLEFT", 16, 46)
+                DetaurBar.UI.priceThresholdRow:SetPoint("BOTTOMRIGHT", DetaurBar.UI.frame, "BOTTOMRIGHT", -20, 46)
+            end
+            DetaurBar.UI.editBox:Show()
+            DetaurBar.UI.addButton:Show()
+            if settings.chartThresholdVisible then
+                DetaurBar.UI.UpdateThresholdRow()
+            else
+                if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
+            end
         end
     end
 
@@ -643,7 +585,7 @@ end
 
 -- [PRICE] DetaurBar.UI.UpdateThresholdRow
 function DetaurBar.UI.UpdateThresholdRow()
-    if DetaurBar.UI.activePriceItemSubTab ~= "Chart" then
+    if DetaurBar.UI.activePriceItemSubTab ~= "Chart" or DetaurBar.UI.newsViewActive then
         if DetaurBar.UI.priceThresholdRow then DetaurBar.UI.priceThresholdRow:Hide() end
         return
     end
@@ -727,6 +669,12 @@ function DetaurBar.UI.SavePriceThreshold()
     if item then
         item.threshold = lowGold
         item.thresholdHigh = highGold
+        if lowGold <= 0 then
+            item.frequent = nil
+        end
+        if highGold <= 0 then
+            item.frequentHigh = nil
+        end
         DetaurBar.UI.UpdateThresholdRow()
         DetaurBar.UI.RefreshTasks()
     end

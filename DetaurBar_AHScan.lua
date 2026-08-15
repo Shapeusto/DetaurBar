@@ -309,21 +309,23 @@ function DetaurBar.AHScan.StartScan(force)
     if not force and not settings.ahScanningEnabled then return end
     if not force and (time() - lastScanTime) < GetAHScanIntervalSeconds() then return end
     local priceItems = DetaurBar.Data.GetItems("price")
-    local enabledLists = settings.scanEnabledLists or {}
+    local scanFilterList = settings.scanFilterList or "All"
     scanQueue = {}
     for _, item in ipairs(priceItems) do
         local itemId = tonumber(item.title:match("item:(%d+)"))
                     or tonumber(item.title:match("^%d+$") and item.title)
         if itemId then
             local itemList = item.list
-            if itemList then
-                if enabledLists[itemList] then
-                    table.insert(scanQueue, itemId)
-                end
+            local include = false
+            if scanFilterList == "All" then
+                include = true
+            elseif itemList then
+                include = (scanFilterList == itemList)
             else
-                if enabledLists["Default"] then
-                    table.insert(scanQueue, itemId)
-                end
+                include = (scanFilterList == "Default")
+            end
+            if include then
+                table.insert(scanQueue, itemId)
             end
         end
     end

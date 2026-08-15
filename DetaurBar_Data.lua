@@ -162,8 +162,26 @@ function DetaurBar.Data.InitializeDB()
     if DetaurBarDB.settings.ahScanningEnabled == nil then
         DetaurBarDB.settings.ahScanningEnabled = true
     end
-    if not DetaurBarDB.settings.scanEnabledLists then
-        DetaurBarDB.settings.scanEnabledLists = { ["Default"] = true }
+    -- [SCAN FILTER 2026-08-15] single-select instead of the old checkbox table.
+    -- Old: scanEnabledLists = { ["Default"] = true, ["Gems"] = true, ... } (multi)
+    -- New: scanFilterList = "All" | "Default" | "<list name>" (single)
+    if DetaurBarDB.settings.scanEnabledLists and not DetaurBarDB.settings.scanFilterList then
+        local checked = {}
+        local count = 0
+        for name, on in pairs(DetaurBarDB.settings.scanEnabledLists) do
+            if on then checked[name] = true count = count + 1 end
+        end
+        if count <= 1 then
+            local only
+            for name in pairs(checked) do only = name end
+            DetaurBarDB.settings.scanFilterList = only or "All"
+        else
+            DetaurBarDB.settings.scanFilterList = "All"
+        end
+        DetaurBarDB.settings.scanEnabledLists = nil
+    end
+    if not DetaurBarDB.settings.scanFilterList then
+        DetaurBarDB.settings.scanFilterList = "All"
     end
     if DetaurBarDB.settings.wgAlertsEnabled == nil then
         DetaurBarDB.settings.wgAlertsEnabled = false
@@ -274,7 +292,7 @@ function DetaurBar.Data.InitializeDB()
         DetaurBarDB.settings.lootSubTabsVisible = { ["Add"] = true, ["Delete"] = true }
     end
     if not DetaurBarDB.settings.priceSubTabsVisible then
-        DetaurBarDB.settings.priceSubTabsVisible = { ["News"] = true, ["Chart"] = true, ["Bank"] = true, ["List"] = true, ["Recipes"] = true }
+        DetaurBarDB.settings.priceSubTabsVisible = { ["Chart"] = true, ["Bank"] = true, ["List"] = true, ["Recipes"] = true }
     end
     if not DetaurBarDB.settings.alertSubTabsVisible then
         DetaurBarDB.settings.alertSubTabsVisible = { ["Dung"] = true, ["Raid"] = true, ["WG"] = true, ["Random"] = true, ["Enemy"] = true, ["Buffs"] = true, ["Debuffs"] = true, ["Item"] = true, ["Arena"] = true }
@@ -456,6 +474,32 @@ function DetaurBar.Data.InitializeDB()
             fixList(DetaurBarDB.loot.refuse)
         end
         DetaurBarDB._migratedHerbIdsV4 = true
+    end
+
+    -- [MIGRATION 2026-08-14 v5] Remove stale frequent/frequentHigh flags from price items
+    -- whose threshold was cleared (0/nil). Cheap News list (Low/High price) must only
+    -- contain items that actually still have an active threshold.
+    if not DetaurBarDB._migratedFrequentV5 then
+        local function clearStaleFreq(list)
+            if list and type(list) == "table" then
+                for _, item in ipairs(list) do
+                    if type(item) == "table" then
+                        if not item.threshold or item.threshold <= 0 then
+                            item.frequent = nil
+                        end
+                        if not item.thresholdHigh or item.thresholdHigh <= 0 then
+                            item.frequentHigh = nil
+                        end
+                    end
+                end
+            end
+        end
+        for _, factionList in pairs(DetaurBarDB.price) do
+            if type(factionList) == "table" then
+                clearStaleFreq(factionList)
+            end
+        end
+        DetaurBarDB._migratedFrequentV5 = true
     end
 end
 

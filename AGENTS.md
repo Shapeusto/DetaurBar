@@ -55,7 +55,7 @@ You are a code assistant specialized in World of Warcraft addon development for 
 | `DetaurBar_UI_Todo.lua` | Todo sub-tabs (Day/Week/Month) + SelectTodoSubTab |
 | `DetaurBar_UI_Notes.lua` | Notes sub-tabs (General/War/Guild) + drag-to-move + SelectNotesSubTab |
 | `DetaurBar_UI_Loot.lua` | Loot sub-tabs (Add/Delete) + deleteAllGraysCheckbox + SelectLootSubTab |
-| `DetaurBar_UI_Price.lua` | Price item sub-tabs (News/Chart/Bank/List), graph panel, threshold row, AH interval, price sub-tabs, bank grid/scan, all price functions |
+| `DetaurBar_UI_Price.lua` | Price item sub-tabs (Chart/Bank/List/Recipes + News view toggle), graph panel, threshold row, AH interval, price sub-tabs, bank grid/scan, all price functions |
 | `DetaurBar_UI_Recipes.lua` | Price > Recipes sub-tab: profession dropdown, recipe link input, reagent capture, expand/collapse recipe rows |
 | `DetaurBar_UI_Settings.lua` | Alert panel (Dung/Raid/WG/Random/Enemy/Buffs/Item sub-tabs, flash alerts, flash frames) |
 | `DetaurBar_UI_Buffs.lua` | Buffs tracking: cooldown expiry alerts, stacking buff change alerts, center-screen icon display |
@@ -79,7 +79,7 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - Panel has 4 sub-tabs: **Loot**, **Alert**, **Price**, **Various**
 - **Settings > Loot**: 2 checkboxes (Add, Delete) — default both checked, unchecking hides the corresponding sub-tab from the Loot tab
 - **Settings > Alert**: 9 checkboxes (Dung, Raid, WG, Arena, Random, Enemy, Buffs, Debuffs, Item) — default all checked, unchecking hides the corresponding sub-tab from the Settings/Alert tab
-- **Settings > Price**: 4 checkboxes (News, Chart, Bank, List) — default all checked, unchecking hides the corresponding sub-tab from the Price tab. Below them a divider (`UI-FriendsFrame-OnlineDivider`), then the **Scan auction house** checkbox (`DetaurBarDB.settings.ahScanningEnabled`)
+- **Settings > Price**: 4 checkboxes (Chart, List, Bank, Recipes) — default all checked, unchecking hides the corresponding sub-tab from the Price tab. Below them a divider (`UI-FriendsFrame-OnlineDivider`), then the **Scan auction house** checkbox (`DetaurBarDB.settings.ahScanningEnabled`)
 - **Settings > Various**: 3 checkboxes (Autosell junk and autorepair, Show alerts in chat, Ignore Yell) — persistent v `DetaurBarDB.settings.*`. Below a divider (`UI-FriendsFrame-OnlineDivider`): **Show armor** checkbox (`showArmorEnabled`), then 4 armor-type rows (Mail/Plate/Cloth/Leather, each `armorShow<Type>` checkbox + clickable icon button opening the armor icon picker `armorIcons[type]`). When **Show armor** is on, armor icons are drawn above EVERY visible enemy player nameplate (no targeting needed, no separate mode checkbox)
 - State stored in `DetaurBarDB.settings.lootSubTabsVisible`, `DetaurBarDB.settings.priceSubTabsVisible`, and `DetaurBarDB.settings.alertSubTabsVisible`
 - Toggle via gear button; closes on tab switch
@@ -106,21 +106,21 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
 - SavedVariable: `DetaurBarDB.price` (list of tracked items)
 - SavedVariable: `DetaurBarDB.priceHistory[itemId][timestampStr] = copperPerItem`
 - Category string: `"price"`
-- **Four sub-tabs: News / Chart / Bank / List**
-- **News sub-tab**: Auto-populated alert list (items below threshold)
-  - Shows item icon, name, current price in gold
-  - No graph, no time filters — clean compact list
-  - Delete (X) removes from Low price AND clears threshold
-- **Chart sub-tab**: Full tracking with threshold management, order mode toggle (up/down arrow reordering in Chart itself)
-  - Split layout: scrollable item list, threshold row, time filters, graph panel (120px)
+- **Four sub-tabs: Chart / Bank / List / Recipes** (News is no longer a sub-tab — see below)
+- **Chart sub-tab** has TWO views toggled by the **News icon** in the toolbar (`DetaurBar.UI.newsViewToggle`, icon `INV_Jewelcrafting_Dragonseye03`, state `DetaurBar.UI.newsViewActive`):
+  - **Chart view** (default): Full tracking with threshold management, order mode toggle. Split layout: scrollable item list, threshold row, time filters, graph panel (120px).
+  - **News view** (toggle icon active): Auto-populated alert list (items below low threshold / above high threshold). **Clicking an item row jumps to the Chart view with that item's graph open** (sets `expandedPriceItemId`, switches `newsViewActive` off, forces `chartGraphVisible = true`, selects it in the threshold row, calls `SelectPriceItemSubTab("Chart")`); header rows are ignored.
+    - Shows item icon, name, current price in gold; no graph, no time filters — clean compact list
+    - Delete (X) removes from Low price AND clears threshold
+    - At the bottom: **Scan AH button + AH Scan Interval** row (`DetaurBar.UI.priceAhIntervalRow`), exactly as the old News sub-tab layout.
+  - The News view is only reached while the Chart sub-tab is active (`DetaurBar.UI.IsNewsView()` = `activePriceItemSubTab == "Chart" and newsViewActive`). All row rendering, filtering and layout branches keyed off `activePriceItemSubTab == "News"` were converted to `IsNewsView()`.
   - **Threshold row** (above time filters): selected item icon + name + 4-digit gold input + gold icon + OK (✓) / Clear (X)
   - Click item row = expand/collapse price graph + auto-selects item in threshold row
   - Items with thresholds show `[Xg]` next to name
   - Sub-tab bar: **Daily**, **Weekly**, **Monthly**, **Yearly**
   - Graph: dot-stepping lines, 3 X/Y axis labels
-  - **Toolbar icons** (left side): Graph toggle, Threshold toggle, Order mode toggle, Scan filter toggle (4th icon)
-  - **Scan filter toggle**: opens checkbox panel below toolbar — one checkbox per list. Checked lists are included in AH scanning. Panel closes on sub-tab switch and hides the item list while open.
-  - **List selector dropdown** (right side of toolbar): filter items by list. "Default" shows only items without a list assignment.
+  - **Toolbar icons** (left side): News view toggle + Order mode toggle (Graph / Threshold / Buy-Sell toggles were removed)
+- **List selector dropdown** (right side of toolbar, `DetaurBar.UI.chartListDropdown`): this is the **single list filter** — it filters the item list in Chart view AND selects which lists the AH scan includes AND what News view shows. Options: `All` (everything), `Default` (items without a list), or one specific list. Stored in `DetaurBarDB.settings.scanFilterList`; `activePriceListName` is synced to it when entering the Chart sub-tab. (The separate "AH scan filter" bar with its own dropdown + News Display Mode toggle was removed — News always respects this dropdown.)
 - **Bank sub-tab**: Scans bags, personal bank, and guild bank for items with count ≥ threshold
   - Threshold input box (numeric) at top — changing threshold instantly refilters
   - 6×6 item grid (36 slots) with icons and counts, sorted by count descending
@@ -140,7 +140,7 @@ The addon has 4 main tabs: **Note**, **Loot**, **Price**, **Alert**
   - DB: `DetaurBarDB.recipes` (list of `{ id, name, profession, icon, itemId, reagents = { {name, icon, count, itemId} }, created }`), helpers `DetaurBar.Data.AddRecipe` / `DeleteRecipe`. `itemId` is the crafted item ID parsed from the recipe link; reagent `itemId` is resolved offline via `DetaurBar.UI.GetItemIdFromText`. Icons are resolved offline via `DetaurBar.Data.GetItemTexture(itemId)` (NOT `GetTradeSkillInfo` texture, which is wrong in 3.3.5a).
   - Expanding a recipe inserts one sub-row per reagent (indented icon + `countx name`); clicking a reagent row links it to chat; shift-click on a recipe row links the crafted item.
   - Recipe and reagent rows show a very small right-aligned threshold badge (`LOW xg` red / `HIGH xg` green) when the item is tracked in the Price list and has `threshold`/`thresholdHigh` set (`DetaurBar.UI.GetItemThresholdText(itemId)`).
-- AH auto-scan: every N minutes when AH opened (page 0 only), configurable in Price > News
+- AH auto-scan: every N minutes when AH opened (page 0 only), configurable in Price > Chart (News view)
 
 ### Alert tab
 - 9 sub-tabs: **Dung**, **Raid**, **WG**, **Arena**, **Random**, **Enemy**, **Buffs**, **Debuffs**, **Item** (visibility controlled by Settings Menu > Alert)
@@ -198,9 +198,10 @@ DetaurBarDB = {
         dungeonFlashColor = "YELLOW",
         dungeonFlashDuration = 0,
         ahScanInterval = 10,
-        scanEnabledLists = { ["Default"] = true },
+        scanFilterList = "All",  -- "All" | "Default" | "<list name>" — single list filter (Chart toolbar dropdown): filters the Chart list AND selects the AH scan lists AND what News view shows
+        newsViewActive = false,  -- runtime only (not persisted): Chart sub-tab shows News view when true
         lootSubTabsVisible = { Add = true, Delete = true },
-        priceSubTabsVisible = { News = true, Chart = true, Bank = true, List = true, Recipes = true },
+        priceSubTabsVisible = { Chart = true, Bank = true, List = true, Recipes = true },
         alertSubTabsVisible = { Dung = true, Raid = true, WG = true, Arena = true, Random = true, Enemy = true, Buffs = true, Debuffs = true, Item = true },
         wgAlertsEnabled = true,
         wgShowTimeOnEnemyTracker = false,
@@ -265,7 +266,7 @@ Each item in a list is:
 - Ignores 0-result events (Auctioneer interference)
 - Shows progress bar anchored below AH frame during scan
 - After scan: calls `DetaurBar.UI.RefreshTasks()` to update graph
-- List filtering: only items whose list is in `DetaurBarDB.settings.scanEnabledLists` are scanned. "Default" checkbox controls items without a list. Unchecked lists are skipped.
+- List filtering: only items matching `DetaurBarDB.settings.scanFilterList` are scanned — `"All"` scans everything, `"Default"` scans only items without a list, a list name scans only items in that list.
 
 ## Price Graph (DetaurBar_UI_Graph.lua)
 

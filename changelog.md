@@ -1,5 +1,63 @@
 # Changelog
 
+## 2026-08-15 — News view: new icon + click-through to Chart graph
+
+### Changed
+- **The News view toggle icon in Price > Chart is now `INV_Jewelcrafting_Dragonseye03`** (previously `INV_Misc_Note_02`), at `DetaurBar_UI_Price.lua`.
+
+### Added
+- **Clicking an item row in the News view now jumps to the Chart view with that item's graph open** (`DetaurBar_UI.lua`, row `OnMouseDown`). It sets `expandedPriceItemId` to the clicked item, switches `newsViewActive` off (and updates the toggle visual state), forces `chartGraphVisible = true`, selects the item in the threshold row and calls `SelectPriceItemSubTab("Chart")`. Header rows (Low/High price, No alerts) are ignored.
+
+## 2026-08-15 — Swapped Chart toolbar toggle order
+
+### Changed
+- The **News view toggle** is now the first (leftmost) icon in the Chart toolbar (anchored at `priceChartToolbar` LEFT 6) and the **Order mode toggle** sits right of it (anchored to its RIGHT). Previously the Order mode toggle was leftmost.
+
+## 2026-08-15 — Removed the "AH scan filter" bar; the Chart toolbar dropdown is now the single list filter
+
+### Changed
+- **The separate "AH scan filter:" bar (label + dropdown + News Display Mode toggle) is gone.** It was shown only in the News view and the user decided it should not be there — News view now shows just the Low/High alert list with the **Scan AH + AH Scan Interval** row at the bottom.
+- **`DetaurBar.UI.chartListDropdown` (right side of the Chart toolbar) is now the single list filter.** Selecting a list sets BOTH `activePriceListName` (Chart item list filter) AND `DetaurBarDB.settings.scanFilterList` (which lists the AH scan includes + what News view shows). News view always respects this dropdown.
+- **Removed code:** `newsScanFilterRow`, `newsScanFilterDropdown` (+ `UpdateNewsScanFilterDropdownText`), `newsModeToggle` and the `newsShowMode` setting (including its DB init). News view scroll frame top is back to y = -120.
+- On entering the Chart sub-tab, `activePriceListName` is synced from `scanFilterList` and the dropdown text reflects `scanFilterList` (default `All`).
+
+## 2026-08-15 — News merged into Chart as a toggle view
+
+### Changed
+- **News is no longer a separate sub-tab.** The Price item sub-tabs are now `Chart / List / Bank / Recipes`. News is now a **view inside the Chart sub-tab**, switched by a new **News toggle icon** in the Chart toolbar (`DetaurBar.UI.newsViewToggle`, `INV_Misc_Note_02`, active state `DetaurBar.UI.newsViewActive`).
+- **Chart toolbar icons:** the **Toggle Graph**, **Toggle Threshold** and **Toggle Buy/Sell** icons were removed. Only **Toggle Order Mode** and the new **News view toggle** remain.
+- **News view** (toggle ON): shows the Low/High price alert list; the **AH scan filter** row (dropdown + display-mode toggle) appears directly below the toolbar (`newsScanFilterRow`, y = -120) and the **Scan AH + AH Scan Interval** row sits at the bottom (`priceAhIntervalRow`), exactly as the old News sub-tab. The enter-item bar, threshold row and graph are hidden.
+- **Chart view** (toggle OFF): everything as before — threshold bar, graph, sub-tab bar and enter-item bar.
+- **Code:** all `activePriceItemSubTab == "News"` branches were converted to the helper `DetaurBar.UI.IsNewsView()` (= `activePriceItemSubTab == "Chart" and newsViewActive`) in `RefreshTasks`, `UpdateContentAnchors`, `UpdateInputPlaceholder`, `AddNewItem`, drag-drop and row handlers. Default active sub-tab is now `"Chart"`. Settings > Price no longer lists a News checkbox.
+
+## 2026-08-15 — News bar layout tuning (icon placement)
+
+### Changed
+- **Fine-tuned the position of the News display mode toggle icon** (`DetaurBar.UI.newsModeToggle`) so it sits inside the News scan filter bar.
+- **Bar layout (final):** left side = the "AH scan filter:" title label, right side = toggle icon + select box. The icon is anchored to the **left edge of the dropdown** (`RIGHT / LEFT` point) with `x = 15, y = 2`.
+- **Why these offsets exist:** the icon was originally placed outside the bar (right-aligned to the bar edge, `RIGHT / RIGHT`), which overlapped the selectbox. We then moved it to the left of the dropdown and made several small adjustments (`-4 → +4 → +9 → +13 → +15` px, `0 → 2` px) purely to line up the layout. Any future edits to this row must keep the **Title | icon, selectbox** structure and the icon anchored to the dropdown's left edge, NOT to the bar's right edge.
+
+## 2026-08-15 — News list respects AH scan filter + display mode toggle
+
+### Added
+- **New toggle icon on the Price > News scan filter bar** (left of the caption dropdown, `DetaurBar.UI.newsModeToggle`, icon `INV_Misc_Note_02`, with tooltip): ON (gold border) = `DetaurBarDB.settings.newsShowMode == "selected"` — News Low/High list only shows items from the list selected in the AH scan filter dropdown (e.g. selecting `Gems` filters News to Gems items; `Default` shows only items without a list; `All` shows everything). OFF (desaturated) = `"everything"` — News always shows Low/High items from all lists regardless of the filter. Clicking the icon calls `RefreshTasks`.
+- The display-mode control now lives in **Price > News** (as a toolbar toggle); it was removed from Settings > Price.
+
+## 2026-08-15 — Scan filter moved from Chart toolbar to a News dropdown
+
+### Changed
+- **The AH scan list filter is no longer a toolbar icon in Price > Chart.** The 4th toolbar icon (note icon with a checkbox panel listing every price list) is gone — the Chart toolbar now only has Graph, Threshold, Order mode and Buy/Sell markers.
+- **New single-select dropdown in Price > News**, placed directly below the sub-tabs and above the Low price list ("AH scan filter:", right-aligned). It lists every price list plus `All` and `Default` — you pick exactly one. Checkboxes are gone.
+- DB: `DetaurBarDB.settings.scanEnabledLists` (multi-select table) is replaced by `DetaurBarDB.settings.scanFilterList` (a single string: `"All"`, `"Default"`, or a list name). Existing data is migrated on load (one checked list keeps that list; multiple/empty map to `"All"`). Default is `"All"`.
+- AH scanning (`DetaurBar_AHScan.StartScan`) now uses `scanFilterList`: `All` scans every price item, `Default` only items without a list, a list name only items in that list.
+
+## 2026-08-15 — Price > News: cleared threshold left stale Low/High price alerts
+
+### Fixed
+- **Items kept showing in Price > News > Low/High price after clearing their Min/Max threshold** (e.g. Potent Ametrine, Luminous Ametrine). The News list is driven by the sticky `frequent`/`frequentHigh` alert flags (set by the AH scan), not by the threshold value itself. Saving an empty/0 threshold via the ✓ button set `threshold = 0` but left the flag set, so the item stayed in the News list indefinitely (the AH scan skips items without a positive threshold and never cleaned it up).
+- `SavePriceThreshold` (`DetaurBar_UI_Price.lua`) now clears `frequent` when the low threshold is saved as 0/blank, and `frequentHigh` when the high threshold is 0/blank, so a cleared threshold immediately removes the item from News.
+- Added a one-time DB migration that clears already-stuck `frequent`/`frequentHigh` flags on existing price items whose threshold is 0/unset, so News only lists items that actually have an active threshold.
+
 ## 2026-08-04 — Price Chart: some rows rendered indented
 
 ### Fixed
